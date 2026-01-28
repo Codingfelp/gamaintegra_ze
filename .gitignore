@@ -81,3 +81,7 @@ android-sdk/ zedelivery-clean/.git/objects/pack/pack-9b701eb68ac0cd045e65592a241
 zedelivery-clean/.git/objects/pack/pack-9b701eb68ac0cd045e65592a24151e95d9879a75.pack
 zedelivery-clean/node_modules/electron/dist/electron
 zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
+-e 
+# Environment files
+*.env
+*.env.*
