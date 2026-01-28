@@ -382,7 +382,7 @@ def check_process_running(name):
     """Verifica se um processo está rodando pelo nome via PM2"""
     try:
         result = subprocess.run(
-            ["pm2", "jlist"],
+            ["/usr/bin/pm2", "jlist"],
             capture_output=True,
             text=True,
             timeout=5
