@@ -449,8 +449,43 @@ async def status_services():
     return {"success": True, "data": services}
 
 @app.get("/api/services/logs")
-async def get_logs(limit: int = 100):
-    return {"success": True, "data": node_logs[-limit:]}
+async def get_logs(limit: int = 100, source: str = "all"):
+    """Retorna logs separados por fonte"""
+    if source == "v1":
+        return {"success": True, "data": logs_v1[-limit:], "source": "v1"}
+    elif source == "v1-itens":
+        return {"success": True, "data": logs_v1_itens[-limit:], "source": "v1-itens"}
+    else:
+        # Retorna ambos
+        return {
+            "success": True, 
+            "data": {
+                "v1": logs_v1[-limit:],
+                "v1_itens": logs_v1_itens[-limit:]
+            }
+        }
+
+@app.get("/api/services/logs/files")
+async def get_log_files():
+    """Lê os arquivos de log do PM2/sistema"""
+    logs = {"v1": [], "v1_itens": []}
+    
+    # Tentar ler logs do PM2
+    log_files = {
+        "v1": "/app/logs/ze-v1-out.log",
+        "v1_itens": "/app/logs/ze-v1-itens-out.log"
+    }
+    
+    for key, path in log_files.items():
+        try:
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    lines = f.readlines()[-100:]  # Últimas 100 linhas
+                    logs[key] = [{"timestamp": datetime.now().isoformat(), "type": "info", "message": line.strip()} for line in lines if line.strip()]
+        except Exception as e:
+            logs[key] = [{"timestamp": datetime.now().isoformat(), "type": "error", "message": f"Erro ao ler log: {e}"}]
+    
+    return {"success": True, "data": logs}
 
 @app.post("/api/services/{service}/{action}")
 async def controlar_servico(service: str, action: str):
