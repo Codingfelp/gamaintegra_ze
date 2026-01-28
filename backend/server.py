@@ -7,9 +7,11 @@ from mysql.connector import pooling
 import subprocess
 import os
 import json
+import signal
 from datetime import datetime
 import hashlib
 import random
+import time
 
 app = FastAPI(title="Zé Delivery Integrador API")
 
@@ -21,7 +23,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pool de conexão MySQL
+# Configuração do banco - zedelivery
 db_config = {
     "host": "localhost",
     "user": "root",
@@ -30,14 +32,36 @@ db_config = {
     "port": 3306
 }
 
-connection_pool = pooling.MySQLConnectionPool(
-    pool_name="mypool",
-    pool_size=5,
-    **db_config
-)
+connection_pool = None
+
+def get_pool():
+    global connection_pool
+    if connection_pool is None:
+        try:
+            connection_pool = pooling.MySQLConnectionPool(
+                pool_name="zepool",
+                pool_size=5,
+                pool_reset_session=True,
+                **db_config
+            )
+        except Exception as e:
+            print(f"Erro ao criar pool: {e}")
+            return None
+    return connection_pool
 
 def get_db():
-    return connection_pool.get_connection()
+    pool = get_pool()
+    if pool:
+        try:
+            return pool.get_connection()
+        except:
+            # Tentar reconectar
+            global connection_pool
+            connection_pool = None
+            pool = get_pool()
+            if pool:
+                return pool.get_connection()
+    return None
 
 # Store de logs
 node_logs = []
@@ -48,11 +72,17 @@ def add_log(log_type: str, message: str):
     log = {
         "timestamp": datetime.now().isoformat(),
         "type": log_type,
-        "message": message
+        "message": message.strip() if message else ""
     }
     node_logs.append(log)
     if len(node_logs) > MAX_LOGS:
         node_logs = node_logs[-MAX_LOGS:]
+
+# PIDs dos processos gerenciados
+managed_processes = {
+    "integrador": None,
+    "itens": None
+}
 
 # ==================== MODELOS ====================
 
@@ -78,10 +108,13 @@ class StatusUpdate(BaseModel):
 @app.get("/api/pedidos")
 async def listar_pedidos(status: Optional[str] = None, limit: int = 50, search: Optional[str] = None):
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco de dados offline", "data": []}
+    
     cursor = conn.cursor(dictionary=True)
     try:
         query = """
-            SELECT d.*, 
+            SELECT d.*,
                 (SELECT COUNT(*) FROM delivery_itens WHERE delivery_itens_id_delivery = d.delivery_id) as total_itens
             FROM delivery d
             WHERE d.delivery_trash = 0
@@ -107,8 +140,12 @@ async def listar_pedidos(status: Optional[str] = None, limit: int = 50, search: 
             for key, value in row.items():
                 if isinstance(value, datetime):
                     row[key] = value.isoformat()
+                elif value is None:
+                    row[key] = ""
         
         return {"success": True, "data": rows}
+    except Exception as e:
+        return {"success": False, "error": str(e), "data": []}
     finally:
         cursor.close()
         conn.close()
@@ -116,6 +153,9 @@ async def listar_pedidos(status: Optional[str] = None, limit: int = 50, search: 
 @app.get("/api/pedidos/stats/summary")
 async def stats_pedidos():
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline", "data": {"total": 0, "pendentes": 0, "aceitos": 0, "entregues": 0, "acaminho": 0, "cancelados": 0, "faturamento": 0}}
+    
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("SELECT COUNT(*) as count FROM delivery WHERE delivery_trash = 0")
@@ -151,6 +191,8 @@ async def stats_pedidos():
                 "faturamento": faturamento
             }
         }
+    except Exception as e:
+        return {"success": False, "error": str(e), "data": {"total": 0, "pendentes": 0, "aceitos": 0, "entregues": 0, "acaminho": 0, "cancelados": 0, "faturamento": 0}}
     finally:
         cursor.close()
         conn.close()
@@ -158,13 +200,35 @@ async def stats_pedidos():
 @app.get("/api/pedidos/{pedido_id}")
 async def detalhe_pedido(pedido_id: int):
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline"}
+    
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT * FROM delivery WHERE delivery_id = %s", (pedido_id,))
+        # Buscar pedido com todos os campos
+        cursor.execute("""
+            SELECT 
+                delivery_id, delivery_ide, delivery_ide_hub_delivery, delivery_code,
+                delivery_name_cliente, delivery_date_time, delivery_data_hora_captura,
+                delivery_data_hora_aceite, delivery_status, delivery_subtotal,
+                delivery_forma_pagamento, delivery_desconto, delivery_frete, delivery_total,
+                delivery_trash, delivery_id_company, delivery_cpf_cliente,
+                delivery_endereco_rota, delivery_endereco_complemento,
+                delivery_endereco_cidade_uf, delivery_endereco_cep, delivery_endereco_bairro,
+                delivery_troco_para, delivery_troco, delivery_taxa_conveniencia,
+                delivery_obs, delivery_tipo_pedido, delivery_codigo_entrega, delivery_tem_itens
+            FROM delivery WHERE delivery_id = %s
+        """, (pedido_id,))
         pedido = cursor.fetchone()
         
+        # Buscar itens do pedido
         cursor.execute("""
-            SELECT di.*, p.produto_descricao, p.produto_link_imagem, p.produto_codigo_ze
+            SELECT 
+                di.delivery_itens_id, di.delivery_itens_id_delivery, 
+                di.delivery_itens_id_produto, di.delivery_itens_descricao,
+                di.delivery_itens_qtd, di.delivery_itens_valor_unitario,
+                di.delivery_itens_valor_total,
+                p.produto_descricao, p.produto_link_imagem, p.produto_codigo_ze
             FROM delivery_itens di
             LEFT JOIN produto p ON p.produto_id = di.delivery_itens_id_produto
             WHERE di.delivery_itens_id_delivery = %s
@@ -176,8 +240,17 @@ async def detalhe_pedido(pedido_id: int):
             for key, value in pedido.items():
                 if isinstance(value, datetime):
                     pedido[key] = value.isoformat()
+                elif value is None:
+                    pedido[key] = ""
+        
+        for item in itens:
+            for key, value in item.items():
+                if value is None:
+                    item[key] = ""
         
         return {"success": True, "data": {"pedido": pedido, "itens": itens}}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
     finally:
         cursor.close()
         conn.close()
@@ -185,6 +258,9 @@ async def detalhe_pedido(pedido_id: int):
 @app.patch("/api/pedidos/{pedido_id}/status")
 async def atualizar_status(pedido_id: int, body: StatusUpdate):
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline"}
+    
     cursor = conn.cursor()
     try:
         cursor.execute(
@@ -193,6 +269,8 @@ async def atualizar_status(pedido_id: int, body: StatusUpdate):
         )
         conn.commit()
         return {"success": True, "message": "Status atualizado"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
     finally:
         cursor.close()
         conn.close()
@@ -202,6 +280,9 @@ async def atualizar_status(pedido_id: int, body: StatusUpdate):
 @app.get("/api/lojas")
 async def listar_lojas():
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline", "data": []}
+    
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("SELECT * FROM hub_delivery ORDER BY hub_delivery_id DESC")
@@ -211,6 +292,8 @@ async def listar_lojas():
                 if isinstance(value, datetime):
                     row[key] = value.isoformat()
         return {"success": True, "data": rows}
+    except Exception as e:
+        return {"success": False, "error": str(e), "data": []}
     finally:
         cursor.close()
         conn.close()
@@ -218,6 +301,9 @@ async def listar_lojas():
 @app.post("/api/lojas")
 async def criar_loja(loja: LojaCreate):
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline"}
+    
     cursor = conn.cursor()
     try:
         ide = hashlib.md5(f"{datetime.now()}{random.random()}".encode()).hexdigest()
@@ -229,6 +315,8 @@ async def criar_loja(loja: LojaCreate):
         )
         conn.commit()
         return {"success": True, "message": "Loja criada", "ide": ide}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
     finally:
         cursor.close()
         conn.close()
@@ -236,11 +324,16 @@ async def criar_loja(loja: LojaCreate):
 @app.delete("/api/lojas/{loja_id}")
 async def deletar_loja(loja_id: int):
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline"}
+    
     cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM hub_delivery WHERE hub_delivery_id = %s", (loja_id,))
         conn.commit()
         return {"success": True, "message": "Loja removida"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
     finally:
         cursor.close()
         conn.close()
@@ -250,6 +343,9 @@ async def deletar_loja(loja_id: int):
 @app.get("/api/produtos")
 async def listar_produtos():
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline", "data": []}
+    
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("SELECT * FROM produto ORDER BY produto_id DESC LIMIT 100")
@@ -259,11 +355,48 @@ async def listar_produtos():
                 if isinstance(value, datetime):
                     row[key] = value.isoformat()
         return {"success": True, "data": rows}
+    except Exception as e:
+        return {"success": False, "error": str(e), "data": []}
     finally:
         cursor.close()
         conn.close()
 
-# ==================== MONITORAMENTO ====================
+# ==================== MONITORAMENTO DE SERVIÇOS ====================
+
+def check_process_running(name):
+    """Verifica se um processo está rodando pelo nome"""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", name],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            pids = result.stdout.strip().split('\n')
+            return True, pids[0]
+        return False, None
+    except:
+        return False, None
+
+def check_mysql():
+    """Verifica se MySQL está rodando"""
+    try:
+        conn = mysql.connector.connect(**db_config)
+        conn.close()
+        return True, "Conectado"
+    except Exception as e:
+        return False, str(e)
+
+def check_php():
+    """Verifica se PHP-FPM está rodando"""
+    try:
+        result = subprocess.run(["pgrep", "-f", "php-fpm"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            return True, "PHP 8.2 FPM"
+        return False, "Não encontrado"
+    except Exception as e:
+        return False, str(e)
 
 @app.get("/api/services/status")
 async def status_services():
@@ -275,43 +408,28 @@ async def status_services():
     }
     
     # MySQL
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        services["mysql"] = {"status": "online", "message": "Conectado"}
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        services["mysql"] = {"status": "offline", "message": str(e)}
+    is_online, msg = check_mysql()
+    services["mysql"] = {"status": "online" if is_online else "offline", "message": msg}
     
     # PHP
-    try:
-        result = subprocess.run(["php", "-v"], capture_output=True, text=True)
-        if result.returncode == 0:
-            version = result.stdout.split("\n")[0]
-            services["php"] = {"status": "online", "message": version}
-    except Exception as e:
-        services["php"] = {"status": "offline", "message": str(e)}
+    is_online, msg = check_php()
+    services["php"] = {"status": "online" if is_online else "offline", "message": msg}
     
-    # Node integrador
-    try:
-        result = subprocess.run(["pgrep", "-f", "v1.js"], capture_output=True, text=True)
-        if result.returncode == 0 and result.stdout.strip():
-            pid = result.stdout.strip().split("\n")[0]
-            services["node_integrador"] = {"status": "online", "message": "Rodando", "pid": pid}
-    except:
-        pass
+    # Node integrador (v1.js)
+    is_online, pid = check_process_running("v1.js")
+    services["node_integrador"] = {
+        "status": "online" if is_online else "offline",
+        "message": f"PID {pid}" if pid else "",
+        "pid": pid
+    }
     
-    # Node itens
-    try:
-        result = subprocess.run(["pgrep", "-f", "v1-itens.js"], capture_output=True, text=True)
-        if result.returncode == 0 and result.stdout.strip():
-            pid = result.stdout.strip().split("\n")[0]
-            services["node_itens"] = {"status": "online", "message": "Rodando", "pid": pid}
-    except:
-        pass
+    # Node itens (v1-itens.js)
+    is_online, pid = check_process_running("v1-itens.js")
+    services["node_itens"] = {
+        "status": "online" if is_online else "offline", 
+        "message": f"PID {pid}" if pid else "",
+        "pid": pid
+    }
     
     return {"success": True, "data": services}
 
@@ -321,54 +439,166 @@ async def get_logs(limit: int = 100):
 
 @app.post("/api/services/{service}/{action}")
 async def controlar_servico(service: str, action: str):
+    global managed_processes
+    
     try:
         if service == "integrador":
+            script_path = "/app/zedelivery-clean/v1.js"
+            process_name = "v1.js"
+            
             if action == "start":
+                # Verificar se já está rodando
+                is_running, existing_pid = check_process_running(process_name)
+                if is_running:
+                    add_log("info", f"Integrador já está rodando com PID {existing_pid}")
+                    return {"success": True, "message": "Integrador já está rodando", "pid": existing_pid}
+                
+                # Iniciar processo
+                add_log("info", "Iniciando integrador v1.js...")
+                
+                env = os.environ.copy()
+                env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
+                
                 process = subprocess.Popen(
-                    ["node", "v1.js"],
+                    ["node", script_path],
                     cwd="/app/zedelivery-clean",
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    env=env,
                     start_new_session=True
                 )
+                
+                managed_processes["integrador"] = process.pid
                 add_log("info", f"Integrador iniciado com PID {process.pid}")
+                
                 return {"success": True, "message": "Integrador iniciado", "pid": process.pid}
+                
             elif action == "stop":
-                subprocess.run(["pkill", "-f", "node v1.js"], capture_output=True)
-                add_log("info", "Integrador parado")
-                return {"success": True, "message": "Integrador parado"}
+                try:
+                    subprocess.run(["pkill", "-f", process_name], timeout=5)
+                    managed_processes["integrador"] = None
+                    add_log("info", "Integrador parado")
+                    return {"success": True, "message": "Integrador parado"}
+                except:
+                    return {"success": False, "error": "Erro ao parar"}
+                    
             elif action == "restart":
-                subprocess.run(["pkill", "-f", "node v1.js"], capture_output=True)
-                import time
-                time.sleep(1)
+                # Parar
+                try:
+                    subprocess.run(["pkill", "-f", process_name], timeout=5)
+                    add_log("info", "Parando integrador para reiniciar...")
+                except:
+                    pass
+                
+                time.sleep(2)
+                
+                # Iniciar
+                env = os.environ.copy()
+                env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
+                
                 process = subprocess.Popen(
-                    ["node", "v1.js"],
+                    ["node", script_path],
                     cwd="/app/zedelivery-clean",
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    env=env,
                     start_new_session=True
                 )
+                
+                managed_processes["integrador"] = process.pid
                 add_log("info", f"Integrador reiniciado com PID {process.pid}")
+                
                 return {"success": True, "message": "Integrador reiniciado", "pid": process.pid}
                 
         elif service == "itens":
+            script_path = "/app/zedelivery-clean/v1-itens.js"
+            process_name = "v1-itens.js"
+            
             if action == "start":
+                is_running, existing_pid = check_process_running(process_name)
+                if is_running:
+                    add_log("info", f"Serviço de itens já está rodando com PID {existing_pid}")
+                    return {"success": True, "message": "Já está rodando", "pid": existing_pid}
+                
+                add_log("info", "Iniciando serviço de itens v1-itens.js...")
+                
+                env = os.environ.copy()
+                env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
+                
                 process = subprocess.Popen(
-                    ["node", "v1-itens.js"],
+                    ["node", script_path],
                     cwd="/app/zedelivery-clean",
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    env=env,
                     start_new_session=True
                 )
+                
+                managed_processes["itens"] = process.pid
                 add_log("info", f"Serviço de itens iniciado com PID {process.pid}")
+                
                 return {"success": True, "message": "Serviço de itens iniciado", "pid": process.pid}
+                
             elif action == "stop":
-                subprocess.run(["pkill", "-f", "node v1-itens.js"], capture_output=True)
-                add_log("info", "Serviço de itens parado")
-                return {"success": True, "message": "Serviço de itens parado"}
+                try:
+                    subprocess.run(["pkill", "-f", process_name], timeout=5)
+                    managed_processes["itens"] = None
+                    add_log("info", "Serviço de itens parado")
+                    return {"success": True, "message": "Serviço de itens parado"}
+                except:
+                    return {"success": False, "error": "Erro ao parar"}
         
-        return {"success": False, "error": "Ação desconhecida"}
+        elif service == "all":
+            if action == "start":
+                results = []
+                
+                # Iniciar integrador
+                env = os.environ.copy()
+                env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
+                
+                is_running, _ = check_process_running("v1.js")
+                if not is_running:
+                    p1 = subprocess.Popen(
+                        ["node", "/app/zedelivery-clean/v1.js"],
+                        cwd="/app/zedelivery-clean",
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        env=env,
+                        start_new_session=True
+                    )
+                    managed_processes["integrador"] = p1.pid
+                    add_log("info", f"Integrador iniciado com PID {p1.pid}")
+                    results.append(f"Integrador: PID {p1.pid}")
+                
+                # Iniciar itens
+                is_running, _ = check_process_running("v1-itens.js")
+                if not is_running:
+                    p2 = subprocess.Popen(
+                        ["node", "/app/zedelivery-clean/v1-itens.js"],
+                        cwd="/app/zedelivery-clean",
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        env=env,
+                        start_new_session=True
+                    )
+                    managed_processes["itens"] = p2.pid
+                    add_log("info", f"Itens iniciado com PID {p2.pid}")
+                    results.append(f"Itens: PID {p2.pid}")
+                
+                return {"success": True, "message": "Serviços iniciados", "details": results}
+                
+            elif action == "stop":
+                subprocess.run(["pkill", "-f", "v1.js"], capture_output=True)
+                subprocess.run(["pkill", "-f", "v1-itens.js"], capture_output=True)
+                managed_processes["integrador"] = None
+                managed_processes["itens"] = None
+                add_log("info", "Todos os serviços parados")
+                return {"success": True, "message": "Todos os serviços parados"}
+        
+        return {"success": False, "error": "Serviço ou ação desconhecida"}
+        
     except Exception as e:
+        add_log("error", f"Erro: {str(e)}")
         return {"success": False, "error": str(e)}
 
 # ==================== CONFIGURAÇÃO ====================
@@ -376,7 +606,8 @@ async def controlar_servico(service: str, action: str):
 @app.get("/api/config")
 async def get_config():
     try:
-        with open("/app/zedelivery-clean/configuracao.json", "r") as f:
+        config_path = "/app/zedelivery-clean/configuracao.json"
+        with open(config_path, "r") as f:
             config = json.load(f)
         config["senha"] = "***"
         return {"success": True, "data": config}
@@ -386,7 +617,8 @@ async def get_config():
 @app.put("/api/config")
 async def update_config(config: ConfigUpdate):
     try:
-        with open("/app/zedelivery-clean/configuracao.json", "r") as f:
+        config_path = "/app/zedelivery-clean/configuracao.json"
+        with open(config_path, "r") as f:
             current = json.load(f)
         
         if config.login:
@@ -396,7 +628,7 @@ async def update_config(config: ConfigUpdate):
         if config.token:
             current["token"] = config.token
         
-        with open("/app/zedelivery-clean/configuracao.json", "w") as f:
+        with open(config_path, "w") as f:
             json.dump(current, f, indent=4)
         
         return {"success": True, "message": "Configuração atualizada"}
@@ -407,6 +639,9 @@ async def update_config(config: ConfigUpdate):
 @app.get("/api/duplo")
 async def get_duplo():
     conn = get_db()
+    if not conn:
+        return {"codigo": None}
+    
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("SELECT * FROM ze_duplo WHERE duplo_usado = 0 ORDER BY duplo_id DESC LIMIT 1")
@@ -423,6 +658,9 @@ async def get_duplo():
 @app.post("/api/duplo")
 async def create_duplo(duplo: DuploCreate):
     conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline"}
+    
     cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO ze_duplo (duplo_codigo) VALUES (%s)", (duplo.codigo,))
@@ -432,9 +670,61 @@ async def create_duplo(duplo: DuploCreate):
         cursor.close()
         conn.close()
 
+# ==================== SYNC API (para Lovable Cloud) ====================
+
+@app.post("/api/sync")
+async def sync_to_cloud():
+    """Endpoint para sincronizar pedidos com Lovable Cloud"""
+    conn = get_db()
+    if not conn:
+        return {"success": False, "error": "Banco offline"}
+    
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Buscar pedidos ativos do dia
+        cursor.execute("""
+            SELECT d.*,
+                (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+                    'descricao', di.delivery_itens_descricao,
+                    'qtd', di.delivery_itens_qtd,
+                    'valor_unitario', di.delivery_itens_valor_unitario,
+                    'valor_total', di.delivery_itens_valor_total
+                )) FROM delivery_itens di WHERE di.delivery_itens_id_delivery = d.delivery_id) as itens_json
+            FROM delivery d
+            WHERE d.delivery_status IN (0, 2, 3)
+            AND DATE(d.delivery_date_time) = CURDATE()
+            AND d.delivery_trash = 0
+        """)
+        pedidos = cursor.fetchall()
+        
+        # Converter para formato serializable
+        for pedido in pedidos:
+            for key, value in pedido.items():
+                if isinstance(value, datetime):
+                    pedido[key] = value.isoformat()
+        
+        add_log("info", f"Sync: {len(pedidos)} pedidos prontos para sincronizar")
+        
+        return {
+            "success": True,
+            "pedidos_count": len(pedidos),
+            "pedidos": pedidos
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+    # Verificar MySQL
+    mysql_ok, _ = check_mysql()
+    return {
+        "status": "ok" if mysql_ok else "degraded",
+        "timestamp": datetime.now().isoformat(),
+        "database": "connected" if mysql_ok else "disconnected"
+    }
 
 if __name__ == "__main__":
     import uvicorn
