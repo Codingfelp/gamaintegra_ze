@@ -617,20 +617,23 @@ async def controlar_servico(service: str, action: str):
                 
                 env = os.environ.copy()
                 env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
+                os.makedirs("/app/logs", exist_ok=True)
                 
                 # Iniciar integrador
                 is_running, _ = check_process_running("v1.js")
                 if not is_running:
+                    log_out = open("/app/logs/ze-v1-out.log", "a")
+                    log_err = open("/app/logs/ze-v1-error.log", "a")
                     p1 = subprocess.Popen(
                         ["node", "puppeteer-wrapper.js", "v1.js"],
                         cwd="/app/zedelivery-clean",
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
+                        stdout=log_out,
+                        stderr=log_err,
                         env=env,
                         start_new_session=True
                     )
                     managed_processes["integrador"] = p1.pid
-                    add_log("info", f"Integrador iniciado com PID {p1.pid}")
+                    add_log("info", f"Integrador iniciado com PID {p1.pid}", "v1")
                     results.append(f"Integrador: PID {p1.pid}")
                 else:
                     results.append("Integrador: já rodando")
@@ -638,16 +641,18 @@ async def controlar_servico(service: str, action: str):
                 # Iniciar itens
                 is_running, _ = check_process_running("v1-itens.js")
                 if not is_running:
+                    log_out = open("/app/logs/ze-v1-itens-out.log", "a")
+                    log_err = open("/app/logs/ze-v1-itens-error.log", "a")
                     p2 = subprocess.Popen(
                         ["node", "puppeteer-wrapper.js", "v1-itens.js"],
                         cwd="/app/zedelivery-clean",
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
+                        stdout=log_out,
+                        stderr=log_err,
                         env=env,
                         start_new_session=True
                     )
                     managed_processes["itens"] = p2.pid
-                    add_log("info", f"Itens iniciado com PID {p2.pid}")
+                    add_log("info", f"Itens iniciado com PID {p2.pid}", "v1-itens")
                     results.append(f"Itens: PID {p2.pid}")
                 else:
                     results.append("Itens: já rodando")
