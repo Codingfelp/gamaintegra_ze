@@ -197,10 +197,7 @@ function App() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-yellow-400 rounded flex items-center justify-center">
-                <span className="text-lg font-bold text-gray-900">Z</span>
-              </div>
-              <span className="text-lg font-semibold text-gray-900">Zé Delivery</span>
+              <span className="text-lg font-semibold text-gray-900">Gamatauri Zé</span>
             </div>
             <div className="flex items-center gap-4 text-xs text-gray-500">
               <span className="flex items-center gap-1.5">
