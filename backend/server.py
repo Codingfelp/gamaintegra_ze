@@ -494,31 +494,37 @@ async def controlar_servico(service: str, action: str):
     try:
         if service == "integrador":
             process_name = "v1.js"
+            log_file = "/app/logs/ze-v1-out.log"
             
             if action == "start":
                 # Verificar se já está rodando
                 is_running, existing_pid = check_process_running(process_name)
                 if is_running:
-                    add_log("info", f"Integrador já está rodando com PID {existing_pid}")
+                    add_log("info", f"Integrador já está rodando com PID {existing_pid}", "v1")
                     return {"success": True, "message": "Integrador já está rodando", "pid": existing_pid}
                 
-                # Iniciar processo usando wrapper
-                add_log("info", "Iniciando integrador v1.js...")
+                # Iniciar processo usando wrapper com log em arquivo
+                add_log("info", "Iniciando integrador v1.js...", "v1")
                 
                 env = os.environ.copy()
                 env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
                 
+                # Abrir arquivo de log
+                os.makedirs("/app/logs", exist_ok=True)
+                log_out = open(log_file, "a")
+                log_err = open("/app/logs/ze-v1-error.log", "a")
+                
                 process = subprocess.Popen(
                     ["node", "puppeteer-wrapper.js", "v1.js"],
                     cwd="/app/zedelivery-clean",
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    stdout=log_out,
+                    stderr=log_err,
                     env=env,
                     start_new_session=True
                 )
                 
                 managed_processes["integrador"] = process.pid
-                add_log("info", f"Integrador iniciado com PID {process.pid}")
+                add_log("info", f"Integrador iniciado com PID {process.pid}", "v1")
                 
                 return {"success": True, "message": "Integrador iniciado", "pid": process.pid}
                 
@@ -526,7 +532,7 @@ async def controlar_servico(service: str, action: str):
                 try:
                     subprocess.run(["pkill", "-f", process_name], timeout=5)
                     managed_processes["integrador"] = None
-                    add_log("info", "Integrador parado")
+                    add_log("info", "Integrador parado", "v1")
                     return {"success": True, "message": "Integrador parado"}
                 except:
                     return {"success": False, "error": "Erro ao parar"}
@@ -535,7 +541,7 @@ async def controlar_servico(service: str, action: str):
                 # Parar
                 try:
                     subprocess.run(["pkill", "-f", process_name], timeout=5)
-                    add_log("info", "Parando integrador para reiniciar...")
+                    add_log("info", "Parando integrador para reiniciar...", "v1")
                 except:
                     pass
                 
@@ -545,17 +551,21 @@ async def controlar_servico(service: str, action: str):
                 env = os.environ.copy()
                 env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
                 
+                os.makedirs("/app/logs", exist_ok=True)
+                log_out = open(log_file, "a")
+                log_err = open("/app/logs/ze-v1-error.log", "a")
+                
                 process = subprocess.Popen(
                     ["node", "puppeteer-wrapper.js", "v1.js"],
                     cwd="/app/zedelivery-clean",
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    stdout=log_out,
+                    stderr=log_err,
                     env=env,
                     start_new_session=True
                 )
                 
                 managed_processes["integrador"] = process.pid
-                add_log("info", f"Integrador reiniciado com PID {process.pid}")
+                add_log("info", f"Integrador reiniciado com PID {process.pid}", "v1")
                 
                 return {"success": True, "message": "Integrador reiniciado", "pid": process.pid}
                 
