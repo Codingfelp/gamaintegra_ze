@@ -765,7 +765,7 @@ function App() {
 
       {/* Footer */}
       <footer className="border-t border-gray-200 py-4 mt-8 bg-white">
-        <p className="text-center text-xs text-gray-400">Zé Delivery Integrador © {new Date().getFullYear()}</p>
+        <p className="text-center text-xs text-gray-400">Gamatauri Zé Integrador © {new Date().getFullYear()}</p>
       </footer>
     </div>
   );
