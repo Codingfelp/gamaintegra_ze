@@ -571,29 +571,34 @@ async def controlar_servico(service: str, action: str):
                 
         elif service == "itens":
             process_name = "v1-itens.js"
+            log_file = "/app/logs/ze-v1-itens-out.log"
             
             if action == "start":
                 is_running, existing_pid = check_process_running(process_name)
                 if is_running:
-                    add_log("info", f"Serviço de itens já está rodando com PID {existing_pid}")
+                    add_log("info", f"Serviço de itens já está rodando com PID {existing_pid}", "v1-itens")
                     return {"success": True, "message": "Já está rodando", "pid": existing_pid}
                 
-                add_log("info", "Iniciando serviço de itens v1-itens.js...")
+                add_log("info", "Iniciando serviço de itens v1-itens.js...", "v1-itens")
                 
                 env = os.environ.copy()
                 env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
                 
+                os.makedirs("/app/logs", exist_ok=True)
+                log_out = open(log_file, "a")
+                log_err = open("/app/logs/ze-v1-itens-error.log", "a")
+                
                 process = subprocess.Popen(
                     ["node", "puppeteer-wrapper.js", "v1-itens.js"],
                     cwd="/app/zedelivery-clean",
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    stdout=log_out,
+                    stderr=log_err,
                     env=env,
                     start_new_session=True
                 )
                 
                 managed_processes["itens"] = process.pid
-                add_log("info", f"Serviço de itens iniciado com PID {process.pid}")
+                add_log("info", f"Serviço de itens iniciado com PID {process.pid}", "v1-itens")
                 
                 return {"success": True, "message": "Serviço de itens iniciado", "pid": process.pid}
                 
@@ -601,7 +606,7 @@ async def controlar_servico(service: str, action: str):
                 try:
                     subprocess.run(["pkill", "-f", process_name], timeout=5)
                     managed_processes["itens"] = None
-                    add_log("info", "Serviço de itens parado")
+                    add_log("info", "Serviço de itens parado", "v1-itens")
                     return {"success": True, "message": "Serviço de itens parado"}
                 except:
                     return {"success": False, "error": "Erro ao parar"}
