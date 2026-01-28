@@ -59,7 +59,9 @@ async function syncToLovable() {
 
     console.log(`📦 ${pedidos.length} pedidos encontrados`);
 
-    // Buscar itens de cada pedido
+    // Buscar itens de cada pedido e formatar para Lovable
+    const pedidosFormatados = [];
+    
     for (let pedido of pedidos) {
       const [itens] = await pool.query(`
         SELECT 
@@ -76,12 +78,71 @@ async function syncToLovable() {
         WHERE di.delivery_itens_id_delivery = ?
       `, [pedido.delivery_id]);
       
-      // Garantir que itens seja um array e converter para JSON string se necessário
-      pedido.itens = itens || [];
-      pedido.itens_json = JSON.stringify(itens || []);
-      pedido.itens_count = itens ? itens.length : 0;
+      // Formatar itens para um array simples
+      const itensFormatados = (itens || []).map(item => ({
+        id: item.delivery_itens_id,
+        nome: item.delivery_itens_descricao || item.produto_descricao,
+        quantidade: item.delivery_itens_qtd,
+        preco_unitario: parseFloat(item.delivery_itens_valor_unitario) || 0,
+        preco_total: parseFloat(item.delivery_itens_valor_total) || 0,
+        codigo_ze: item.produto_codigo_ze || '',
+        imagem: item.produto_link_imagem || ''
+      }));
+
+      console.log(`   Pedido ${pedido.delivery_code}: ${itensFormatados.length} itens`);
       
-      console.log(`   Pedido ${pedido.delivery_code}: ${pedido.itens_count} itens`);
+      // Formatar pedido para Lovable
+      pedidosFormatados.push({
+        // Identificadores
+        id_local: pedido.delivery_id,
+        external_id: pedido.delivery_code,
+        ide: pedido.delivery_ide,
+        
+        // Cliente
+        customer_name: pedido.delivery_name_cliente,
+        customer_cpf: pedido.delivery_cpf_cliente,
+        customer_email: pedido.delivery_email_entregador,
+        
+        // Endereço
+        address: pedido.delivery_endereco_rota,
+        address_complement: pedido.delivery_endereco_complemento,
+        address_neighborhood: pedido.delivery_endereco_bairro,
+        address_city: pedido.delivery_endereco_cidade_uf,
+        address_zip: pedido.delivery_endereco_cep,
+        
+        // Status e datas
+        status: pedido.delivery_status,
+        status_text: getStatusText(pedido.delivery_status),
+        created_at: pedido.delivery_date_time,
+        captured_at: pedido.delivery_data_hora_captura,
+        accepted_at: pedido.delivery_data_hora_aceite,
+        
+        // Valores
+        subtotal: parseFloat(pedido.delivery_subtotal) || 0,
+        discount: parseFloat(pedido.delivery_desconto) || 0,
+        delivery_fee: parseFloat(pedido.delivery_frete) || 0,
+        total: parseFloat(pedido.delivery_total) || 0,
+        convenience_fee: parseFloat(pedido.delivery_taxa_conveniencia) || 0,
+        
+        // Pagamento
+        payment_method: pedido.delivery_forma_pagamento,
+        change_for: parseFloat(pedido.delivery_troco_para) || 0,
+        change: parseFloat(pedido.delivery_troco) || 0,
+        
+        // Entrega
+        delivery_type: pedido.delivery_tipo_pedido,
+        delivery_code: pedido.delivery_codigo_entrega,
+        notes: pedido.delivery_obs,
+        
+        // ITENS - enviar como array E como JSON string
+        items: itensFormatados,
+        items_json: JSON.stringify(itensFormatados),
+        items_count: itensFormatados.length,
+        
+        // Metadata
+        source: 'ze-delivery',
+        synced_at: timestamp
+      });
     }
 
     // Verificar configuração Lovable
@@ -90,30 +151,22 @@ async function syncToLovable() {
 
     if (!LOVABLE_URL || !LOVABLE_KEY) {
       console.log('⚠️  Lovable Cloud não configurado');
-      console.log('   Pedidos salvos apenas localmente.');
-      
-      // Salvar debug local
-      fs.writeFileSync('/app/logs/sync-debug.json', JSON.stringify(pedidos, null, 2));
+      fs.writeFileSync('/app/logs/sync-debug.json', JSON.stringify(pedidosFormatados, null, 2));
       console.log('   Debug salvo em /app/logs/sync-debug.json');
       return;
     }
 
-    // Preparar payload com itens em formato JSON string
+    // Preparar payload
     const payload = {
-      pedidos: pedidos.map(p => ({
-        ...p,
-        // Garantir que itens esteja em formato correto
-        itens: p.itens,
-        itens_json: JSON.stringify(p.itens || [])
-      })),
+      pedidos: pedidosFormatados,
       source: 'gamatauri-ze',
-      timestamp: timestamp
+      timestamp: timestamp,
+      force_update: true // Forçar atualização mesmo se existir
     };
 
-    // Salvar debug antes de enviar
+    // Salvar debug
     fs.writeFileSync('/app/logs/sync-payload.json', JSON.stringify(payload, null, 2));
     console.log(`📤 Enviando para ${LOVABLE_URL}...`);
-    console.log(`   Payload salvo em /app/logs/sync-payload.json`);
     
     const response = await fetch(
       `${LOVABLE_URL}/functions/v1/ze-sync-mysql`,
@@ -138,6 +191,18 @@ async function syncToLovable() {
   } catch (err) {
     console.error(`❌ Erro: ${err.message}`);
   }
+}
+
+function getStatusText(status) {
+  const statusMap = {
+    0: 'Pendente',
+    1: 'Entregue',
+    2: 'Aceito',
+    3: 'A Caminho',
+    4: 'Cancelado',
+    5: 'Rejeitado'
+  };
+  return statusMap[status] || 'Desconhecido';
 }
 
 // Executar imediatamente e depois a cada intervalo
