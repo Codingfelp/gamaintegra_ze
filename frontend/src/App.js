@@ -62,7 +62,7 @@ function App() {
   const [pedidos, setPedidos] = useState([]);
   const [stats, setStats] = useState({ total: 0, pendentes: 0, aceitos: 0, entregues: 0, acaminho: 0, cancelados: 0, faturamento: 0 });
   const [services, setServices] = useState({});
-  const [logs, setLogs] = useState([]);
+  const [logs, setLogs] = useState({ v1: [], v1_itens: [] });
   const [lojas, setLojas] = useState([]);
   const [produtos, setProdutos] = useState([]);
   const [config, setConfig] = useState({});
