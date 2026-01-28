@@ -379,22 +379,29 @@ async def listar_produtos():
 # ==================== MONITORAMENTO DE SERVIÇOS ====================
 
 def check_process_running(name):
-    """Verifica se um processo está rodando pelo nome"""
+    """Verifica se um processo está rodando pelo nome via PM2"""
     try:
-        # Verificar via PM2 primeiro
         result = subprocess.run(
             ["pm2", "jlist"],
             capture_output=True,
             text=True,
             timeout=5
         )
-        if result.returncode == 0:
-            import json
+        if result.returncode == 0 and result.stdout.strip():
             apps = json.loads(result.stdout)
+            # Mapear nome do processo para nome PM2
+            pm2_names = {
+                "v1.js": "ze-v1",
+                "v1-itens.js": "ze-v1-itens"
+            }
+            pm2_name = pm2_names.get(name, name)
+            
             for app in apps:
-                if name in app.get('name', '') or name in app.get('pm2_env', {}).get('args', []):
+                if app.get('name') == pm2_name:
                     if app.get('pm2_env', {}).get('status') == 'online':
                         return True, str(app.get('pid'))
+                    else:
+                        return False, None
         
         # Fallback: pgrep
         result = subprocess.run(
@@ -407,7 +414,8 @@ def check_process_running(name):
             pids = result.stdout.strip().split('\n')
             return True, pids[0]
         return False, None
-    except:
+    except Exception as e:
+        print(f"Erro ao verificar processo: {e}")
         return False, None
 
 def check_mysql():
