@@ -443,7 +443,6 @@ async def controlar_servico(service: str, action: str):
     
     try:
         if service == "integrador":
-            script_path = "/app/zedelivery-clean/v1.js"
             process_name = "v1.js"
             
             if action == "start":
@@ -453,14 +452,14 @@ async def controlar_servico(service: str, action: str):
                     add_log("info", f"Integrador já está rodando com PID {existing_pid}")
                     return {"success": True, "message": "Integrador já está rodando", "pid": existing_pid}
                 
-                # Iniciar processo
+                # Iniciar processo usando wrapper
                 add_log("info", "Iniciando integrador v1.js...")
                 
                 env = os.environ.copy()
                 env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
                 
                 process = subprocess.Popen(
-                    ["node", script_path],
+                    ["node", "puppeteer-wrapper.js", "v1.js"],
                     cwd="/app/zedelivery-clean",
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
@@ -492,12 +491,12 @@ async def controlar_servico(service: str, action: str):
                 
                 time.sleep(2)
                 
-                # Iniciar
+                # Iniciar usando wrapper
                 env = os.environ.copy()
                 env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
                 
                 process = subprocess.Popen(
-                    ["node", script_path],
+                    ["node", "puppeteer-wrapper.js", "v1.js"],
                     cwd="/app/zedelivery-clean",
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
