@@ -419,6 +419,12 @@ function App() {
                                         <p className="text-xs text-gray-500">CPF</p>
                                         <p className="text-sm text-gray-900">{pedidoDetails.pedido.delivery_cpf_cliente || '-'}</p>
                                       </div>
+                                      {pedidoDetails.pedido.delivery_email_entregador && (
+                                        <div className="col-span-2">
+                                          <p className="text-xs text-gray-500">Email Entregador</p>
+                                          <p className="text-sm text-gray-900">{pedidoDetails.pedido.delivery_email_entregador}</p>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
 
