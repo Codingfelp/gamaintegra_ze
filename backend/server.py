@@ -510,7 +510,6 @@ async def controlar_servico(service: str, action: str):
                 return {"success": True, "message": "Integrador reiniciado", "pid": process.pid}
                 
         elif service == "itens":
-            script_path = "/app/zedelivery-clean/v1-itens.js"
             process_name = "v1-itens.js"
             
             if action == "start":
@@ -525,7 +524,7 @@ async def controlar_servico(service: str, action: str):
                 env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
                 
                 process = subprocess.Popen(
-                    ["node", script_path],
+                    ["node", "puppeteer-wrapper.js", "v1-itens.js"],
                     cwd="/app/zedelivery-clean",
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
