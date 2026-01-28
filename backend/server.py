@@ -550,14 +550,14 @@ async def controlar_servico(service: str, action: str):
             if action == "start":
                 results = []
                 
-                # Iniciar integrador
                 env = os.environ.copy()
                 env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
                 
+                # Iniciar integrador
                 is_running, _ = check_process_running("v1.js")
                 if not is_running:
                     p1 = subprocess.Popen(
-                        ["node", "/app/zedelivery-clean/v1.js"],
+                        ["node", "puppeteer-wrapper.js", "v1.js"],
                         cwd="/app/zedelivery-clean",
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
@@ -567,12 +567,14 @@ async def controlar_servico(service: str, action: str):
                     managed_processes["integrador"] = p1.pid
                     add_log("info", f"Integrador iniciado com PID {p1.pid}")
                     results.append(f"Integrador: PID {p1.pid}")
+                else:
+                    results.append("Integrador: já rodando")
                 
                 # Iniciar itens
                 is_running, _ = check_process_running("v1-itens.js")
                 if not is_running:
                     p2 = subprocess.Popen(
-                        ["node", "/app/zedelivery-clean/v1-itens.js"],
+                        ["node", "puppeteer-wrapper.js", "v1-itens.js"],
                         cwd="/app/zedelivery-clean",
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
@@ -582,6 +584,8 @@ async def controlar_servico(service: str, action: str):
                     managed_processes["itens"] = p2.pid
                     add_log("info", f"Itens iniciado com PID {p2.pid}")
                     results.append(f"Itens: PID {p2.pid}")
+                else:
+                    results.append("Itens: já rodando")
                 
                 return {"success": True, "message": "Serviços iniciados", "details": results}
                 
