@@ -90,9 +90,29 @@ function App() {
       const servicesData = await servicesRes.json();
       if (servicesData.success) setServices(servicesData.data);
 
-      const logsRes = await fetch(`${API_URL}/api/services/logs?limit=50`);
+      // Logs separados
+      const logsRes = await fetch(`${API_URL}/api/services/logs`);
       const logsData = await logsRes.json();
-      if (logsData.success) setLogs(logsData.data);
+      if (logsData.success && logsData.data) {
+        if (logsData.data.v1 || logsData.data.v1_itens) {
+          setLogs(logsData.data);
+        }
+      }
+      
+      // Também tentar ler logs dos arquivos
+      try {
+        const filesRes = await fetch(`${API_URL}/api/services/logs/files`);
+        const filesData = await filesRes.json();
+        if (filesData.success && filesData.data) {
+          const merged = {
+            v1: [...(logsData.data?.v1 || []), ...(filesData.data?.v1 || [])].slice(-100),
+            v1_itens: [...(logsData.data?.v1_itens || []), ...(filesData.data?.v1_itens || [])].slice(-100)
+          };
+          setLogs(merged);
+        }
+      } catch (e) {
+        // Usar apenas logs da memória
+      }
     } catch (err) {
       console.error('Erro ao buscar dados:', err);
     }
