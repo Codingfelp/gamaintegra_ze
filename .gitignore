@@ -85,3 +85,4 @@ zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
 # Environment files
 *.env
 *.env.*
+logs/ze-v1-itens-out.log
