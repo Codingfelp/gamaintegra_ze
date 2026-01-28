@@ -381,6 +381,22 @@ async def listar_produtos():
 def check_process_running(name):
     """Verifica se um processo está rodando pelo nome"""
     try:
+        # Verificar via PM2 primeiro
+        result = subprocess.run(
+            ["pm2", "jlist"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            import json
+            apps = json.loads(result.stdout)
+            for app in apps:
+                if name in app.get('name', '') or name in app.get('pm2_env', {}).get('args', []):
+                    if app.get('pm2_env', {}).get('status') == 'online':
+                        return True, str(app.get('pid'))
+        
+        # Fallback: pgrep
         result = subprocess.run(
             ["pgrep", "-f", name],
             capture_output=True,
