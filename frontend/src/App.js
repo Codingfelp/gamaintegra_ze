@@ -141,8 +141,10 @@ function App() {
   const controlService = async (service, action) => {
     setLoading(true);
     try {
-      await fetch(`${API_URL}/api/services/${service}/${action}`, { method: 'POST' });
-      setTimeout(fetchData, 1000);
+      const res = await fetch(`${API_URL}/api/services/${service}/${action}`, { method: 'POST' });
+      const data = await res.json();
+      console.log('Controle serviço:', data);
+      setTimeout(fetchData, 1500);
     } catch (err) {
       console.error('Erro ao controlar serviço:', err);
     }
@@ -178,7 +180,7 @@ function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000);
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -399,53 +401,147 @@ function App() {
                                 Ver
                               </Button>
                             </DialogTrigger>
-                            <DialogContent className="bg-white max-w-2xl">
+                            <DialogContent className="bg-white max-w-3xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle className="text-gray-900">Pedido #{selectedPedido?.delivery_code}</DialogTitle>
+                                <DialogTitle className="text-gray-900 flex items-center gap-3">
+                                  Pedido #{selectedPedido?.delivery_code}
+                                  {pedidoDetails?.pedido && <StatusBadge status={pedidoDetails.pedido.delivery_status} />}
+                                </DialogTitle>
                               </DialogHeader>
-                              {pedidoDetails && (
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <p className="text-xs text-gray-500">Cliente</p>
-                                      <p className="text-sm text-gray-900">{pedidoDetails.pedido?.delivery_name_cliente}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500">CPF</p>
-                                      <p className="text-sm text-gray-900">{pedidoDetails.pedido?.delivery_cpf_cliente || '-'}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500">Endereço</p>
-                                      <p className="text-sm text-gray-900">{pedidoDetails.pedido?.delivery_endereco_rota}</p>
-                                      <p className="text-xs text-gray-500">{pedidoDetails.pedido?.delivery_endereco_bairro}</p>
-                                    </div>
-                                    <div>
-                                      <p className="text-xs text-gray-500">Código Entrega</p>
-                                      <p className="text-sm font-mono text-yellow-600">{pedidoDetails.pedido?.delivery_codigo_entrega || '-'}</p>
+                              {pedidoDetails?.pedido && (
+                                <div className="space-y-6">
+                                  {/* Cliente */}
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <h4 className="font-medium text-gray-900 mb-3">Dados do Cliente</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <p className="text-xs text-gray-500">Nome</p>
+                                        <p className="text-sm text-gray-900 font-medium">{pedidoDetails.pedido.delivery_name_cliente}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-500">CPF</p>
+                                        <p className="text-sm text-gray-900">{pedidoDetails.pedido.delivery_cpf_cliente || '-'}</p>
+                                      </div>
                                     </div>
                                   </div>
+
+                                  {/* Endereço */}
+                                  <div className="bg-gray-50 p-4 rounded-lg">
+                                    <h4 className="font-medium text-gray-900 mb-3">Endereço de Entrega</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div className="col-span-2">
+                                        <p className="text-xs text-gray-500">Endereço</p>
+                                        <p className="text-sm text-gray-900">{pedidoDetails.pedido.delivery_endereco_rota}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-500">Complemento</p>
+                                        <p className="text-sm text-gray-900">{pedidoDetails.pedido.delivery_endereco_complemento || '-'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-500">Bairro</p>
+                                        <p className="text-sm text-gray-900">{pedidoDetails.pedido.delivery_endereco_bairro}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-500">Cidade/UF</p>
+                                        <p className="text-sm text-gray-900">{pedidoDetails.pedido.delivery_endereco_cidade_uf}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-500">CEP</p>
+                                        <p className="text-sm text-gray-900">{pedidoDetails.pedido.delivery_endereco_cep}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Código Entrega e Observações */}
+                                  <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <p className="text-xs text-yellow-700">Código de Entrega</p>
+                                        <p className="text-lg font-mono font-bold text-yellow-800">{pedidoDetails.pedido.delivery_codigo_entrega || '-'}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-yellow-700">Tipo</p>
+                                        <p className="text-sm text-yellow-800">{pedidoDetails.pedido.delivery_tipo_pedido || 'delivery'}</p>
+                                      </div>
+                                      {pedidoDetails.pedido.delivery_obs && (
+                                        <div className="col-span-2">
+                                          <p className="text-xs text-yellow-700">Observações</p>
+                                          <p className="text-sm text-yellow-900 font-medium">{pedidoDetails.pedido.delivery_obs}</p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Itens */}
                                   <div>
-                                    <p className="text-xs text-gray-500 mb-2">Itens</p>
+                                    <h4 className="font-medium text-gray-900 mb-3">Itens do Pedido ({pedidoDetails.itens?.length || 0})</h4>
                                     <div className="space-y-2">
                                       {pedidoDetails.itens?.map((item, idx) => (
-                                        <div key={idx} className="flex justify-between py-2 border-b border-gray-100">
-                                          <div>
-                                            <p className="text-sm text-gray-900">{item.delivery_itens_descricao || item.produto_descricao}</p>
-                                            <p className="text-xs text-gray-500">Qtd: {item.delivery_itens_qtd}</p>
+                                        <div key={idx} className="flex justify-between items-center py-3 px-4 bg-gray-50 rounded-lg">
+                                          <div className="flex items-center gap-3">
+                                            {item.produto_link_imagem && (
+                                              <img src={item.produto_link_imagem} alt="" className="w-10 h-10 rounded object-cover" />
+                                            )}
+                                            <div>
+                                              <p className="text-sm text-gray-900 font-medium">{item.delivery_itens_descricao || item.produto_descricao}</p>
+                                              <p className="text-xs text-gray-500">
+                                                {item.delivery_itens_qtd}x R$ {parseFloat(item.delivery_itens_valor_unitario || 0).toFixed(2)}
+                                              </p>
+                                            </div>
                                           </div>
-                                          <p className="text-sm font-medium text-gray-900">R$ {parseFloat(item.delivery_itens_valor_total || 0).toFixed(2)}</p>
+                                          <p className="text-sm font-semibold text-gray-900">R$ {parseFloat(item.delivery_itens_valor_total || 0).toFixed(2)}</p>
                                         </div>
                                       ))}
+                                      {(!pedidoDetails.itens || pedidoDetails.itens.length === 0) && (
+                                        <p className="text-sm text-gray-400 text-center py-4">Nenhum item</p>
+                                      )}
                                     </div>
                                   </div>
-                                  <div className="flex justify-between pt-4 border-t border-gray-200">
-                                    <div className="text-sm text-gray-500">
-                                      <p>Subtotal: R$ {parseFloat(pedidoDetails.pedido?.delivery_subtotal || 0).toFixed(2)}</p>
-                                      <p>Frete: R$ {parseFloat(pedidoDetails.pedido?.delivery_frete || 0).toFixed(2)}</p>
+
+                                  {/* Valores */}
+                                  <div className="border-t border-gray-200 pt-4">
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500">Subtotal</span>
+                                        <span className="text-gray-900">R$ {parseFloat(pedidoDetails.pedido.delivery_subtotal || 0).toFixed(2)}</span>
+                                      </div>
+                                      <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500">Frete</span>
+                                        <span className="text-gray-900">R$ {parseFloat(pedidoDetails.pedido.delivery_frete || 0).toFixed(2)}</span>
+                                      </div>
+                                      {parseFloat(pedidoDetails.pedido.delivery_desconto || 0) > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-500">Desconto</span>
+                                          <span className="text-green-600">- R$ {parseFloat(pedidoDetails.pedido.delivery_desconto || 0).toFixed(2)}</span>
+                                        </div>
+                                      )}
+                                      {parseFloat(pedidoDetails.pedido.delivery_taxa_conveniencia || 0) > 0 && (
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-500">Taxa Conveniência</span>
+                                          <span className="text-gray-900">R$ {parseFloat(pedidoDetails.pedido.delivery_taxa_conveniencia || 0).toFixed(2)}</span>
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between text-lg font-semibold pt-2 border-t border-gray-200">
+                                        <span className="text-gray-900">Total</span>
+                                        <span className="text-gray-900">R$ {parseFloat(pedidoDetails.pedido.delivery_total || 0).toFixed(2)}</span>
+                                      </div>
                                     </div>
-                                    <p className="text-xl font-semibold text-gray-900">
-                                      R$ {parseFloat(pedidoDetails.pedido?.delivery_total || 0).toFixed(2)}
-                                    </p>
+
+                                    {/* Pagamento */}
+                                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                                      <div className="flex justify-between items-center">
+                                        <div>
+                                          <p className="text-xs text-gray-500">Forma de Pagamento</p>
+                                          <p className="text-sm font-medium text-gray-900">{pedidoDetails.pedido.delivery_forma_pagamento}</p>
+                                        </div>
+                                        {parseFloat(pedidoDetails.pedido.delivery_troco_para || 0) > 0 && (
+                                          <div className="text-right">
+                                            <p className="text-xs text-gray-500">Troco para</p>
+                                            <p className="text-sm font-medium text-gray-900">R$ {parseFloat(pedidoDetails.pedido.delivery_troco_para || 0).toFixed(2)}</p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -549,13 +645,13 @@ function App() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Button onClick={() => controlService('integrador', 'restart')} className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900" disabled={loading} data-testid="restart-integrador-btn">
-                    Reiniciar Integrador
+                    {loading ? 'Aguarde...' : 'Reiniciar Integrador'}
                   </Button>
-                  <Button onClick={() => { controlService('integrador', 'start'); controlService('itens', 'start'); }} variant="outline" className="w-full border-gray-200" disabled={loading} data-testid="start-all-btn">
-                    Iniciar Todos
+                  <Button onClick={() => controlService('all', 'start')} variant="outline" className="w-full border-gray-200" disabled={loading} data-testid="start-all-btn">
+                    {loading ? 'Aguarde...' : 'Iniciar Todos'}
                   </Button>
-                  <Button onClick={() => { controlService('integrador', 'stop'); controlService('itens', 'stop'); }} variant="outline" className="w-full border-gray-200 text-red-600" disabled={loading} data-testid="stop-all-btn">
-                    Parar Todos
+                  <Button onClick={() => controlService('all', 'stop')} variant="outline" className="w-full border-gray-200 text-red-600" disabled={loading} data-testid="stop-all-btn">
+                    {loading ? 'Aguarde...' : 'Parar Todos'}
                   </Button>
                 </CardContent>
               </Card>
