@@ -1,58 +1,60 @@
-# Zé Delivery Integrador - PRD
+# Gamatauri Zé Integrador - PRD
 
 ## Status: ✅ FUNCIONAL
 
-## Problema Resolvido
-Dashboard completo para monitoramento e controle do integrador Zé Delivery rodando 24/7.
-
-## O Que Foi Feito
-
-### Backend (FastAPI)
-- [x] Conexão MySQL/MariaDB banco `zedelivery`
-- [x] CRUD de pedidos, lojas, produtos
-- [x] Controle de serviços (start/stop/restart)
-- [x] API de sincronização `/api/sync`
-- [x] Logs em tempo real
+## O Que Foi Implementado
 
 ### Frontend (React)
-- [x] Interface limpa com paleta amarela
-- [x] Dashboard com estatísticas
-- [x] Detalhes completos dos pedidos (cliente, CPF, endereço, itens, valores)
-- [x] Controle de serviços Node.js
-- [x] Cadastro de lojas
+- [x] Header "Gamatauri Zé" (sem ícone Z)
+- [x] Interface limpa, fundo claro, paleta amarela
+- [x] Logs separados (v1.js e v1-itens.js) com visual de terminal
+- [x] Detalhes completos dos pedidos (inclui email do entregador)
+- [x] Controles de serviços funcionando
+
+### Backend (FastAPI)
+- [x] Conexão MySQL banco `zedelivery`
+- [x] Logs separados por serviço
+- [x] Leitura de arquivos de log
+- [x] API de sincronização
 
 ### Infraestrutura
-- [x] MySQL/MariaDB configurado
-- [x] PHP-FPM + Apache (porta 8088)
-- [x] Chromium instalado para Puppeteer
-- [x] Wrapper para scripts Node.js com --no-sandbox
+- [x] MySQL/MariaDB funcionando
+- [x] PHP-FPM + IMAP configurado
+- [x] Apache na porta 8088
+- [x] Chromium para Puppeteer
+- [x] Wrapper --no-sandbox
 
-## Serviços e Portas
-| Serviço | Porta | Status |
-|---------|-------|--------|
-| Frontend | 3000 | Online |
-| Backend | 8001 | Online |
-| MySQL | 3306 | Online |
-| Apache/PHP | 8088 | Online |
+### PM2 e API Bridge
+- [x] pm2.ecosystem.config.js configurado
+- [x] API Bridge em /app/bridge/
 
-## APIs
-- `GET /api/pedidos` - Listar pedidos
-- `GET /api/pedidos/{id}` - Detalhes do pedido com itens
-- `GET /api/pedidos/stats/summary` - Estatísticas
-- `GET /api/lojas` - Listar lojas
-- `POST /api/lojas` - Criar loja
-- `GET /api/services/status` - Status dos serviços
-- `POST /api/services/{service}/{action}` - Controlar serviço
-- `POST /api/sync` - Sincronizar com Lovable Cloud
+## Arquivos Principais
+- `/app/frontend/src/App.js` - Dashboard React
+- `/app/backend/server.py` - API FastAPI  
+- `/app/zedelivery-clean/puppeteer-wrapper.js` - Wrapper Puppeteer
+- `/app/pm2.ecosystem.config.js` - Config PM2
+- `/app/bridge/index.js` - API Bridge Lovable
 
-## Arquivos Criados (sem modificar originais)
-- `/app/zedelivery-clean/puppeteer-wrapper.js` - Wrapper para --no-sandbox
-- `/app/integrador/database/schema.sql` - Schema do banco
+## Portas
+| Serviço | Porta |
+|---------|-------|
+| Frontend | 3000 |
+| Backend | 8001 |
+| MySQL | 3306 |
+| Apache/PHP | 8088 |
+| Bridge | 3333 |
 
-## Próximos Passos
-1. Configurar PM2 no VPS para auto-restart
-2. Configurar API Bridge para Lovable Cloud
-3. Testar integração real com credenciais do Zé Delivery
+## Para usar no VPS
+```bash
+# Instalar PM2
+npm install -g pm2
+
+# Iniciar todos os serviços
+cd /app && pm2 start pm2.ecosystem.config.js
+
+# Salvar para auto-start
+pm2 startup && pm2 save
+```
 
 ---
 *Atualizado: 28/01/2026*
