@@ -663,27 +663,53 @@ function App() {
 
           {/* Logs */}
           <TabsContent value="logs" data-testid="logs-content">
-            <Card className="bg-white border-gray-200">
-              <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-base font-medium text-gray-900">Logs</CardTitle>
-                <Button onClick={fetchData} variant="outline" size="sm" className="border-gray-200 text-xs">Atualizar</Button>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-96 bg-gray-50 rounded-lg p-3" data-testid="logs-scroll">
-                  {logs.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-8">Nenhum log. Inicie o integrador para ver os logs.</p>
-                  ) : (
-                    <div className="space-y-1 font-mono text-xs">
-                      {logs.map((log, idx) => (
-                        <div key={idx} className={`py-1 px-2 rounded ${log.type === 'error' ? 'bg-red-50 text-red-700' : 'text-gray-700'}`}>
-                          <span className="text-gray-400">[{new Date(log.timestamp).toLocaleTimeString()}]</span> {log.message}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Logs v1.js */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base font-medium text-gray-900">Logs v1.js (Integrador)</CardTitle>
+                  <Button onClick={fetchData} variant="outline" size="sm" className="border-gray-200 text-xs">Atualizar</Button>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-80 bg-gray-900 rounded-lg p-3" data-testid="logs-v1-scroll">
+                    {(!logs.v1 || logs.v1.length === 0) ? (
+                      <p className="text-sm text-gray-500 text-center py-8">Nenhum log. Inicie o integrador.</p>
+                    ) : (
+                      <div className="space-y-1 font-mono text-xs">
+                        {logs.v1?.map((log, idx) => (
+                          <div key={idx} className={`py-1 px-2 rounded ${log.type === 'error' ? 'bg-red-900/50 text-red-300' : 'text-green-300'}`}>
+                            <span className="text-gray-500">[{new Date(log.timestamp).toLocaleTimeString()}]</span> {log.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Logs v1-itens.js */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base font-medium text-gray-900">Logs v1-itens.js</CardTitle>
+                  <Button onClick={fetchData} variant="outline" size="sm" className="border-gray-200 text-xs">Atualizar</Button>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-80 bg-gray-900 rounded-lg p-3" data-testid="logs-v1-itens-scroll">
+                    {(!logs.v1_itens || logs.v1_itens.length === 0) ? (
+                      <p className="text-sm text-gray-500 text-center py-8">Nenhum log. Inicie o serviço de itens.</p>
+                    ) : (
+                      <div className="space-y-1 font-mono text-xs">
+                        {logs.v1_itens?.map((log, idx) => (
+                          <div key={idx} className={`py-1 px-2 rounded ${log.type === 'error' ? 'bg-red-900/50 text-red-300' : 'text-green-300'}`}>
+                            <span className="text-gray-500">[{new Date(log.timestamp).toLocaleTimeString()}]</span> {log.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Config */}
