@@ -63,20 +63,35 @@ def get_db():
                 return pool.get_connection()
     return None
 
-# Store de logs
-node_logs = []
-MAX_LOGS = 500
+# Store de logs separados
+logs_v1 = []
+logs_v1_itens = []
+MAX_LOGS = 200
 
-def add_log(log_type: str, message: str):
-    global node_logs
+def add_log(log_type: str, message: str, source: str = "system"):
+    global logs_v1, logs_v1_itens
     log = {
         "timestamp": datetime.now().isoformat(),
         "type": log_type,
         "message": message.strip() if message else ""
     }
-    node_logs.append(log)
-    if len(node_logs) > MAX_LOGS:
-        node_logs = node_logs[-MAX_LOGS:]
+    
+    if source == "v1":
+        logs_v1.append(log)
+        if len(logs_v1) > MAX_LOGS:
+            logs_v1 = logs_v1[-MAX_LOGS:]
+    elif source == "v1-itens":
+        logs_v1_itens.append(log)
+        if len(logs_v1_itens) > MAX_LOGS:
+            logs_v1_itens = logs_v1_itens[-MAX_LOGS:]
+    else:
+        # Adiciona em ambos para logs de sistema
+        logs_v1.append(log)
+        logs_v1_itens.append(log)
+        if len(logs_v1) > MAX_LOGS:
+            logs_v1 = logs_v1[-MAX_LOGS:]
+        if len(logs_v1_itens) > MAX_LOGS:
+            logs_v1_itens = logs_v1_itens[-MAX_LOGS:]
 
 # PIDs dos processos gerenciados
 managed_processes = {
