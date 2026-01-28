@@ -2,6 +2,7 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const fetch = require('node-fetch');
+const fs = require('fs');
 
 const SYNC_INTERVAL = 2 * 60 * 1000; // 2 minutos
 
@@ -19,7 +20,7 @@ async function syncToLovable() {
   console.log(`\n[${timestamp}] 🔄 Iniciando sincronização...`);
   
   try {
-    // Buscar TODOS os pedidos do dia com TODOS os detalhes
+    // Buscar TODOS os pedidos com TODOS os detalhes
     const [pedidos] = await pool.query(`
       SELECT 
         d.delivery_id,
@@ -75,7 +76,12 @@ async function syncToLovable() {
         WHERE di.delivery_itens_id_delivery = ?
       `, [pedido.delivery_id]);
       
-      pedido.itens = itens;
+      // Garantir que itens seja um array e converter para JSON string se necessário
+      pedido.itens = itens || [];
+      pedido.itens_json = JSON.stringify(itens || []);
+      pedido.itens_count = itens ? itens.length : 0;
+      
+      console.log(`   Pedido ${pedido.delivery_code}: ${pedido.itens_count} itens`);
     }
 
     // Verificar configuração Lovable
@@ -83,13 +89,31 @@ async function syncToLovable() {
     const LOVABLE_KEY = process.env.LOVABLE_ZE_SYNC_KEY;
 
     if (!LOVABLE_URL || !LOVABLE_KEY) {
-      console.log('⚠️  Lovable Cloud não configurado (LOVABLE_SUPABASE_URL ou LOVABLE_ZE_SYNC_KEY ausente)');
+      console.log('⚠️  Lovable Cloud não configurado');
       console.log('   Pedidos salvos apenas localmente.');
+      
+      // Salvar debug local
+      fs.writeFileSync('/app/logs/sync-debug.json', JSON.stringify(pedidos, null, 2));
+      console.log('   Debug salvo em /app/logs/sync-debug.json');
       return;
     }
 
-    // Enviar para Lovable Cloud
+    // Preparar payload com itens em formato JSON string
+    const payload = {
+      pedidos: pedidos.map(p => ({
+        ...p,
+        // Garantir que itens esteja em formato correto
+        itens: p.itens,
+        itens_json: JSON.stringify(p.itens || [])
+      })),
+      source: 'gamatauri-ze',
+      timestamp: timestamp
+    };
+
+    // Salvar debug antes de enviar
+    fs.writeFileSync('/app/logs/sync-payload.json', JSON.stringify(payload, null, 2));
     console.log(`📤 Enviando para ${LOVABLE_URL}...`);
+    console.log(`   Payload salvo em /app/logs/sync-payload.json`);
     
     const response = await fetch(
       `${LOVABLE_URL}/functions/v1/ze-sync-mysql`,
@@ -99,17 +123,13 @@ async function syncToLovable() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${LOVABLE_KEY}`,
         },
-        body: JSON.stringify({ 
-          pedidos,
-          source: 'gamatauri-ze',
-          timestamp: timestamp
-        }),
+        body: JSON.stringify(payload),
       }
     );
 
     if (response.ok) {
       const result = await response.json();
-      console.log(`✅ Sincronização concluída:`, result);
+      console.log(`✅ Sincronização concluída:`, JSON.stringify(result));
     } else {
       const error = await response.text();
       console.error(`❌ Erro na sincronização: ${response.status} - ${error}`);
