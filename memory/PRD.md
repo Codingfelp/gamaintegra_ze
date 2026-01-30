@@ -54,42 +54,48 @@
 |---------|-------|
 | Frontend | 3000 |
 | Backend | 8001 |
-| MySQL | 3306 |
+| MySQL/MariaDB | 3309 |
 | Apache/PHP | 8088 |
-| Bridge | 3333 |
 
 ## Para VPS (Rodar 24/7)
 
 ```bash
-# 1. Instalar PM2
-npm install -g pm2
+# 1. Usar script de inicialização
+/app/startup-24h.sh
 
-# 2. Iniciar todos os serviços
-cd /app && pm2 start pm2.ecosystem.config.js
+# OU manualmente:
 
-# 3. Configurar auto-start
-pm2 startup && pm2 save
+# 1. Iniciar MariaDB
+/usr/sbin/mariadbd --port=3309 --socket=/run/mysqld/mysqld.sock --skip-grant-tables --user=root &
+
+# 2. Iniciar Apache
+apachectl start
+
+# 3. Iniciar PM2
+pm2 start /app/pm2.ecosystem.config.js
+pm2 save
 
 # 4. Ver logs em tempo real
 pm2 logs ze-v1
 pm2 logs ze-v1-itens
+pm2 logs ze-sync
 ```
 
 ## Configurar Lovable Cloud
 
-1. Edite `/app/bridge/.env`:
+1. A chave já está em `/app/bridge/.env`:
 ```env
-LOVABLE_ZE_SYNC_KEY=<sua_chave_do_supabase>
+LOVABLE_ZE_SYNC_KEY=9c908fa589c8346f6372e24d8fb8e9eb
 ```
 
-2. Reinicie o bridge:
+2. Reinicie o sync:
 ```bash
-pm2 restart ze-bridge
+pm2 restart ze-sync
 ```
 
-3. Teste a sincronização:
+3. Verifique os logs:
 ```bash
-curl -X POST http://localhost:3333/sync
+pm2 logs ze-sync
 ```
 
 ---
