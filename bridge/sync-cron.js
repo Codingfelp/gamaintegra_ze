@@ -21,7 +21,7 @@ async function syncToLovable() {
   console.log(`\n[${timestamp}] 🔄 Iniciando sincronização...`);
   
   try {
-    // Buscar TODOS os pedidos com TODOS os detalhes
+    // Buscar TODOS os pedidos com TODOS os detalhes (colunas compatíveis com dump original)
     const [pedidos] = await pool.query(`
       SELECT 
         d.delivery_id,
@@ -30,7 +30,6 @@ async function syncToLovable() {
         d.delivery_name_cliente,
         d.delivery_date_time,
         d.delivery_data_hora_captura,
-        d.delivery_data_hora_aceite,
         d.delivery_status,
         d.delivery_subtotal,
         d.delivery_forma_pagamento,
@@ -49,7 +48,6 @@ async function syncToLovable() {
         d.delivery_obs,
         d.delivery_tipo_pedido,
         d.delivery_codigo_entrega,
-        d.delivery_email_entregador,
         d.delivery_tem_itens
       FROM delivery d
       WHERE d.delivery_trash = 0
