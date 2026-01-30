@@ -1,10 +1,10 @@
-// Sync automático a cada 2 minutos para Lovable Cloud
+// Sync automático a cada 10 segundos para Lovable Cloud
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const fetch = require('node-fetch');
 const fs = require('fs');
 
-const SYNC_INTERVAL = 2 * 60 * 1000; // 2 minutos
+const SYNC_INTERVAL = 10 * 1000; // 10 segundos
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
