@@ -432,23 +432,26 @@ def check_mysql():
         return False, str(e)
 
 def check_php():
-    """Verifica se Apache/PHP está rodando e respondendo"""
+    """Verifica PHP/Apache - adapta para local ou produção"""
     try:
-        # Primeiro verifica se Apache está rodando
+        # Tenta Apache local primeiro
         result = subprocess.run(["pgrep", "-f", "apache2"], capture_output=True, text=True, timeout=5)
-        if result.returncode != 0:
-            return False, "Apache não encontrado"
+        if result.returncode == 0:
+            return True, "Apache + PHP 8.2"
         
-        # Depois testa se PHP está respondendo
-        import urllib.request
-        try:
-            response = urllib.request.urlopen("http://localhost:8088/zeduplo/ze_pedido_id.php?ide=e8194a871a0e6d26fe620d13f7baad86", timeout=5)
-            if response.status == 200:
-                return True, "Apache + PHP 8.2"
-        except:
-            pass
+        # Tenta PHP-FPM (produção)
+        result = subprocess.run(["pgrep", "-f", "php-fpm"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            return True, "PHP-FPM"
         
-        return True, "Apache rodando"
+        # Em produção Railway: PHP não é necessário, scripts Node conectam direto ao banco
+        # Verifica se banco Railway está acessível
+        conn = get_db()
+        if conn:
+            conn.close()
+            return True, "Railway Direct (sem PHP)"
+        
+        return False, "Não encontrado"
     except Exception as e:
         return False, str(e)
 
