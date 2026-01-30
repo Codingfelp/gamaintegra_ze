@@ -130,6 +130,7 @@ async function syncToLovable() {
         // Entrega
         delivery_type: pedido.delivery_tipo_pedido,
         delivery_code: pedido.delivery_codigo_entrega,
+        courier_email: pedido.delivery_email_entregador || null,
         notes: pedido.delivery_obs,
         
         // ITENS - enviar como array E como JSON string
