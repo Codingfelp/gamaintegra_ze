@@ -48,6 +48,7 @@ async function syncToLovable() {
         d.delivery_obs,
         d.delivery_tipo_pedido,
         d.delivery_codigo_entrega,
+        d.delivery_email_entregador,
         d.delivery_tem_itens
       FROM delivery d
       WHERE d.delivery_trash = 0
