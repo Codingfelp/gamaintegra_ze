@@ -49,33 +49,34 @@
 /app/docs/zedelivery_original.sql # Dump completo do banco
 ```
 
-## Portas
-| Serviço | Porta |
-|---------|-------|
+## Portas e Banco de Dados
+| Serviço | Porta/Host |
+|---------|------------|
 | Frontend | 3000 |
 | Backend | 8001 |
-| MySQL/MariaDB | 3309 |
+| MySQL Railway | mainline.proxy.rlwy.net:52996 |
 | Apache/PHP | 8088 |
+
+## Credenciais Railway MySQL
+```env
+DB_HOST=mainline.proxy.rlwy.net
+DB_PORT=52996
+DB_USER=root
+DB_PASS=eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU
+DB_NAME=railway
+```
 
 ## Para VPS (Rodar 24/7)
 
 ```bash
-# 1. Usar script de inicialização
-/app/startup-24h.sh
-
-# OU manualmente:
-
-# 1. Iniciar MariaDB
-/usr/sbin/mariadbd --port=3309 --socket=/run/mysqld/mysqld.sock --skip-grant-tables --user=root &
-
-# 2. Iniciar Apache
+# 1. Iniciar Apache
 apachectl start
 
-# 3. Iniciar PM2
+# 2. Iniciar PM2
 pm2 start /app/pm2.ecosystem.config.js
 pm2 save
 
-# 4. Ver logs em tempo real
+# 3. Ver logs em tempo real
 pm2 logs ze-v1
 pm2 logs ze-v1-itens
 pm2 logs ze-sync
