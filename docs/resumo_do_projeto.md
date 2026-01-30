@@ -48,13 +48,32 @@ Implementada integração com a plataforma Lovable Cloud (Supabase) para:
 
 ---
 
+## Configuração Técnica
+
+| Serviço | Porta | Descrição |
+|---------|-------|-----------|
+| **MariaDB** | 3309 | Banco de dados (porta personalizada) |
+| **Apache/PHP** | 8088 | Servidor web para scripts PHP |
+| **Backend FastAPI** | 8001 | API central do sistema |
+| **Frontend React** | 3000 | Painel de controle |
+
+### PM2 - Gerenciador de Processos (24/7)
+
+| Processo | Função |
+|----------|--------|
+| `ze-v1` | Scraper de pedidos |
+| `ze-v1-itens` | Scraper de itens dos pedidos |
+| `ze-sync` | Sincronização com Lovable Cloud |
+
+---
+
 ## Tecnologias Utilizadas
 
 | Componente | Tecnologia |
 |------------|------------|
 | Painel Web | React (JavaScript) |
 | Servidor API | FastAPI (Python) |
-| Banco de Dados | MariaDB (MySQL) |
+| Banco de Dados | MariaDB (MySQL) - Porta 3309 |
 | Automação | Node.js + Puppeteer |
 | Gerenciador de Processos | PM2 |
 | Servidor Web | Apache + PHP |
@@ -81,8 +100,8 @@ Implementada integração com a plataforma Lovable Cloud (Supabase) para:
          │               │               │
 ┌────────▼────────┐ ┌────▼────┐ ┌────────▼────────┐
 │  BANCO DE DADOS │ │  PHP    │ │   LOVABLE       │
-│    (MariaDB)    │ │ (Apache)│ │    CLOUD        │
-│                 │ │         │ │  (Supabase)     │
+│  (MariaDB:3309) │ │ (Apache)│ │    CLOUD        │
+│                 │ │ (:8088) │ │  (Supabase)     │
 └─────────────────┘ └─────────┘ └─────────────────┘
          ▲
          │
@@ -97,12 +116,51 @@ Implementada integração com a plataforma Lovable Cloud (Supabase) para:
 
 ---
 
-## Como Acessar
+## Como Iniciar os Serviços
 
-- **Painel Web**: Acesse pelo navegador no endereço configurado
-- **Porta do Painel**: 3000
-- **Porta da API**: 8001
-- **Banco de Dados**: 3306
+### Script de Inicialização Automática
+```bash
+/app/startup-24h.sh
+```
+
+### Comandos Manuais
+```bash
+# MariaDB
+/usr/sbin/mariadbd --port=3309 --socket=/run/mysqld/mysqld.sock --skip-grant-tables --user=root &
+
+# Apache
+apachectl start
+
+# PM2 (scripts de captura)
+pm2 start /app/pm2.ecosystem.config.js
+pm2 save
+```
+
+### Monitoramento
+```bash
+# Ver status dos processos
+pm2 list
+
+# Ver logs em tempo real
+pm2 logs ze-v1
+pm2 logs ze-v1-itens
+pm2 logs ze-sync
+
+# Reiniciar serviços
+pm2 restart all
+```
+
+---
+
+## Restauração do Banco de Dados
+
+O dump completo do banco está disponível em:
+- `/app/docs/zedelivery_original.sql`
+
+Para restaurar:
+```bash
+mariadb -u root -P 3309 -S /run/mysqld/mysqld.sock zedelivery < /app/docs/zedelivery_original.sql
+```
 
 ---
 
@@ -114,29 +172,15 @@ Implementada integração com a plataforma Lovable Cloud (Supabase) para:
 
 ---
 
-## Manutenção
-
-### Verificar se os serviços estão rodando:
-O próprio painel mostra o status de cada serviço (MySQL, PHP, Integrador, Itens)
-
-### Visualizar logs:
-O painel possui área dedicada para visualização dos logs em tempo real
-
-### Reiniciar serviços:
-Use os botões de controle no painel ou acesse o servidor e execute:
-```bash
-pm2 restart all
-```
-
----
-
 ## Resultados
 
 - ✅ Sistema completo funcionando
 - ✅ Captura automática de pedidos operacional
 - ✅ Painel administrativo moderno e funcional
-- ✅ Sincronização com Lovable Cloud configurada
-- ✅ Operação 24/7 garantida
+- ✅ Sincronização com Lovable Cloud funcionando
+- ✅ Operação 24/7 garantida com PM2
+- ✅ Banco de dados configurado na porta 3309
+- ✅ Correção do erro "Unexpected end of JSON input"
 
 ---
 
@@ -146,5 +190,5 @@ Para suporte técnico ou dúvidas sobre o sistema, entre em contato com a equipe
 
 ---
 
-*Documento gerado em: Janeiro de 2026*
-*Versão: 1.0*
+*Documento atualizado em: Janeiro de 2026*
+*Versão: 2.0*
