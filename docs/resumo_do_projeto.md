@@ -59,15 +59,15 @@ Implementada integração com a plataforma Lovable Cloud (Supabase) para:
 
 | Configuração | Valor |
 |--------------|-------|
-| **Host** | ballast.proxy.rlwy.net |
-| **Porta** | 46527 |
+| **Host** | mainline.proxy.rlwy.net |
+| **Porta** | 52996 |
 | **Usuário** | root |
-| **Senha** | DxKOhVxrstXLUUwgAJXYwKOCeVrLHrgZ |
-| **Banco** | zedelivery |
+| **Senha** | eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU |
+| **Banco** | railway |
 
 **Conexão via terminal:**
 ```bash
-mysql -h ballast.proxy.rlwy.net -u root -pDxKOhVxrstXLUUwgAJXYwKOCeVrLHrgZ --port 46527 --protocol=TCP zedelivery
+mysql -h mainline.proxy.rlwy.net -P 52996 -u root -peHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU --protocol=TCP railway
 ```
 
 ### Serviços Locais
