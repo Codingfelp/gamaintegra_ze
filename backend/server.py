@@ -220,12 +220,12 @@ async def detalhe_pedido(pedido_id: int):
     
     cursor = conn.cursor(dictionary=True)
     try:
-        # Buscar pedido com todos os campos
+        # Buscar pedido com todos os campos (Railway Cloud)
         cursor.execute("""
             SELECT 
                 delivery_id, delivery_ide, delivery_ide_hub_delivery, delivery_code,
                 delivery_name_cliente, delivery_date_time, delivery_data_hora_captura,
-                delivery_data_hora_aceite, delivery_status, delivery_subtotal,
+                delivery_status, delivery_subtotal,
                 delivery_forma_pagamento, delivery_desconto, delivery_frete, delivery_total,
                 delivery_trash, delivery_id_company, delivery_cpf_cliente,
                 delivery_endereco_rota, delivery_endereco_complemento,
