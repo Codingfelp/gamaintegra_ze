@@ -459,24 +459,41 @@ def check_process_running(name):
         }
         pm2_name = pm2_names.get(name, name)
         
-        # Verificar via PM2 status
+        # Verificar via PM2 list (mais confiável)
         result = subprocess.run(
-            ["/usr/bin/pm2", "show", pm2_name],
+            "pm2 jlist 2>/dev/null",
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=10,
+            shell=True,
             env={**os.environ, "HOME": "/root", "PM2_HOME": "/root/.pm2"}
         )
-        if result.returncode == 0 and "online" in result.stdout.lower():
-            # Extrair PID
-            for line in result.stdout.split('\n'):
-                if 'pid' in line.lower() and '│' in line:
-                    parts = line.split('│')
-                    if len(parts) >= 3:
-                        pid = parts[2].strip()
-                        if pid.isdigit():
+        if result.returncode == 0 and result.stdout.strip():
+            try:
+                import json
+                pm2_list = json.loads(result.stdout)
+                for proc in pm2_list:
+                    if proc.get("name") == pm2_name:
+                        status = proc.get("pm2_env", {}).get("status", "")
+                        pid = proc.get("pid", None)
+                        # Considerar online ou waiting (restartando) como rodando
+                        if status in ["online", "launching"] or (status == "stopped" and proc.get("pm2_env", {}).get("restart_time", 0) > 0):
                             return True, pid
-            return True, None
+                        # Se está em waiting mas tem restarts, está funcionando (scraper reinicia após cada ciclo)
+                        if proc.get("pm2_env", {}).get("restart_time", 0) > 0:
+                            return True, pid
+            except:
+                pass
+        
+        # Fallback: verificar se tem logs recentes (últimos 60 segundos)
+        log_files = {
+            "v1.js": "/app/logs/ze-v1-out.log",
+            "v1-itens.js": "/app/logs/ze-v1-itens-out.log"
+        }
+        if name in log_files and os.path.exists(log_files[name]):
+            mtime = os.path.getmtime(log_files[name])
+            if time.time() - mtime < 60:  # Log modificado nos últimos 60 segundos
+                return True, None
         
         # Fallback: pgrep
         result = subprocess.run(
