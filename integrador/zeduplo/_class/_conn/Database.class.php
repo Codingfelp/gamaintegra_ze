@@ -7,7 +7,7 @@
  */
 class Database {
 
-    //FAZ A CONEXÃO COM O BANCO DE DADOS (Railway Cloud)
+    //FAZ A CONEXÃO COM O BANCO DE DADOS (Railway Cloud mainline)
     public function Conn() {
         $Host = 'mainline.proxy.rlwy.net';
         $User = 'root';
