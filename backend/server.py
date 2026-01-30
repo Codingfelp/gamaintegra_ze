@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -14,18 +14,75 @@ import random
 import time
 import threading
 
-# Inicializar serviços em background (Apache, PM2, etc)
-def init_services_background():
-    """Inicializa serviços necessários em uma thread separada"""
-    try:
-        from startup_services import initialize_services
-        initialize_services()
-    except Exception as e:
-        print(f"⚠️ Erro na inicialização de serviços: {e}")
+# Flag para controlar inicialização
+services_initialized = False
 
-# Executar inicialização em background para não bloquear o servidor
-init_thread = threading.Thread(target=init_services_background, daemon=True)
-init_thread.start()
+def run_shell(cmd, timeout=120):
+    """Executa comando shell"""
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        return result.returncode == 0, result.stdout + result.stderr
+    except Exception as e:
+        return False, str(e)
+
+def ensure_services_running():
+    """Garante que Apache e PM2 estejam rodando"""
+    global services_initialized
+    
+    print("🔧 Verificando e iniciando serviços...")
+    
+    # 1. Verificar/Instalar PM2
+    ok, _ = run_shell("which pm2")
+    if not ok:
+        print("📦 Instalando PM2...")
+        run_shell("npm install -g pm2", timeout=120)
+    
+    # 2. Verificar/Instalar Apache
+    ok, _ = run_shell("which apache2")
+    if not ok:
+        print("📦 Instalando Apache + PHP...")
+        run_shell("apt-get update && apt-get install -y apache2 php libapache2-mod-php php-mysql chromium mariadb-client", timeout=180)
+    
+    # 3. Configurar e iniciar Apache na porta 8088
+    ok, output = run_shell("ss -tlnp | grep ':8088'")
+    if not ok or "apache" not in output:
+        print("🌐 Configurando Apache...")
+        run_shell("pkill -9 apache2 2>/dev/null; sleep 1")
+        run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf")
+        run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'VHOST'
+<VirtualHost *:8088>
+    DocumentRoot /app/integrador
+    <Directory /app/integrador>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+VHOST""")
+        run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null")
+        run_shell("apachectl start")
+        print("✅ Apache iniciado")
+    
+    # 4. Iniciar PM2 com os scripts
+    ok, output = run_shell("pm2 list 2>/dev/null")
+    if not ok or "ze-v1" not in output or "online" not in output:
+        print("🚀 Iniciando scripts PM2...")
+        run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null")
+        run_shell("cd /app/bridge && npm install --silent 2>/dev/null")
+        run_shell("pm2 delete all 2>/dev/null")
+        run_shell("pm2 start /app/pm2.ecosystem.config.js")
+        run_shell("pm2 save")
+        print("✅ PM2 iniciado")
+    
+    services_initialized = True
+    print("✅ Serviços verificados e rodando")
+
+# Iniciar em background na startup
+def init_background():
+    time.sleep(2)  # Aguardar servidor iniciar
+    ensure_services_running()
+
+threading.Thread(target=init_background, daemon=True).start()
 
 app = FastAPI(title="Zé Delivery Integrador API")
 
