@@ -9,7 +9,7 @@ class Database {
 
     //FAZ A CONEXÃO COM O BANCO DE DADOS (Railway Cloud)
     public function Conn() {
-        $Host = 'localhost';
+        $Host = 'ballast.proxy.rlwy.net';
         $User = 'root';
         $Pass = '';
         $Dbsa = 'zedelivery';
