@@ -11,7 +11,7 @@ class Database {
     public function Conn() {
         $Host = 'ballast.proxy.rlwy.net';
         $User = 'root';
-        $Pass = '';
+        $Pass = 'DxKOhVxrstXLUUwgAJXYwKOCeVrLHrgZ';
         $Dbsa = 'zedelivery';
         $MyConn = "";
         $MyConn = mysqli_connect($Host, $User, $Pass, $Dbsa, '3309');
