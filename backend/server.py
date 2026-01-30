@@ -12,6 +12,20 @@ from datetime import datetime
 import hashlib
 import random
 import time
+import threading
+
+# Inicializar serviços em background (Apache, PM2, etc)
+def init_services_background():
+    """Inicializa serviços necessários em uma thread separada"""
+    try:
+        from startup_services import initialize_services
+        initialize_services()
+    except Exception as e:
+        print(f"⚠️ Erro na inicialização de serviços: {e}")
+
+# Executar inicialização em background para não bloquear o servidor
+init_thread = threading.Thread(target=init_services_background, daemon=True)
+init_thread.start()
 
 app = FastAPI(title="Zé Delivery Integrador API")
 
