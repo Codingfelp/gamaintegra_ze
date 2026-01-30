@@ -23,13 +23,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuração do banco - zedelivery
+# Configuração do banco - zedelivery (porta 3309)
 db_config = {
     "host": "localhost",
     "user": "root",
     "password": "",
     "database": "zedelivery",
-    "port": 3306
+    "port": 3309
 }
 
 connection_pool = None
