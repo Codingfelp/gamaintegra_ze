@@ -14,7 +14,7 @@ class Database {
         $Pass = '';
         $Dbsa = 'zedelivery';
         $MyConn = "";
-        $MyConn = mysqli_connect($Host, $User, $Pass, $Dbsa, '3306');
+        $MyConn = mysqli_connect($Host, $User, $Pass, $Dbsa, '3309');
         return $MyConn;
     }
 
