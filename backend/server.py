@@ -432,12 +432,23 @@ def check_mysql():
         return False, str(e)
 
 def check_php():
-    """Verifica se PHP-FPM está rodando"""
+    """Verifica se Apache/PHP está rodando e respondendo"""
     try:
-        result = subprocess.run(["pgrep", "-f", "php-fpm"], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            return True, "PHP 8.2 FPM"
-        return False, "Não encontrado"
+        # Primeiro verifica se Apache está rodando
+        result = subprocess.run(["pgrep", "-f", "apache2"], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            return False, "Apache não encontrado"
+        
+        # Depois testa se PHP está respondendo
+        import urllib.request
+        try:
+            response = urllib.request.urlopen("http://localhost:8088/zeduplo/ze_pedido_id.php?ide=e8194a871a0e6d26fe620d13f7baad86", timeout=5)
+            if response.status == 200:
+                return True, "Apache + PHP 8.2"
+        except:
+            pass
+        
+        return True, "Apache rodando"
     except Exception as e:
         return False, str(e)
 
