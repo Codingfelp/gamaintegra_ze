@@ -1,3 +1,6 @@
+// PM2 Ecosystem Configuration - Gamatauri Zé Delivery
+// Todos os serviços rodam 24/7 com auto-restart
+
 module.exports = {
   apps: [
     {
@@ -7,20 +10,16 @@ module.exports = {
       cwd: '/app/zedelivery-clean',
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
-      restart_delay: 5000,
-      max_restarts: 999999,
-      min_uptime: '10s',
-      exp_backoff_restart_delay: 100,
+      max_memory_restart: '500M',
+      restart_delay: 10000,
+      max_restarts: 100,
       env: {
-        PUPPETEER_EXECUTABLE_PATH: '/usr/bin/chromium',
-        NODE_ENV: 'production'
+        NODE_ENV: 'production',
+        PUPPETEER_EXECUTABLE_PATH: '/usr/bin/chromium'
       },
-      error_file: '/app/logs/ze-v1-error.log',
       out_file: '/app/logs/ze-v1-out.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      merge_logs: true,
-      kill_timeout: 10000
+      error_file: '/app/logs/ze-v1-error.log',
+      log_date_format: 'YYYY-MM-DD HH:mm:ss'
     },
     {
       name: 'ze-v1-itens',
@@ -29,35 +28,15 @@ module.exports = {
       cwd: '/app/zedelivery-clean',
       autorestart: true,
       watch: false,
-      max_memory_restart: '1G',
-      restart_delay: 5000,
-      max_restarts: 999999,
-      min_uptime: '10s',
-      exp_backoff_restart_delay: 100,
-      env: {
-        PUPPETEER_EXECUTABLE_PATH: '/usr/bin/chromium',
-        NODE_ENV: 'production'
-      },
-      error_file: '/app/logs/ze-v1-itens-error.log',
-      out_file: '/app/logs/ze-v1-itens-out.log',
-      log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      merge_logs: true,
-      kill_timeout: 10000
-    },
-    {
-      name: 'ze-bridge',
-      script: 'index.js',
-      cwd: '/app/bridge',
-      autorestart: true,
-      watch: false,
-      restart_delay: 3000,
-      max_restarts: 999999,
+      max_memory_restart: '500M',
+      restart_delay: 10000,
+      max_restarts: 100,
       env: {
         NODE_ENV: 'production',
-        PORT: 3333
+        PUPPETEER_EXECUTABLE_PATH: '/usr/bin/chromium'
       },
-      error_file: '/app/logs/ze-bridge-error.log',
-      out_file: '/app/logs/ze-bridge-out.log',
+      out_file: '/app/logs/ze-v1-itens-out.log',
+      error_file: '/app/logs/ze-v1-itens-error.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss'
     },
     {
@@ -66,13 +45,13 @@ module.exports = {
       cwd: '/app/bridge',
       autorestart: true,
       watch: false,
-      restart_delay: 60000,
-      max_restarts: 999999,
+      max_memory_restart: '200M',
+      restart_delay: 5000,
       env: {
         NODE_ENV: 'production'
       },
-      error_file: '/app/logs/ze-sync-error.log',
       out_file: '/app/logs/ze-sync-out.log',
+      error_file: '/app/logs/ze-sync-error.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss'
     }
   ]
