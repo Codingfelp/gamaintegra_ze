@@ -189,6 +189,14 @@ if (count($json) > 0) {
     $uppedido['delivery_tem_itens'] = '1';
     $DB->Update('delivery', $uppedido, "WHERE delivery_code = '" . $cdPedidoNovo . "' AND delivery_id = '" . $idPedidoNovo . "' LIMIT 1");
 }
+// Retornar resposta JSON para o cliente Node.js
+header('Content-Type: application/json');
+echo json_encode([
+    'success' => true,
+    'message' => 'Dados processados com sucesso',
+    'timestamp' => date('Y-m-d H:i:s')
+]);
+exit;
 /*
 $explode_dados = explode("\n", $tags);
 if (count($explode_dados) > 0) {
