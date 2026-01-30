@@ -23,13 +23,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuração do banco - zedelivery (porta 3309)
+# Configuração do banco - zedelivery (Railway Cloud)
 db_config = {
-    "host": "localhost",
+    "host": "ballast.proxy.rlwy.net",
     "user": "root",
-    "password": "",
+    "password": "DxKOhVxrstXLUUwgAJXYwKOCeVrLHrgZ",
     "database": "zedelivery",
-    "port": 3309
+    "port": 46527
 }
 
 connection_pool = None
