@@ -34,6 +34,13 @@ def ensure_services_running():
     # Criar diretório de logs
     os.makedirs("/app/logs", exist_ok=True)
     
+    # 0. Copiar config do supervisor se não existir
+    if os.path.exists("/app/ze-scripts.supervisor.conf"):
+        if not os.path.exists("/etc/supervisor/conf.d/ze-scripts.conf"):
+            print("📋 Copiando config do supervisor...")
+            run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf")
+            run_shell("supervisorctl reread && supervisorctl update")
+    
     # 1. Verificar/iniciar Apache (se disponível)
     ok, _ = run_shell("which apache2")
     if ok:
