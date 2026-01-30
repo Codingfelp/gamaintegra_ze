@@ -100,7 +100,6 @@ async function syncToLovable() {
         // Cliente
         customer_name: pedido.delivery_name_cliente,
         customer_cpf: pedido.delivery_cpf_cliente,
-        customer_email: pedido.delivery_email_entregador,
         
         // Endereço
         address: pedido.delivery_endereco_rota,
@@ -114,7 +113,6 @@ async function syncToLovable() {
         status_text: getStatusText(pedido.delivery_status),
         created_at: pedido.delivery_date_time,
         captured_at: pedido.delivery_data_hora_captura,
-        accepted_at: pedido.delivery_data_hora_aceite,
         
         // Valores
         subtotal: parseFloat(pedido.delivery_subtotal) || 0,
