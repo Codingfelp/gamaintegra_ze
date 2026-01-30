@@ -16,7 +16,6 @@ import threading
 
 # Flag para controlar inicialização
 services_initialized = False
-script_processes = {}  # Guarda processos dos scripts
 
 def run_shell(cmd, timeout=120):
     """Executa comando shell"""
@@ -26,54 +25,21 @@ def run_shell(cmd, timeout=120):
     except Exception as e:
         return False, str(e)
 
-def start_script_directly(script_name, script_path, log_prefix):
-    """Inicia script Node diretamente sem PM2"""
-    global script_processes
-    try:
-        log_out = open(f"/app/logs/{log_prefix}-out.log", "a")
-        log_err = open(f"/app/logs/{log_prefix}-error.log", "a")
-        
-        env = os.environ.copy()
-        env["PUPPETEER_EXECUTABLE_PATH"] = "/usr/bin/chromium"
-        
-        proc = subprocess.Popen(
-            ["node", "puppeteer-wrapper.js", script_name],
-            cwd="/app/zedelivery-clean",
-            stdout=log_out,
-            stderr=log_err,
-            env=env
-        )
-        script_processes[log_prefix] = proc
-        print(f"✅ {script_name} iniciado (PID: {proc.pid})")
-        return True
-    except Exception as e:
-        print(f"❌ Erro ao iniciar {script_name}: {e}")
-        return False
-
 def ensure_services_running():
     """Garante que os serviços estejam rodando"""
     global services_initialized
     
-    print("🔧 Verificando e iniciando serviços...")
+    print("🔧 Verificando serviços...")
     
     # Criar diretório de logs
     os.makedirs("/app/logs", exist_ok=True)
     
-    # 1. Tentar PM2 primeiro
-    ok, _ = run_shell("which pm2")
-    pm2_available = ok
-    
-    if not pm2_available:
-        print("📦 Instalando PM2...")
-        ok, output = run_shell("npm install -g pm2", timeout=120)
-        pm2_available = ok
-    
-    # 2. Tentar Apache (pode falhar no deploy)
+    # 1. Verificar/iniciar Apache (se disponível)
     ok, _ = run_shell("which apache2")
     if ok:
         ok, output = run_shell("ss -tlnp | grep ':8088'")
         if not ok or "apache" not in output:
-            print("🌐 Configurando Apache...")
+            print("🌐 Iniciando Apache...")
             run_shell("pkill -9 apache2 2>/dev/null; sleep 1")
             run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf 2>/dev/null")
             run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'VHOST'
@@ -88,48 +54,18 @@ def ensure_services_running():
 VHOST""")
             run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null")
             run_shell("apachectl start 2>/dev/null")
-            print("✅ Apache configurado")
     
-    # 3. Iniciar scripts - tentar PM2, fallback para direto
-    if pm2_available:
-        ok, output = run_shell("pm2 list 2>/dev/null")
-        if not ok or "ze-v1" not in output:
-            print("🚀 Iniciando scripts via PM2...")
-            run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null")
-            run_shell("cd /app/bridge && npm install --silent 2>/dev/null")
-            run_shell("pm2 delete all 2>/dev/null")
-            ok, output = run_shell("pm2 start /app/pm2.ecosystem.config.js")
-            if ok:
-                run_shell("pm2 save")
-                print("✅ PM2 iniciado")
-            else:
-                print(f"⚠️ PM2 falhou: {output[:200]}")
-                pm2_available = False
-    
-    # 4. Fallback: iniciar scripts diretamente se PM2 falhou
-    if not pm2_available:
-        print("🚀 Iniciando scripts diretamente (sem PM2)...")
-        start_script_directly("v1.js", "/app/zedelivery-clean/v1.js", "ze-v1")
-        start_script_directly("v1-itens.js", "/app/zedelivery-clean/v1-itens.js", "ze-v1-itens")
-    
-    # 5. Iniciar sync (sempre via Node direto se PM2 falhar)
-    if not pm2_available:
-        try:
-            log_out = open("/app/logs/ze-sync-out.log", "a")
-            log_err = open("/app/logs/ze-sync-error.log", "a")
-            proc = subprocess.Popen(
-                ["node", "sync-cron.js"],
-                cwd="/app/bridge",
-                stdout=log_out,
-                stderr=log_err
-            )
-            script_processes["ze-sync"] = proc
-            print(f"✅ sync-cron.js iniciado (PID: {proc.pid})")
-        except Exception as e:
-            print(f"❌ Erro ao iniciar sync: {e}")
+    # 2. Scripts são gerenciados pelo Supervisor (ze-v1, ze-v1-itens, ze-sync)
+    # Verificar se estão rodando
+    ok, output = run_shell("supervisorctl status ze-v1 ze-v1-itens ze-sync 2>/dev/null")
+    if ok and "RUNNING" in output:
+        print("✅ Scripts rodando via Supervisor")
+    else:
+        # Tentar iniciar via supervisor
+        run_shell("supervisorctl start ze-v1 ze-v1-itens ze-sync 2>/dev/null")
     
     services_initialized = True
-    print("✅ Serviços verificados e rodando")
+    print("✅ Serviços verificados")
     
     services_initialized = True
     print("✅ Serviços verificados e rodando")
