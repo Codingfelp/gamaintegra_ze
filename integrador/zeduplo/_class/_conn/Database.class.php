@@ -7,7 +7,7 @@
  */
 class Database {
 
-    //FAZ A CONEXÃO COM O BANCO DE DADOS
+    //FAZ A CONEXÃO COM O BANCO DE DADOS (Railway Cloud)
     public function Conn() {
         $Host = 'localhost';
         $User = 'root';
