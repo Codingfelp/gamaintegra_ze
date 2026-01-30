@@ -28,7 +28,7 @@ O sistema utiliza tecnologia de automação (web scraping) para:
 - Conectar automaticamente à plataforma Zé Delivery
 - Capturar novos pedidos em tempo real
 - Extrair informações completas dos pedidos e seus itens
-- Salvar tudo no banco de dados local
+- Salvar tudo no banco de dados Railway Cloud
 
 ### 3. Operação 24 horas
 
@@ -44,26 +44,66 @@ Implementada integração com a plataforma Lovable Cloud (Supabase) para:
 
 - Enviar dados dos pedidos para a nuvem automaticamente
 - Sincronização a cada 2 minutos
-- Todos os detalhes dos pedidos são enviados, incluindo itens
+- Todos os detalhes dos pedidos são enviados, incluindo:
+  - Status correto (Pendente, Aceito, A Caminho, Entregue, Cancelado)
+  - Tipo de pedido (Comum, Turbo, Retirada)
+  - Código de entrega
+  - Detalhes do cliente (nome, CPF, endereço)
+  - Lista completa de itens
 
 ---
 
 ## Configuração Técnica
 
+### Banco de Dados Railway Cloud (Online 24/7)
+
+| Configuração | Valor |
+|--------------|-------|
+| **Host** | ballast.proxy.rlwy.net |
+| **Porta** | 46527 |
+| **Usuário** | root |
+| **Senha** | DxKOhVxrstXLUUwgAJXYwKOCeVrLHrgZ |
+| **Banco** | zedelivery |
+
+**Conexão via terminal:**
+```bash
+mysql -h ballast.proxy.rlwy.net -u root -pDxKOhVxrstXLUUwgAJXYwKOCeVrLHrgZ --port 46527 --protocol=TCP zedelivery
+```
+
+### Serviços Locais
+
 | Serviço | Porta | Descrição |
 |---------|-------|-----------|
-| **MariaDB** | 3309 | Banco de dados (porta personalizada) |
 | **Apache/PHP** | 8088 | Servidor web para scripts PHP |
 | **Backend FastAPI** | 8001 | API central do sistema |
 | **Frontend React** | 3000 | Painel de controle |
 
 ### PM2 - Gerenciador de Processos (24/7)
 
-| Processo | Função |
-|----------|--------|
-| `ze-v1` | Scraper de pedidos |
-| `ze-v1-itens` | Scraper de itens dos pedidos |
-| `ze-sync` | Sincronização com Lovable Cloud |
+| Processo | Função | Status |
+|----------|--------|--------|
+| `ze-v1` | Scraper de pedidos | ✅ Online |
+| `ze-v1-itens` | Scraper de itens dos pedidos | ✅ Online |
+| `ze-sync` | Sincronização com Lovable Cloud | ✅ Online |
+
+---
+
+## Tipos de Pedido Suportados
+
+| Tipo | Campo |
+|------|-------|
+| **Comum** | `delivery_tipo_pedido = "Pedido Comum"` |
+| **Turbo** | `delivery_tipo_pedido = "Pedido Turbo"` |
+| **Retirada** | `delivery_tipo_pedido = "Retirada"` |
+
+## Status dos Pedidos
+
+| Código | Status |
+|--------|--------|
+| 0 | Pendente |
+| 1 | Aceito/Entregue |
+| 2 | A Caminho |
+| 4 | Cancelado |
 
 ---
 
