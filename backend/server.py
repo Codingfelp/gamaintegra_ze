@@ -911,6 +911,29 @@ async def health():
         "database": "connected" if mysql_ok else "disconnected"
     }
 
+@app.post("/api/services/init")
+async def init_services():
+    """Endpoint para forçar inicialização dos serviços"""
+    try:
+        ensure_services_running()
+        return {"success": True, "message": "Serviços iniciados"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/services/restart")
+async def restart_all_services():
+    """Reinicia todos os serviços (Apache + PM2)"""
+    try:
+        # Reiniciar Apache
+        run_shell("pkill -9 apache2 2>/dev/null; sleep 1; apachectl start")
+        
+        # Reiniciar PM2
+        run_shell("pm2 restart all")
+        
+        return {"success": True, "message": "Serviços reiniciados"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
