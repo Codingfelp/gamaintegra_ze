@@ -445,50 +445,43 @@ async def listar_produtos():
 def check_process_running(name):
     """Verifica se um processo está rodando pelo nome"""
     try:
-        # Mapear nome do processo para nome PM2
-        pm2_names = {
+        # Mapear nome do processo para nome supervisor
+        supervisor_names = {
             "v1.js": "ze-v1",
             "v1-itens.js": "ze-v1-itens"
         }
-        pm2_name = pm2_names.get(name, name)
+        sv_name = supervisor_names.get(name, name)
         
-        # Verificar via PM2 list (mais confiável)
+        # 1. Verificar via Supervisor (preferido)
         result = subprocess.run(
-            "pm2 jlist 2>/dev/null",
+            f"supervisorctl status {sv_name}",
             capture_output=True,
             text=True,
-            timeout=10,
-            shell=True,
-            env={**os.environ, "HOME": "/root", "PM2_HOME": "/root/.pm2"}
+            timeout=5,
+            shell=True
         )
-        if result.returncode == 0 and result.stdout.strip():
-            try:
-                import json
-                pm2_list = json.loads(result.stdout)
-                for proc in pm2_list:
-                    if proc.get("name") == pm2_name:
-                        status = proc.get("pm2_env", {}).get("status", "")
-                        pid = proc.get("pid", None)
-                        # Considerar online ou waiting (restartando) como rodando
-                        if status in ["online", "launching"] or (status == "stopped" and proc.get("pm2_env", {}).get("restart_time", 0) > 0):
+        if result.returncode == 0 and "RUNNING" in result.stdout:
+            # Extrair PID
+            parts = result.stdout.split()
+            for i, p in enumerate(parts):
+                if p == "pid":
+                    if i+1 < len(parts):
+                        pid = parts[i+1].replace(",", "")
+                        if pid.isdigit():
                             return True, pid
-                        # Se está em waiting mas tem restarts, está funcionando (scraper reinicia após cada ciclo)
-                        if proc.get("pm2_env", {}).get("restart_time", 0) > 0:
-                            return True, pid
-            except:
-                pass
+            return True, None
         
-        # Fallback: verificar se tem logs recentes (últimos 60 segundos)
+        # 2. Fallback: verificar logs recentes (últimos 60 segundos)
         log_files = {
             "v1.js": "/app/logs/ze-v1-out.log",
             "v1-itens.js": "/app/logs/ze-v1-itens-out.log"
         }
         if name in log_files and os.path.exists(log_files[name]):
             mtime = os.path.getmtime(log_files[name])
-            if time.time() - mtime < 60:  # Log modificado nos últimos 60 segundos
+            if time.time() - mtime < 60:
                 return True, None
         
-        # Fallback: pgrep
+        # 3. Fallback: pgrep
         result = subprocess.run(
             ["pgrep", "-f", name],
             capture_output=True,
