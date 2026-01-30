@@ -12,7 +12,7 @@ class Database {
         $Host = 'mainline.proxy.rlwy.net';
         $User = 'root';
         $Pass = 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU';
-        $Dbsa = 'zedelivery';
+        $Dbsa = 'railway';
         $MyConn = "";
         $MyConn = mysqli_connect($Host, $User, $Pass, $Dbsa, '46527');
         return $MyConn;
