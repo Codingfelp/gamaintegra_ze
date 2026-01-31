@@ -197,13 +197,9 @@ def watchdog_scripts():
         ]
         
         for name, script, workdir, logfile in scripts_to_check:
-            # Verificar se está rodando via Supervisor
-            ok, output = run_shell(f"supervisorctl status {name} 2>/dev/null")
-            if "RUNNING" in output:
-                continue  # Tudo OK
-            
-            # Verificar se está rodando manualmente
-            ok, output = run_shell(f"pgrep -f '{script}'")
+            # Verificar APENAS se está rodando manualmente (pgrep)
+            # Não usar supervisorctl em produção pois não existe
+            ok, output = run_shell(f"pgrep -f '{script}'", timeout=5)
             if ok and output.strip():
                 continue  # Tudo OK
             
@@ -211,9 +207,9 @@ def watchdog_scripts():
             print(f"⚠️ Watchdog: {name} não está rodando, reiniciando...")
             start_node_process_manually(name, script, workdir, logfile)
 
-# Iniciar em background na startup
+# Iniciar em background na startup (não bloquear o servidor)
 def init_background():
-    time.sleep(2)  # Aguardar servidor iniciar
+    time.sleep(5)  # Aguardar servidor iniciar completamente
     ensure_services_running()
     
     # Iniciar watchdog em thread separada
@@ -222,6 +218,17 @@ def init_background():
 threading.Thread(target=init_background, daemon=True).start()
 
 app = FastAPI(title="Zé Delivery Integrador API")
+
+# ENDPOINT DE HEALTH CHECK - CRÍTICO PARA DEPLOY
+@app.get("/health")
+async def health_check():
+    """Endpoint de health check para o deploy"""
+    return {"status": "healthy", "service": "ze-integrador"}
+
+@app.get("/api/health")
+async def api_health_check():
+    """Endpoint de health check alternativo"""
+    return {"status": "healthy", "service": "ze-integrador"}
 
 app.add_middleware(
     CORSMiddleware,
