@@ -348,12 +348,12 @@ async def get_services_status():
     # PHP Server (pode ser Apache ou built-in)
     ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
     if ok:
-        # Testar se PHP está realmente funcionando
-        test_ok, test_out = run_shell("curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/zeduplo/ze_pedido.php 2>/dev/null", timeout=10)
-        if test_ok and test_out.strip() in ['200', '000']:  # 000 pode acontecer com resposta vazia válida
+        # Testar se IMAP funciona (esse é o endpoint crítico para 2FA)
+        test_ok, test_out = run_shell("curl -s http://localhost:8088/zeduplo/ze_pedido_mail.php 2>/dev/null", timeout=10)
+        if test_ok and 'codigo' in test_out:
             status["data"]["php"] = {"status": "online", "port": 8088}
         else:
-            status["data"]["php"] = {"status": "degraded", "port": 8088, "note": "Porta aberta mas endpoint pode ter erro"}
+            status["data"]["php"] = {"status": "degraded", "port": 8088, "note": "IMAP pode não estar funcionando"}
     else:
         status["data"]["php"] = {"status": "offline"}
     
