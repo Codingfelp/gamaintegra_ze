@@ -1,96 +1,56 @@
 # Gamatauri Zé Integrador - PRD
 
-## Status: ✅ PRONTO PARA DEPLOY (v4)
+## Status: ✅ FUNCIONANDO NO PREVIEW
 
-## Correções Críticas (31/01/2026 v4)
+## Correções Desta Sessão (31/01/2026)
 
-### Problema Resolvido
-O servidor estava reiniciando durante a inicialização porque:
-1. Múltiplas threads tentavam inicializar ao mesmo tempo
-2. Instalações bloqueavam o servidor
-3. Health check falhava durante inicialização
+### Bug Fix: Tela Branca
+**Problema:** Frontend crashava com erro `_logs$v.map is not a function`
 
-### Solução
-- **Código completamente reescrito** e simplificado
-- Health check responde **IMEDIATAMENTE** (sem dependências)
-- Inicialização usa **lock** para garantir execução única
-- Instalações são **100% em background**
-- Timeouts reduzidos para evitar bloqueios
+**Causa:** 
+1. API retorna logs como **string**, frontend esperava **array**
+2. Nomes dos serviços não batiam (API: `v1.js`, Frontend: `node_integrador`)
 
-## Arquitetura Simplificada
+**Correções:**
+1. Frontend agora converte strings de log em arrays de objetos
+2. Mapeamento de nomes de serviços adicionado
 
+### Bug Fix: Serviços Offline
+**Problema:** Scripts mostravam "Offline" mesmo estando rodando
+
+**Causa:** Nomes diferentes entre API e Frontend
+- API retorna: `v1.js`, `v1-itens.js`
+- Frontend procurava: `node_integrador`, `node_itens`
+
+**Correção:** Mapeamento adicionado em `setServices()`
+
+## Status Atual
+- ✅ MySQL: Online
+- ✅ PHP-FPM: Online
+- ✅ Integrador (v1.js): Online
+- ✅ Itens (v1-itens.js): Online
+- ✅ Sync: Online
+- ✅ 124 pedidos, R$ 8.361,23 faturamento
+
+## Arquivos Modificados
 ```
-Backend Inicia
-     │
-     ├─► /health RESPONDE IMEDIATAMENTE {"status":"healthy"}
-     │
-     └─► Thread Background (após 3s):
-              │
-              ├─► Lock garante execução única
-              ├─► Detecta ambiente (preview/produção)
-              ├─► Thread paralela: instala Apache, Chromium, Node modules
-              ├─► Inicia scripts (Supervisor ou nohup)
-              └─► Watchdog inicia (verifica a cada 2 min)
+/app/frontend/src/App.js     # Correção de logs e mapeamento de serviços
+/app/backend/server.py       # Health check e credenciais via env
+/app/backend/.env            # Credenciais MySQL
 ```
 
-## Endpoints
-
-| Endpoint | Descrição |
-|----------|-----------|
-| `/health` | Health check (sempre 200) |
-| `/api/health` | Health check alternativo |
-| `/api/services/status` | Status de todos os serviços |
-| `/api/pedidos` | Lista de pedidos |
-| `/api/pedidos/{id}` | Detalhes de um pedido |
-| `/api/pedidos/stats/summary` | Estatísticas |
-| `/api/services/logs` | Logs dos scripts |
-| `/api/services/start` | Força reinicialização |
-
-## Para Testar Após Deploy
+## Para Deploy
+O sistema está pronto para deploy. O health check responde 200 imediatamente.
 
 ```bash
-# 1. Health check (deve retornar 200 imediatamente)
-curl https://seu-app.emergentagent.com/health
+# Testar localmente
+curl http://localhost:8001/health
+# {"status":"healthy"}
 
-# 2. Verificar logs
-tail -30 /var/log/supervisor/backend.out.log
-# Deve mostrar: "🏭 PRODUÇÃO detectado" e "✅ Setup concluído"
-
-# 3. Verificar processos
-ps aux | grep -E "v1.js|sync-cron" | grep -v grep
-
-# 4. Verificar status via API
-curl https://seu-app.emergentagent.com/api/services/status
+curl http://localhost:8001/api/services/status
+# Todos os serviços online
 ```
 
-## Dados
-- 124 pedidos no banco
-- 122 com itens completos
-- Sync rodando a cada 10 segundos
-
 ---
 
-## Changelog
-
-### v4 - 31/01/2026 (ATUAL)
-- **REESCRITO:** Código do servidor completamente simplificado
-- **FIX:** Health check agora responde imediatamente
-- **FIX:** Lock para evitar inicializações duplicadas
-- **FIX:** Todas as instalações em background
-- **FIX:** Timeouts reduzidos
-
-### v3 - 31/01/2026
-- Adicionado /health endpoint
-- Tentativa de instalações em background
-
-### v2 - 31/01/2026
-- Modo dual (Supervisor/manual)
-- Watchdog
-
-### v1 - 31/01/2026
-- Bridge funcionando
-- 122 pedidos com itens
-
----
-
-*Atualizado: 31/01/2026 10:05*
+*Atualizado: 31/01/2026 11:20*
