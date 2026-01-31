@@ -245,10 +245,14 @@ async def get_services_status():
     # MySQL
     try:
         conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        cursor.close()
         conn.close()
-        status["data"]["mysql"] = {"status": "online"}
-    except:
-        status["data"]["mysql"] = {"status": "offline"}
+        status["data"]["mysql"] = {"status": "online", "host": DB_CONFIG['host']}
+    except Exception as e:
+        status["data"]["mysql"] = {"status": "offline", "error": str(e)[:100], "host": DB_CONFIG['host']}
     
     # PHP/Apache
     ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
