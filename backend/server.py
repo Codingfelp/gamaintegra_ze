@@ -34,6 +34,31 @@ def ensure_services_running():
     # Criar diretório de logs
     os.makedirs("/app/logs", exist_ok=True)
     
+    # 0. Verificar/instalar Apache e PHP (necessário para scrapers comunicarem com DB)
+    ok, _ = run_shell("which apache2")
+    if not ok:
+        print("📦 Instalando Apache e PHP...")
+        run_shell("apt-get update && apt-get install -y apache2 libapache2-mod-php php-mysql 2>/dev/null", timeout=180)
+    
+    # Configurar Apache na porta 8088
+    ok, _ = run_shell("ss -tlnp | grep ':8088'")
+    if not ok:
+        print("🌐 Configurando Apache na porta 8088...")
+        run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf")
+        run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'VHOST'
+<VirtualHost *:8088>
+    DocumentRoot /app/integrador
+    <Directory /app/integrador>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+VHOST""")
+        run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null")
+        run_shell("apachectl start 2>/dev/null")
+        print("✅ Apache iniciado na porta 8088")
+    
     # 1. Verificar/instalar Chromium (necessário para scrapers)
     ok, _ = run_shell("which chromium")
     if not ok:
