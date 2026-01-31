@@ -185,10 +185,39 @@ VHOST""")
     services_initialized = True
     print("✅ Serviços Zé Delivery verificados e rodando")
 
+def watchdog_scripts():
+    """Watchdog que verifica periodicamente se os scripts estão rodando"""
+    while True:
+        time.sleep(60)  # Verificar a cada 60 segundos
+        
+        scripts_to_check = [
+            ("ze-v1", "puppeteer-wrapper.js v1.js", "/app/zedelivery-clean", "/app/logs/ze-v1-out.log"),
+            ("ze-v1-itens", "puppeteer-wrapper.js v1-itens.js", "/app/zedelivery-clean", "/app/logs/ze-v1-itens-out.log"),
+            ("ze-sync", "sync-cron.js", "/app/bridge", "/app/logs/ze-sync-out.log"),
+        ]
+        
+        for name, script, workdir, logfile in scripts_to_check:
+            # Verificar se está rodando via Supervisor
+            ok, output = run_shell(f"supervisorctl status {name} 2>/dev/null")
+            if "RUNNING" in output:
+                continue  # Tudo OK
+            
+            # Verificar se está rodando manualmente
+            ok, output = run_shell(f"pgrep -f '{script}'")
+            if ok and output.strip():
+                continue  # Tudo OK
+            
+            # Script caiu - reiniciar
+            print(f"⚠️ Watchdog: {name} não está rodando, reiniciando...")
+            start_node_process_manually(name, script, workdir, logfile)
+
 # Iniciar em background na startup
 def init_background():
     time.sleep(2)  # Aguardar servidor iniciar
     ensure_services_running()
+    
+    # Iniciar watchdog em thread separada
+    threading.Thread(target=watchdog_scripts, daemon=True).start()
 
 threading.Thread(target=init_background, daemon=True).start()
 
