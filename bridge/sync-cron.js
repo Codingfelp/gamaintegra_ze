@@ -127,16 +127,18 @@ async function syncToLovable() {
         change_for: parseFloat(pedido.delivery_troco_para) || 0,
         change: parseFloat(pedido.delivery_troco) || 0,
         
-        // Entrega
-        delivery_type: pedido.delivery_tipo_pedido,
+        // Entrega - IMPORTANTE: enviar tipo exato do banco
+        delivery_type: pedido.delivery_tipo_pedido || 'Pedido Comum',
+        delivery_tipo_pedido: pedido.delivery_tipo_pedido || 'Pedido Comum', // Campo adicional com valor exato
         delivery_code: pedido.delivery_codigo_entrega,
         courier_email: pedido.delivery_email_entregador || null,
         notes: pedido.delivery_obs,
         
-        // ITENS - enviar como array E como JSON string
+        // ITENS - enviar como array E como JSON string para redundância
         items: itensFormatados,
         items_json: JSON.stringify(itensFormatados),
         items_count: itensFormatados.length,
+        has_items: itensFormatados.length > 0, // Flag para verificação
         
         // Metadata
         source: 'ze-delivery',
