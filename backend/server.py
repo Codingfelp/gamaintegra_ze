@@ -314,20 +314,19 @@ async def get_services_status():
     except Exception as e:
         status["data"]["mysql"] = {"status": "offline", "error": str(e)[:100], "host": DB_CONFIG['host']}
     
-    # PHP Server (pode ser Apache ou built-in)
-    ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
+    # PHP CLI (usado pelos scrapers para 2FA e inserção no banco)
+    ok, _ = run_shell("php -m | grep -i imap", timeout=5)
     if ok:
-        # Testar se IMAP funciona (esse é o endpoint crítico para 2FA)
-        test_ok, test_out = run_shell("curl -s http://localhost:8088/zeduplo/ze_pedido_mail.php 2>/dev/null", timeout=10)
-        if test_ok and 'codigo' in test_out:
-            status["data"]["php"] = {"status": "online", "port": 8088}
+        # Testar se PHP CLI funciona (teste básico)
+        test_ok, test_out = run_shell("php -r 'echo \"OK\";'", timeout=5)
+        if test_ok and 'OK' in test_out:
+            status["data"]["php"] = {"status": "online", "mode": "CLI", "note": "PHP usado via CLI pelos scrapers"}
         else:
-            status["data"]["php"] = {"status": "degraded", "port": 8088, "note": "IMAP pode não estar funcionando"}
+            status["data"]["php"] = {"status": "degraded", "mode": "CLI", "note": "PHP CLI com problemas"}
     else:
-        status["data"]["php"] = {"status": "offline"}
+        status["data"]["php"] = {"status": "offline", "mode": "CLI", "note": "PHP IMAP não disponível"}
     
     # Verificar se IMAP está disponível para login 2FA
-    ok, _ = run_shell("php -m | grep -i imap", timeout=5)
     status["data"]["php_imap"] = {"status": "online" if ok else "offline"}
     
     # Scripts Node.js
