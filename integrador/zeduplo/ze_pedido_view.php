@@ -204,8 +204,8 @@ if (count($json) > 0) {
                 $cdPedidoNovo = trim($json[$x]['id']);
                 $idPedidoNovo = $read_pedido_view['pedido_id'];
 
-
-                $DB->Update('delivery', $upDev, "WHERE delivery_code = '" . trim($json[$x]['id']) . "' AND delivery_id = '" . $read_pedido_view['pedido_id'] . "' LIMIT 1");
+                // Corrigido: usar apenas delivery_code para o UPDATE (delivery_id é diferente de pedido_id)
+                $DB->Update('delivery', $upDev, "WHERE delivery_code = '" . trim($json[$x]['id']) . "' LIMIT 1");
 
                 $produto_form['itens_pedido_id_pedido'] = $read_pedido_view['pedido_id'];
                 $produto_form['itens_pedido_id_produto'] = $id_produto;
