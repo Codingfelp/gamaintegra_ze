@@ -1,125 +1,96 @@
 # Gamatauri Zé Integrador - PRD
 
-## Status: ✅ PRONTO PARA DEPLOY
+## Status: ✅ PRONTO PARA DEPLOY (v4)
 
-## Correções Desta Sessão (31/01/2026)
+## Correções Críticas (31/01/2026 v4)
 
-### 1. Health Check Adicionado
-- Endpoint `/health` e `/api/health` adicionados
-- Retorna `{"status":"healthy","service":"ze-integrador"}`
-- **CRÍTICO** para o deploy funcionar
+### Problema Resolvido
+O servidor estava reiniciando durante a inicialização porque:
+1. Múltiplas threads tentavam inicializar ao mesmo tempo
+2. Instalações bloqueavam o servidor
+3. Health check falhava durante inicialização
 
-### 2. Detecção de Ambiente Corrigida
-- Detecta automaticamente se está em **preview** (com Supervisor) ou **produção** (sem Supervisor)
-- Verifica existência de `/var/run/supervisor.sock`
-- Em produção: usa `nohup` para iniciar scripts manualmente
+### Solução
+- **Código completamente reescrito** e simplificado
+- Health check responde **IMEDIATAMENTE** (sem dependências)
+- Inicialização usa **lock** para garantir execução única
+- Instalações são **100% em background**
+- Timeouts reduzidos para evitar bloqueios
 
-### 3. Instalações em Background
-- Apache, PHP, Chromium e dependências Node.js são instalados em **threads separadas**
-- Não bloqueia mais o startup do servidor
-- Health check responde imediatamente
-
-### 4. Preservação de Dados
-- PHP modificado para **NÃO sobrescrever** dados que já existem no banco
-- Endereço, CPF, código de entrega são preservados após pedido ser entregue
-- Resolve o problema de dados ficarem NULL
-
-### 5. Watchdog Corrigido
-- Usa apenas `pgrep` para verificar scripts (não `supervisorctl`)
-- Funciona tanto em preview quanto em produção
-
-## Arquitetura de Inicialização (Atualizada)
+## Arquitetura Simplificada
 
 ```
 Backend Inicia
      │
-     ├─► /health responde IMEDIATAMENTE {"status":"healthy"}
+     ├─► /health RESPONDE IMEDIATAMENTE {"status":"healthy"}
      │
-     ▼
-Thread Background (após 5s)
-     │
-     ├─► Detecta ambiente (preview ou produção)
-     │
-     ├─► Threads paralelas:
-     │   ├─► Instala Apache + PHP
-     │   ├─► Instala Chromium
-     │   └─► Instala dependências Node.js
-     │
-     ▼
-Se Preview (Supervisor existe):
-     └─► supervisorctl start ze-v1 ze-v1-itens ze-sync
-
-Se Produção (sem Supervisor):
-     └─► nohup node puppeteer-wrapper.js v1.js &
-     └─► nohup node puppeteer-wrapper.js v1-itens.js &
-     └─► nohup node sync-cron.js &
-     │
-     ▼
-Watchdog (a cada 60s)
-     └─► pgrep -f "script.js"
-     └─► Se não encontrar, reinicia com nohup
+     └─► Thread Background (após 3s):
+              │
+              ├─► Lock garante execução única
+              ├─► Detecta ambiente (preview/produção)
+              ├─► Thread paralela: instala Apache, Chromium, Node modules
+              ├─► Inicia scripts (Supervisor ou nohup)
+              └─► Watchdog inicia (verifica a cada 2 min)
 ```
 
-## Endpoints de Health Check
+## Endpoints
 
-| Endpoint | Resposta |
-|----------|----------|
-| `/health` | `{"status":"healthy","service":"ze-integrador"}` |
-| `/api/health` | `{"status":"healthy","service":"ze-integrador"}` |
-
-## Dados do Banco
-- 124 pedidos
-- 122 com itens completos
-- 2 pedidos históricos sem itens (não recuperáveis)
-
-## Arquivos Modificados
-
-```
-/app/backend/server.py                    # Health check + detecção ambiente + instalação background
-/app/integrador/zeduplo/ze_pedido_view.php # Preservação de dados existentes
-```
+| Endpoint | Descrição |
+|----------|-----------|
+| `/health` | Health check (sempre 200) |
+| `/api/health` | Health check alternativo |
+| `/api/services/status` | Status de todos os serviços |
+| `/api/pedidos` | Lista de pedidos |
+| `/api/pedidos/{id}` | Detalhes de um pedido |
+| `/api/pedidos/stats/summary` | Estatísticas |
+| `/api/services/logs` | Logs dos scripts |
+| `/api/services/start` | Força reinicialização |
 
 ## Para Testar Após Deploy
 
 ```bash
-# 1. Verificar health check
+# 1. Health check (deve retornar 200 imediatamente)
 curl https://seu-app.emergentagent.com/health
 
 # 2. Verificar logs
-tail -50 /var/log/supervisor/backend.out.log
-
-# Deve mostrar:
-# 🏭 Ambiente de PRODUÇÃO detectado (sem Supervisor)
-# 🚀 Iniciando scripts manualmente...
-# ✅ ze-v1: iniciado (PID xxx)
-# ✅ ze-v1-itens: iniciado (PID xxx)
-# ✅ ze-sync: iniciado (PID xxx)
+tail -30 /var/log/supervisor/backend.out.log
+# Deve mostrar: "🏭 PRODUÇÃO detectado" e "✅ Setup concluído"
 
 # 3. Verificar processos
-ps aux | grep -E "v1.js|sync-cron.js" | grep -v grep
+ps aux | grep -E "v1.js|sync-cron" | grep -v grep
+
+# 4. Verificar status via API
+curl https://seu-app.emergentagent.com/api/services/status
 ```
+
+## Dados
+- 124 pedidos no banco
+- 122 com itens completos
+- Sync rodando a cada 10 segundos
 
 ---
 
 ## Changelog
 
-### 31/01/2026 v3 (Atual)
-- **FIX:** Adicionado endpoint `/health` para deploy
-- **FIX:** Instalações movidas para threads background
-- **FIX:** Detecção de ambiente por `/var/run/supervisor.sock`
-- **FIX:** Watchdog não usa mais supervisorctl
-- **FIX:** PHP preserva dados existentes (não sobrescreve com NULL)
+### v4 - 31/01/2026 (ATUAL)
+- **REESCRITO:** Código do servidor completamente simplificado
+- **FIX:** Health check agora responde imediatamente
+- **FIX:** Lock para evitar inicializações duplicadas
+- **FIX:** Todas as instalações em background
+- **FIX:** Timeouts reduzidos
 
-### 31/01/2026 v2
-- Modo dual de inicialização (Supervisor/manual)
-- Watchdog para reiniciar scripts
-- Documentação de verificação em produção
+### v3 - 31/01/2026
+- Adicionado /health endpoint
+- Tentativa de instalações em background
 
-### 31/01/2026 v1
-- Bridge verificado e funcionando
-- 122 pedidos com itens corretos
-- Campo delivery_tipo_pedido com valores exatos
+### v2 - 31/01/2026
+- Modo dual (Supervisor/manual)
+- Watchdog
+
+### v1 - 31/01/2026
+- Bridge funcionando
+- 122 pedidos com itens
 
 ---
 
-*Atualizado: 31/01/2026 09:45*
+*Atualizado: 31/01/2026 10:05*
