@@ -181,13 +181,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pool de conexões MySQL
+# Pool de conexões MySQL - usando variáveis de ambiente
 DB_CONFIG = {
-    'host': 'mainline.proxy.rlwy.net',
-    'port': 52996,
-    'user': 'root',
-    'password': 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU',
-    'database': 'railway'
+    'host': os.environ.get('DB_HOST', 'mainline.proxy.rlwy.net'),
+    'port': int(os.environ.get('DB_PORT', '52996')),
+    'user': os.environ.get('DB_USER', 'root'),
+    'password': os.environ.get('DB_PASSWORD', 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU'),
+    'database': os.environ.get('DB_NAME', 'railway')
 }
 
 try:
