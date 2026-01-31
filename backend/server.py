@@ -135,68 +135,68 @@ VHOST""")
     run_shell("pkill -9 chromium 2>/dev/null", timeout=5)
     
     # 5. Decidir como iniciar os scripts
+    services = ["ze-v1", "ze-v1-itens", "ze-sync"]
+    
     if not is_production:
         # Modo Preview: tentar Supervisor primeiro
         print("📋 Tentando Supervisor...")
         run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf 2>/dev/null", timeout=5)
         run_shell("supervisorctl reread 2>/dev/null", timeout=10)
         run_shell("supervisorctl update 2>/dev/null", timeout=10)
-    if "ERROR" not in output and ("RUNNING" in output or "STOPPED" in output or "STARTING" in output):
-        supervisor_works = True
-        print("📋 Usando Supervisor para gerenciar scripts...")
-    else:
-        print("⚠️ Supervisor não aceita scripts externos - usando inicialização manual")
-    
-    if supervisor_works:
-        # Modo Supervisor (preview)
-        for service in services:
-            ok, output = run_shell(f"supervisorctl status {service} 2>/dev/null")
-            if "RUNNING" in output:
-                print(f"   ✅ {service}: já rodando (Supervisor)")
-            else:
-                run_shell(f"supervisorctl stop {service} 2>/dev/null")
-                time.sleep(1)
-                run_shell(f"supervisorctl start {service} 2>/dev/null")
-                time.sleep(2)
-                ok, output = run_shell(f"supervisorctl status {service} 2>/dev/null")
+        
+        # Verificar se funcionou
+        ok, output = run_shell("supervisorctl status ze-sync 2>/dev/null", timeout=10)
+        if "RUNNING" in output or "STOPPED" in output or "STARTING" in output:
+            print("📋 Usando Supervisor para gerenciar scripts...")
+            for service in services:
+                ok, output = run_shell(f"supervisorctl status {service} 2>/dev/null", timeout=10)
                 if "RUNNING" in output:
-                    print(f"   ✅ {service}: iniciado (Supervisor)")
+                    print(f"   ✅ {service}: já rodando (Supervisor)")
                 else:
-                    print(f"   ⚠️ {service}: erro Supervisor, tentando manual...")
-                    # Fallback para modo manual
-                    if service == "ze-v1":
-                        start_node_process_manually("ze-v1", "puppeteer-wrapper.js v1.js", "/app/zedelivery-clean", "/app/logs/ze-v1-out.log")
-                    elif service == "ze-v1-itens":
-                        start_node_process_manually("ze-v1-itens", "puppeteer-wrapper.js v1-itens.js", "/app/zedelivery-clean", "/app/logs/ze-v1-itens-out.log")
-                    elif service == "ze-sync":
-                        start_node_process_manually("ze-sync", "sync-cron.js", "/app/bridge", "/app/logs/ze-sync-out.log")
-    else:
-        # Modo manual (produção) - usar nohup diretamente
-        print("🚀 Iniciando scripts manualmente (modo produção)...")
-        
-        start_node_process_manually(
-            "ze-v1", 
-            "puppeteer-wrapper.js v1.js", 
-            "/app/zedelivery-clean", 
-            "/app/logs/ze-v1-out.log"
-        )
-        
-        start_node_process_manually(
-            "ze-v1-itens", 
-            "puppeteer-wrapper.js v1-itens.js", 
-            "/app/zedelivery-clean", 
-            "/app/logs/ze-v1-itens-out.log"
-        )
-        
-        start_node_process_manually(
-            "ze-sync", 
-            "sync-cron.js", 
-            "/app/bridge", 
-            "/app/logs/ze-sync-out.log"
-        )
+                    run_shell(f"supervisorctl start {service} 2>/dev/null", timeout=10)
+                    time.sleep(2)
+                    ok, output = run_shell(f"supervisorctl status {service} 2>/dev/null", timeout=10)
+                    if "RUNNING" in output:
+                        print(f"   ✅ {service}: iniciado (Supervisor)")
+                    else:
+                        print(f"   ⚠️ {service}: erro Supervisor")
+            services_initialized = True
+            print("✅ Serviços Zé Delivery rodando via Supervisor")
+            return
+    
+    # Modo manual (produção ou fallback)
+    print("🚀 Iniciando scripts manualmente...")
+    
+    # Aguardar dependências estarem prontas (máximo 30s)
+    for i in range(6):
+        if os.path.exists("/app/zedelivery-clean/node_modules") and os.path.exists("/app/bridge/node_modules"):
+            break
+        print(f"   Aguardando dependências Node.js... ({i*5}s)")
+        time.sleep(5)
+    
+    start_node_process_manually(
+        "ze-v1", 
+        "puppeteer-wrapper.js v1.js", 
+        "/app/zedelivery-clean", 
+        "/app/logs/ze-v1-out.log"
+    )
+    
+    start_node_process_manually(
+        "ze-v1-itens", 
+        "puppeteer-wrapper.js v1-itens.js", 
+        "/app/zedelivery-clean", 
+        "/app/logs/ze-v1-itens-out.log"
+    )
+    
+    start_node_process_manually(
+        "ze-sync", 
+        "sync-cron.js", 
+        "/app/bridge", 
+        "/app/logs/ze-sync-out.log"
+    )
     
     services_initialized = True
-    print("✅ Serviços Zé Delivery verificados e rodando")
+    print("✅ Serviços Zé Delivery iniciados manualmente")
 
 def watchdog_scripts():
     """Watchdog que verifica periodicamente se os scripts estão rodando"""
