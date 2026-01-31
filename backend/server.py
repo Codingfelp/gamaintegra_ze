@@ -59,7 +59,7 @@ def start_node_process_manually(name, script_path, working_dir, log_file):
         return False
 
 def ensure_services_running():
-    """Garante que os serviços Zé Delivery estejam rodando via Supervisor"""
+    """Garante que os serviços Zé Delivery estejam rodando"""
     global services_initialized
     
     print("🔧 Iniciando verificação de serviços Zé Delivery...")
@@ -67,18 +67,26 @@ def ensure_services_running():
     # Criar diretório de logs
     os.makedirs("/app/logs", exist_ok=True)
     
-    # 0. Verificar/instalar Apache e PHP (necessário para scrapers comunicarem com DB)
-    ok, _ = run_shell("which apache2")
-    if not ok:
-        print("📦 Instalando Apache e PHP...")
-        run_shell("apt-get update && apt-get install -y apache2 libapache2-mod-php php-mysql 2>/dev/null", timeout=180)
+    # Detectar ambiente: verificar se supervisor socket existe
+    is_production = not os.path.exists("/var/run/supervisor.sock")
+    if is_production:
+        print("🏭 Ambiente de PRODUÇÃO detectado (sem Supervisor)")
+    else:
+        print("🔧 Ambiente de PREVIEW detectado (com Supervisor)")
     
-    # Configurar Apache na porta 8088
-    ok, _ = run_shell("ss -tlnp | grep ':8088'")
-    if not ok:
-        print("🌐 Configurando Apache na porta 8088...")
-        run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf")
-        run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'VHOST'
+    # 0. Verificar/instalar Apache e PHP em background (não bloquear)
+    def install_apache_async():
+        ok, _ = run_shell("which apache2", timeout=5)
+        if not ok:
+            print("📦 Instalando Apache e PHP em background...")
+            run_shell("apt-get update && apt-get install -y apache2 libapache2-mod-php php-mysql 2>/dev/null", timeout=300)
+        
+        # Configurar Apache na porta 8088
+        ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
+        if not ok:
+            print("🌐 Configurando Apache na porta 8088...")
+            run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf")
+            run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'VHOST'
 <VirtualHost *:8088>
     DocumentRoot /app/integrador
     <Directory /app/integrador>
@@ -88,46 +96,51 @@ def ensure_services_running():
     </Directory>
 </VirtualHost>
 VHOST""")
-        run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null")
-        run_shell("apachectl start 2>/dev/null")
-        print("✅ Apache iniciado na porta 8088")
+            run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null")
+            run_shell("apachectl start 2>/dev/null")
+            print("✅ Apache iniciado na porta 8088")
     
-    # 1. Verificar/instalar Chromium (necessário para scrapers)
-    ok, _ = run_shell("which chromium")
-    if not ok:
-        print("📦 Instalando Chromium...")
-        run_shell("apt-get update && apt-get install -y chromium chromium-driver", timeout=180)
+    # 1. Verificar/instalar Chromium em background (não bloquear)
+    def install_chromium_async():
+        ok, _ = run_shell("which chromium", timeout=5)
+        if not ok:
+            print("📦 Instalando Chromium em background...")
+            run_shell("apt-get update && apt-get install -y chromium chromium-driver 2>/dev/null", timeout=300)
+            print("✅ Chromium instalado")
+    
+    # Iniciar instalações em background para não bloquear
+    threading.Thread(target=install_apache_async, daemon=True).start()
+    threading.Thread(target=install_chromium_async, daemon=True).start()
     
     # 2. Limpar locks do Chromium que podem travar scrapers
     print("🔓 Limpando locks do Chromium...")
-    run_shell("rm -f /app/zedelivery-clean/profile-ze-v1/SingletonLock 2>/dev/null")
-    run_shell("rm -f /app/zedelivery-clean/profile-ze-v1-itens/SingletonLock 2>/dev/null")
-    run_shell("rm -rf /app/zedelivery-clean/profile-ze-v1/Singleton* 2>/dev/null")
-    run_shell("rm -rf /app/zedelivery-clean/profile-ze-v1-itens/Singleton* 2>/dev/null")
+    run_shell("rm -f /app/zedelivery-clean/profile-ze-v1/SingletonLock 2>/dev/null", timeout=5)
+    run_shell("rm -f /app/zedelivery-clean/profile-ze-v1-itens/SingletonLock 2>/dev/null", timeout=5)
+    run_shell("rm -rf /app/zedelivery-clean/profile-ze-v1/Singleton* 2>/dev/null", timeout=5)
+    run_shell("rm -rf /app/zedelivery-clean/profile-ze-v1-itens/Singleton* 2>/dev/null", timeout=5)
     
-    # 3. Copiar config do Supervisor
-    if os.path.exists("/app/ze-scripts.supervisor.conf"):
-        print("📋 Configurando Supervisor...")
-        run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf")
-        run_shell("supervisorctl reread && supervisorctl update")
+    # 3. Instalar dependências Node.js em background
+    def install_node_deps():
+        if not os.path.exists("/app/zedelivery-clean/node_modules"):
+            print("📦 Instalando dependências Node.js (zedelivery-clean)...")
+            run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=180)
+        if not os.path.exists("/app/bridge/node_modules"):
+            print("📦 Instalando dependências Node.js (bridge)...")
+            run_shell("cd /app/bridge && npm install --silent 2>/dev/null", timeout=180)
+        print("✅ Dependências Node.js instaladas")
     
-    # 4. Instalar dependências Node.js se necessário
-    if not os.path.exists("/app/zedelivery-clean/node_modules"):
-        print("📦 Instalando dependências Node.js (zedelivery-clean)...")
-        run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=120)
-    if not os.path.exists("/app/bridge/node_modules"):
-        print("📦 Instalando dependências Node.js (bridge)...")
-        run_shell("cd /app/bridge && npm install --silent 2>/dev/null", timeout=120)
+    threading.Thread(target=install_node_deps, daemon=True).start()
     
-    # 5. Parar processos orphans
-    run_shell("pkill -9 chromium 2>/dev/null")
+    # 4. Parar processos orphans
+    run_shell("pkill -9 chromium 2>/dev/null", timeout=5)
     
-    # 6. Tentar iniciar via Supervisor primeiro
-    supervisor_works = False
-    services = ["ze-v1", "ze-v1-itens", "ze-sync"]
-    
-    # Testar se o Supervisor aceita nossos scripts
-    ok, output = run_shell("supervisorctl status ze-sync 2>/dev/null")
+    # 5. Decidir como iniciar os scripts
+    if not is_production:
+        # Modo Preview: tentar Supervisor primeiro
+        print("📋 Tentando Supervisor...")
+        run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf 2>/dev/null", timeout=5)
+        run_shell("supervisorctl reread 2>/dev/null", timeout=10)
+        run_shell("supervisorctl update 2>/dev/null", timeout=10)
     if "ERROR" not in output and ("RUNNING" in output or "STOPPED" in output or "STARTING" in output):
         supervisor_works = True
         print("📋 Usando Supervisor para gerenciar scripts...")
