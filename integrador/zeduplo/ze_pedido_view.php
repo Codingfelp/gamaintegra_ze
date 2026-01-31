@@ -152,22 +152,53 @@ if (count($json) > 0) {
 
 
             foreach ($read_pedido as $read_pedido_view) {
-                $upDev['delivery_cpf_cliente'] = $cpfCliente;
-                $upDev['delivery_endereco_rota'] = $enderecoRota;
-                $upDev['delivery_endereco_complemento'] = $enderecoComplemento;
-                $upDev['delivery_endereco_cidade_uf'] = $enderecoCidadeUF;
-                $upDev['delivery_endereco_cep'] = $enderecoCep;
-                $upDev['delivery_endereco_bairro'] = $enderecoBairro;
+                // Só atualizar campos se o novo valor não for vazio/0 OU se o valor atual for vazio
+                // Isso preserva os dados que já foram capturados antes do pedido ser entregue
+                
+                if ($cpfCliente != '' && $cpfCliente != '0') {
+                    $upDev['delivery_cpf_cliente'] = $cpfCliente;
+                }
+                
+                // Preservar endereço se já existir no banco
+                if ($enderecoRota != '' && $enderecoRota != '0') {
+                    $upDev['delivery_endereco_rota'] = $enderecoRota;
+                }
+                if ($enderecoComplemento != '' && $enderecoComplemento != '0') {
+                    $upDev['delivery_endereco_complemento'] = $enderecoComplemento;
+                }
+                if ($enderecoCidadeUF != '' && $enderecoCidadeUF != '0') {
+                    $upDev['delivery_endereco_cidade_uf'] = $enderecoCidadeUF;
+                }
+                if ($enderecoCep != '' && $enderecoCep != '0') {
+                    $upDev['delivery_endereco_cep'] = $enderecoCep;
+                }
+                if ($enderecoBairro != '' && $enderecoBairro != '0') {
+                    $upDev['delivery_endereco_bairro'] = $enderecoBairro;
+                }
+                
+                // Valores financeiros - sempre atualizar
                 $upDev['delivery_desconto'] = $desconto;
                 $upDev['delivery_frete'] = $frete;
                 $upDev['delivery_troco_para'] = $troco;
                 $upDev['delivery_troco'] = $trocoCliente;
                 $upDev['delivery_taxa_conveniencia'] = $taxaConveniencia;
                 $upDev['delivery_subtotal'] = $subTotal;
-                $upDev['delivery_obs'] = $obsPedido;
-                $upDev['delivery_tipo_pedido'] = $statusPed;
+                
+                // Observações
+                if ($obsPedido != '' && $obsPedido != '0') {
+                    $upDev['delivery_obs'] = $obsPedido;
+                }
+                
+                // Tipo de pedido
+                if ($statusPed != '' && $statusPed != '0') {
+                    $upDev['delivery_tipo_pedido'] = $statusPed;
+                }
+                
+                // Código de entrega - só atualizar se não existir
                 if ($read_pedido_view['delivery_codigo_entrega'] == '' || $read_pedido_view['delivery_codigo_entrega'] == '0') {
-                    $upDev['delivery_codigo_entrega'] = $codigoEntrega;
+                    if ($codigoEntrega != '' && $codigoEntrega != '0') {
+                        $upDev['delivery_codigo_entrega'] = $codigoEntrega;
+                    }
                 }
 
                 $cdPedidoNovo = trim($json[$x]['id']);
