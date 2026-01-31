@@ -88,7 +88,17 @@ function App() {
 
       const servicesRes = await fetch(`${API_URL}/api/services/status`);
       const servicesData = await servicesRes.json();
-      if (servicesData.success) setServices(servicesData.data);
+      if (servicesData.success) {
+        // Mapear nomes da API para nomes do frontend
+        const mappedServices = {
+          mysql: servicesData.data.mysql,
+          php: servicesData.data.php,
+          node_integrador: servicesData.data['v1.js'],
+          node_itens: servicesData.data['v1-itens.js'],
+          sync: servicesData.data.sync
+        };
+        setServices(mappedServices);
+      }
 
       // Logs separados - converter strings em arrays de objetos
       const logsRes = await fetch(`${API_URL}/api/services/logs`);
