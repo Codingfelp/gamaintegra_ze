@@ -26,56 +26,63 @@ def run_shell(cmd, timeout=120):
         return False, str(e)
 
 def ensure_services_running():
-    """Garante que os serviços estejam rodando"""
+    """Garante que os serviços Zé Delivery estejam rodando via Supervisor"""
     global services_initialized
     
-    print("🔧 Verificando serviços...")
+    print("🔧 Iniciando verificação de serviços Zé Delivery...")
     
     # Criar diretório de logs
     os.makedirs("/app/logs", exist_ok=True)
     
-    # 0. Copiar config do supervisor se não existir
+    # 1. Verificar/instalar Chromium (necessário para scrapers)
+    ok, _ = run_shell("which chromium")
+    if not ok:
+        print("📦 Instalando Chromium...")
+        run_shell("apt-get update && apt-get install -y chromium chromium-driver", timeout=180)
+    
+    # 2. Limpar locks do Chromium que podem travar scrapers
+    print("🔓 Limpando locks do Chromium...")
+    run_shell("rm -f /app/zedelivery-clean/profile-ze-v1/SingletonLock 2>/dev/null")
+    run_shell("rm -f /app/zedelivery-clean/profile-ze-v1-itens/SingletonLock 2>/dev/null")
+    run_shell("rm -rf /app/zedelivery-clean/profile-ze-v1/Singleton* 2>/dev/null")
+    run_shell("rm -rf /app/zedelivery-clean/profile-ze-v1-itens/Singleton* 2>/dev/null")
+    
+    # 3. Copiar config do Supervisor
     if os.path.exists("/app/ze-scripts.supervisor.conf"):
-        if not os.path.exists("/etc/supervisor/conf.d/ze-scripts.conf"):
-            print("📋 Copiando config do supervisor...")
-            run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf")
-            run_shell("supervisorctl reread && supervisorctl update")
+        print("📋 Configurando Supervisor...")
+        run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf")
+        run_shell("supervisorctl reread && supervisorctl update")
     
-    # 1. Verificar/iniciar Apache (se disponível)
-    ok, _ = run_shell("which apache2")
-    if ok:
-        ok, output = run_shell("ss -tlnp | grep ':8088'")
-        if not ok or "apache" not in output:
-            print("🌐 Iniciando Apache...")
-            run_shell("pkill -9 apache2 2>/dev/null; sleep 1")
-            run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf 2>/dev/null")
-            run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'VHOST'
-<VirtualHost *:8088>
-    DocumentRoot /app/integrador
-    <Directory /app/integrador>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
-VHOST""")
-            run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null")
-            run_shell("apachectl start 2>/dev/null")
+    # 4. Instalar dependências Node.js se necessário
+    if not os.path.exists("/app/zedelivery-clean/node_modules"):
+        print("📦 Instalando dependências Node.js (zedelivery-clean)...")
+        run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=120)
+    if not os.path.exists("/app/bridge/node_modules"):
+        print("📦 Instalando dependências Node.js (bridge)...")
+        run_shell("cd /app/bridge && npm install --silent 2>/dev/null", timeout=120)
     
-    # 2. Scripts são gerenciados pelo Supervisor (ze-v1, ze-v1-itens, ze-sync)
-    # Verificar se estão rodando
-    ok, output = run_shell("supervisorctl status ze-v1 ze-v1-itens ze-sync 2>/dev/null")
-    if ok and "RUNNING" in output:
-        print("✅ Scripts rodando via Supervisor")
-    else:
-        # Tentar iniciar via supervisor
-        run_shell("supervisorctl start ze-v1 ze-v1-itens ze-sync 2>/dev/null")
+    # 5. Parar processos orphans e iniciar via Supervisor
+    run_shell("pkill -9 chromium 2>/dev/null")
+    
+    # 6. Iniciar serviços via Supervisor
+    services = ["ze-v1", "ze-v1-itens", "ze-sync"]
+    for service in services:
+        ok, output = run_shell(f"supervisorctl status {service} 2>/dev/null")
+        if "RUNNING" in output:
+            print(f"✅ {service}: já rodando")
+        else:
+            run_shell(f"supervisorctl stop {service} 2>/dev/null")
+            time.sleep(1)
+            run_shell(f"supervisorctl start {service} 2>/dev/null")
+            time.sleep(2)
+            ok, output = run_shell(f"supervisorctl status {service} 2>/dev/null")
+            if "RUNNING" in output:
+                print(f"✅ {service}: iniciado")
+            else:
+                print(f"⚠️ {service}: erro - {output.strip()}")
     
     services_initialized = True
-    print("✅ Serviços verificados")
-    
-    services_initialized = True
-    print("✅ Serviços verificados e rodando")
+    print("✅ Serviços Zé Delivery verificados e rodando")
 
 # Iniciar em background na startup
 def init_background():
