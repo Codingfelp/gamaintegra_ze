@@ -1,150 +1,130 @@
 # Arquitetura PHP do Sistema Zé Delivery
 
-## Visão Geral
+## ⚠️ ARQUITETURA REFATORADA - PHP É CLI, NÃO HTTP
 
-O PHP serve como **camada intermediária** entre os scrapers Node.js e o banco de dados MySQL (Railway). Ele roda em um servidor web (Apache no preview, PHP built-in em produção) na porta **8088**.
+**Data da refatoração:** 31/01/2026
+
+### Problema Anterior
+- PHP built-in server (`php -S`) é single-threaded
+- IMAP é bloqueante e travava todo o servidor
+- Produção ficava instável ("offline" do nada)
+- Preview funcionava porque Apache isola requests
+
+### Solução Implementada
+- **PHP NÃO roda como servidor HTTP**
+- PHP é chamado **via CLI** (`child_process.exec()`) pelos scripts Node.js
+- Cada chamada PHP é isolada (não trava outras operações)
+- Zero porta HTTP exposta pelo PHP
 
 ---
 
-## Fluxo de Dados
+## Fluxo de Dados (Nova Arquitetura)
 
 ```
 ┌─────────────────────┐      ┌───────────────────┐      ┌───────────────────┐
-│  Scraper v1.js      │──────│  PHP (porta 8088) │──────│  MySQL (Railway)  │
-│  (Puppeteer)        │ POST │  ze_pedido.php    │ SQL  │  Tabela: delivery │
+│  Scraper v1.js      │──────│  php-bridge.js    │──────│  PHP CLI          │
+│  (Puppeteer)        │ exec │  (Node.js)        │ cli  │  ze_pedido.php    │
 └─────────────────────┘      └───────────────────┘      └───────────────────┘
-        │
-        │ 2FA Login
-        ▼
-┌─────────────────────┐
-│  ze_pedido_mail.php │ ──── IMAP ──── Gmail (2FA code)
-│  (PHP-IMAP)         │
-└─────────────────────┘
+                                                               │
+                                                               │ SQL
+                                                               ▼
+                                                        ┌───────────────────┐
+                                                        │  MySQL (Railway)  │
+                                                        │  Tabela: delivery │
+                                                        └───────────────────┘
+```
+
+### Como funciona o php-bridge.js
+
+```javascript
+// Node.js chama PHP via exec() - NÃO via HTTP
+const { exec } = require('child_process');
+
+function execPhp(script, args) {
+    return new Promise((resolve, reject) => {
+        const cmd = `php -r "..." ${script}`;
+        exec(cmd, { timeout: 30000 }, (error, stdout) => {
+            resolve(stdout);
+        });
+    });
+}
+
+// Exemplo de uso
+await phpBridge.pegarCodigo2FA();  // Chama ze_pedido_mail.php via CLI
+await phpBridge.inserirPedido(data);  // Chama ze_pedido.php via CLI
 ```
 
 ---
 
-## Endpoints PHP Críticos
+## Scripts PHP (Executados via CLI)
 
-### 1. `/zeduplo/ze_pedido.php` - Inserção de Pedidos
-**Função:** Recebe dados do scraper e insere na tabela `ze_pedido`
+### 1. `ze_pedido_mail.php` - Leitura 2FA
+- **Usa:** PHP-IMAP
+- **Função:** Lê código de verificação do Gmail
+- **Chamado por:** `phpBridge.pegarCodigo2FA()`
+- **Timeout:** 60 segundos (IMAP pode ser lento)
 
-**Parâmetros POST:**
-- `orderNumber` - Código do pedido (ex: "736356187")
-- `orderDateTime` - Data/hora (ex: "31/01/2026 - 19:29:31")
-- `customerName` - Nome do cliente
-- `status` - Status do pedido ("Aceito", "Entregue", "A caminho", etc)
-- `deliveryType` - Tipo ("Comum", "Turbo", "Retirada")
-- `paymentType` - Forma de pagamento
-- `priceFormatted` - Valor total
+### 2. `ze_pedido.php` - Inserção de Pedidos
+- **Função:** Insere pedido no banco
+- **Chamado por:** `phpBridge.inserirPedido()`
 
-**Fluxo interno:**
-1. Processa pedidos pendentes em `ze_pedido` (pedido_st = 0)
-2. Move para tabela `delivery` (tabela final)
-3. Insere novo pedido recebido no POST
+### 3. `ze_pedido_view.php` - Atualização de Pedidos
+- **Função:** Atualiza dados (CPF, endereço, itens)
+- **Chamado por:** `phpBridge.atualizarPedido()`
 
-### 2. `/zeduplo/ze_pedido_mail.php` - Leitura 2FA (CRÍTICO!)
-**Função:** Lê código de verificação do Gmail para login automático no Zé Delivery
+---
 
-**Dependência:** Extensão `php-imap`
+## Por que isso funciona em produção?
 
-**Resposta:**
-```json
-{"codigo":"302184"}  // Código 2FA encontrado
-{"codigo":0}         // Nenhum código novo
+| Antes (HTTP)                       | Depois (CLI)                        |
+|------------------------------------|-------------------------------------|
+| PHP built-in single-threaded       | Cada exec() é processo isolado      |
+| IMAP trava todo o server           | IMAP só trava aquela chamada        |
+| Porta 8088 precisa estar exposta   | Nenhuma porta PHP necessária        |
+| Watchdog precisa monitorar PHP     | PHP não precisa de watchdog         |
+| Preview OK, Produção falha         | Ambos funcionam igual               |
+
+---
+
+## Arquivos Principais
+
+```
+/app/zedelivery-clean/
+├── php-bridge.js         # NOVO - Bridge Node→PHP via CLI
+├── v1.js                 # Scraper (modificado para usar php-bridge)
+├── v1-itens.js           # Scraper itens (modificado para usar php-bridge)
+└── configuracao.json     # Config (URLs não são mais usadas)
+
+/app/integrador/zeduplo/
+├── ze_pedido.php         # Inserção (chamado via CLI)
+├── ze_pedido_mail.php    # 2FA IMAP (chamado via CLI)
+├── ze_pedido_view.php    # Atualização (chamado via CLI)
+└── _class/Database.class.php  # Conexão MySQL
 ```
 
-**Por que é crítico?**
-- Sem IMAP funcionando → Scraper não consegue fazer login
-- Scraper fica em loop tentando login → "SEM PEDIDOS DISPONIVEIS"
-
-### 3. `/zeduplo/ze_pedido_view.php` - Atualização de Pedidos
-**Função:** Atualiza dados de pedidos existentes (status, endereço, CPF, itens)
-
 ---
 
-## Tabelas do Banco de Dados
-
-### `ze_pedido` (Tabela temporária)
-- Recebe dados brutos do scraper
-- `pedido_st = 0` → Pendente de processamento
-- `pedido_st = 1` → Já processado para `delivery`
-
-### `delivery` (Tabela final)
-- Dados limpos e formatados
-- Usada pelo dashboard e sync para Lovable Cloud
-
-### `hub_delivery` (Configuração)
-- Armazena token de autenticação (`e8194a871a0e6d26fe620d13f7baad86`)
-
----
-
-## Por que PHP fica OFFLINE em Produção?
-
-### Problema 1: Apache não funciona
-O ambiente de produção Emergent **não suporta Apache** como serviço permanente. O Apache precisa de systemd/init que não existem no container.
-
-**Solução:** Usar PHP built-in server (`php -S 0.0.0.0:8088`)
-
-### Problema 2: php-imap não instalado
-O container de produção é **limpo** a cada deploy. Dependências como `php-imap` não persistem.
-
-**Solução:** Instalar no startup via `server.py`:
-```bash
-apt-get install -y php php-imap php-mysql
-```
-
-### Problema 3: Instalação assíncrona
-O código antigo instalava dependências em **background** enquanto os scrapers já tentavam iniciar.
-
-**Solução:** Em produção, instalar **síncronamente** ANTES de iniciar scrapers.
-
----
-
-## Como Testar PHP
+## Verificação de Funcionamento
 
 ```bash
-# Verificar se IMAP funciona
-curl http://localhost:8088/zeduplo/ze_pedido_mail.php
+# Verificar se PHP CLI funciona
+php -r 'echo "OK";'
+
+# Verificar IMAP disponível
+php -m | grep -i imap
+
+# Testar 2FA via CLI
+php /app/integrador/zeduplo/ze_pedido_mail.php
 # Esperado: {"codigo":"XXXXXX"} ou {"codigo":0}
 
-# Verificar se ze_pedido.php responde
-curl "http://localhost:8088/zeduplo/ze_pedido.php?ide=e8194a871a0e6d26fe620d13f7baad86" -X POST
-# Esperado: resposta vazia (processa pedidos pendentes)
-
-# Verificar módulo IMAP
-php -m | grep imap
-# Esperado: imap
+# Verificar status via API
+curl http://localhost:8001/api/services/status
+# PHP deve aparecer como "mode": "CLI"
 ```
 
 ---
 
-## Bugs Corrigidos Nesta Sessão
-
-1. **php-imap não instalado** → Instalado manualmente e adicionado ao startup
-2. **delivery_id duplicado** → Removido assignment manual (é auto-incremento)
-3. **Duplicatas no banco** → Adicionada verificação antes de inserir + limpeza
-
----
-
-## Arquivos PHP Principais
-
-```
-/app/integrador/zeduplo/
-├── ze_pedido.php          # Inserção de pedidos
-├── ze_pedido_mail.php     # Leitura 2FA (IMAP)
-├── ze_pedido_view.php     # Atualização de pedidos
-├── ze_pedido_id.php       # Busca próximo pedido para processar
-├── ze_pedido_status.php   # Busca pedido para atualizar status
-├── _class/
-│   ├── AutoLoad.php       # Carrega classes
-│   └── _conn/
-│       └── Database.class.php  # Conexão MySQL
-```
-
----
-
-## Credenciais Hardcoded (Database.class.php)
+## Credenciais (Database.class.php)
 
 ```php
 $Host = 'mainline.proxy.rlwy.net';
