@@ -199,8 +199,16 @@ DB_CONFIG = {
     'port': int(os.environ.get('DB_PORT', '52996')),
     'user': os.environ.get('DB_USER', 'root'),
     'password': os.environ.get('DB_PASSWORD', 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU'),
-    'database': os.environ.get('DB_NAME', 'railway')
+    'database': os.environ.get('DB_NAME', 'railway'),
+    'connection_timeout': 10,
+    'autocommit': True
 }
+
+# Adicionar SSL se necessário (Railway pode requerer)
+if os.environ.get('DB_SSL', '').lower() == 'true':
+    DB_CONFIG['ssl_disabled'] = False
+else:
+    DB_CONFIG['ssl_disabled'] = True
 
 print(f"🔧 MySQL Config: {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
 
