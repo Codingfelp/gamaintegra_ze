@@ -27,6 +27,14 @@ $orderNumberIde = addslashes($_GET['ide']);
 $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido INNER JOIN hub_delivery ON hub_delivery_ide = pedido_ide WHERE pedido_st = '0' ORDER BY pedido_id ASC LIMIT 10");
 if ($DB->NumQuery($read_pedido) > '0') {
     foreach ($read_pedido as $read_pedido_view) {
+        // Verificar se já existe na tabela delivery pelo código
+        $check_exists = $DB->ReadComposta("SELECT delivery_id FROM delivery WHERE delivery_code = '" . $read_pedido_view['pedido_code'] . "' LIMIT 1");
+        if ($DB->NumQuery($check_exists) > 0) {
+            // Já existe, apenas marcar como processado
+            $up['pedido_st'] = '1';
+            $DB->Update('ze_pedido', $up, "WHERE pedido_id = '" . $read_pedido_view['pedido_id'] . "' LIMIT 1");
+            continue;
+        }
         $explode_data = explode('/', $read_pedido_view['pedido_data']);
 
         $valorNumerico = preg_replace('/[^0-9]/', '', $read_pedido_view['pedido_valor']);
