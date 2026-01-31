@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 Script de inicialização automática dos serviços do Gamatauri Zé
-Executa na inicialização do backend para garantir que Apache, PM2 e scripts estejam rodando
+Executa na inicialização do backend para garantir que Chromium e scripts Supervisor estejam rodando
 """
 
 import subprocess
 import os
 import time
+import shutil
 
-def run_cmd(cmd, timeout=60):
+def run_cmd(cmd, timeout=120):
     """Executa comando e retorna resultado"""
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
@@ -16,112 +17,136 @@ def run_cmd(cmd, timeout=60):
     except Exception as e:
         return False, str(e)
 
-def check_and_install_dependencies():
-    """Verifica e instala dependências necessárias"""
-    print("🔧 Verificando dependências...")
-    
-    # Verificar se PM2 está instalado
-    ok, _ = run_cmd("which pm2")
-    if not ok:
-        print("📦 Instalando PM2...")
-        run_cmd("npm install -g pm2", timeout=120)
-    
-    # Verificar se Apache está instalado
-    ok, _ = run_cmd("which apache2")
-    if not ok:
-        print("📦 Instalando Apache + PHP...")
-        run_cmd("apt-get update && apt-get install -y apache2 php libapache2-mod-php php-mysql", timeout=180)
+def check_and_install_chromium():
+    """Verifica e instala Chromium se necessário"""
+    print("🔧 Verificando Chromium...")
     
     # Verificar se Chromium está instalado
     ok, _ = run_cmd("which chromium")
-    if not ok:
-        print("📦 Instalando Chromium...")
-        run_cmd("apt-get install -y chromium", timeout=180)
-    
-    # Verificar se MySQL client está instalado
-    ok, _ = run_cmd("which mysql")
-    if not ok:
-        print("📦 Instalando MySQL client...")
-        run_cmd("apt-get install -y mariadb-client", timeout=60)
-
-def configure_apache():
-    """Configura Apache na porta 8088"""
-    print("🌐 Configurando Apache...")
-    
-    # Verificar se já está rodando na porta 8088
-    ok, output = run_cmd("ss -tlnp | grep 8088")
-    if ok and "apache" in output:
-        print("✅ Apache já está rodando na porta 8088")
+    if ok:
+        print("✅ Chromium já instalado")
         return True
     
-    # Criar configuração
-    ports_conf = "Listen 8088\n"
-    vhost_conf = """<VirtualHost *:8088>
-    DocumentRoot /app/integrador
-    <Directory /app/integrador>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
-"""
+    print("📦 Instalando Chromium...")
+    ok, output = run_cmd("apt-get update && apt-get install -y chromium chromium-driver", timeout=180)
+    if ok:
+        print("✅ Chromium instalado com sucesso")
+        return True
+    else:
+        print(f"⚠️ Erro ao instalar Chromium: {output}")
+        return False
+
+def install_node_dependencies():
+    """Instala dependências Node.js dos scrapers"""
+    print("📦 Verificando dependências Node.js...")
     
-    try:
-        with open("/etc/apache2/ports.conf", "w") as f:
-            f.write(ports_conf)
-        with open("/etc/apache2/sites-available/zeduplo.conf", "w") as f:
-            f.write(vhost_conf)
-        
-        run_cmd("a2dissite 000-default 2>/dev/null")
-        run_cmd("a2ensite zeduplo")
-        run_cmd("pkill -9 apache2 2>/dev/null")
-        time.sleep(1)
-        ok, _ = run_cmd("apachectl start")
-        
-        if ok:
-            print("✅ Apache iniciado na porta 8088")
+    # Scrapers
+    if os.path.exists("/app/zedelivery-clean/package.json"):
+        if not os.path.exists("/app/zedelivery-clean/node_modules"):
+            print("   Instalando dependências zedelivery-clean...")
+            run_cmd("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=120)
+    
+    # Bridge
+    if os.path.exists("/app/bridge/package.json"):
+        if not os.path.exists("/app/bridge/node_modules"):
+            print("   Instalando dependências bridge...")
+            run_cmd("cd /app/bridge && npm install --silent 2>/dev/null", timeout=120)
+    
+    print("✅ Dependências Node.js verificadas")
+
+def clear_chromium_locks():
+    """Limpa locks do Chromium que podem travar os scrapers"""
+    print("🔓 Limpando locks do Chromium...")
+    
+    profiles = [
+        "/app/zedelivery-clean/profile-ze-v1",
+        "/app/zedelivery-clean/profile-ze-v1-itens"
+    ]
+    
+    for profile in profiles:
+        if os.path.exists(profile):
+            # Remover arquivos de lock
+            for lock_file in ["SingletonLock", "SingletonSocket", "SingletonCookie"]:
+                lock_path = os.path.join(profile, lock_file)
+                if os.path.exists(lock_path):
+                    try:
+                        os.remove(lock_path)
+                        print(f"   Removido: {lock_path}")
+                    except:
+                        pass
+    
+    print("✅ Locks limpos")
+
+def setup_supervisor_config():
+    """Copia configuração do Supervisor para o diretório correto"""
+    print("⚙️ Configurando Supervisor...")
+    
+    source = "/app/ze-scripts.supervisor.conf"
+    dest = "/etc/supervisor/conf.d/ze-scripts.conf"
+    
+    # Garantir diretório de logs existe
+    os.makedirs("/app/logs", exist_ok=True)
+    
+    if os.path.exists(source):
+        try:
+            # Copiar config
+            shutil.copy(source, dest)
+            print(f"   Config copiado: {dest}")
+            
+            # Recarregar supervisor
+            run_cmd("supervisorctl reread")
+            run_cmd("supervisorctl update")
+            print("✅ Supervisor atualizado")
             return True
-    except Exception as e:
-        print(f"❌ Erro ao configurar Apache: {e}")
+        except Exception as e:
+            print(f"⚠️ Erro ao copiar config: {e}")
     
     return False
 
-def start_pm2_services():
-    """Inicia serviços PM2"""
-    print("🚀 Iniciando serviços PM2...")
+def start_supervisor_services():
+    """Inicia os serviços via Supervisor"""
+    print("🚀 Iniciando serviços Supervisor...")
     
-    # Verificar se PM2 já está rodando os serviços
-    ok, output = run_cmd("pm2 list 2>/dev/null")
-    if ok and "ze-v1" in output and "online" in output:
-        print("✅ Serviços PM2 já estão rodando")
-        return True
+    services = ["ze-v1", "ze-v1-itens", "ze-sync"]
     
-    # Instalar dependências Node.js
-    run_cmd("cd /app/zedelivery-clean && npm install --silent 2>/dev/null")
-    run_cmd("cd /app/bridge && npm install --silent 2>/dev/null")
-    
-    # Iniciar PM2
-    config_path = "/app/pm2.ecosystem.config.js"
-    if os.path.exists(config_path):
-        run_cmd("pm2 delete all 2>/dev/null")
-        ok, output = run_cmd(f"pm2 start {config_path}")
-        if ok:
-            run_cmd("pm2 save")
-            print("✅ Serviços PM2 iniciados")
-            return True
-    
-    print("❌ Erro ao iniciar PM2")
-    return False
+    for service in services:
+        # Verificar status
+        ok, output = run_cmd(f"supervisorctl status {service}")
+        if "RUNNING" in output:
+            print(f"   ✅ {service}: já rodando")
+        else:
+            # Tentar iniciar
+            ok, _ = run_cmd(f"supervisorctl start {service}")
+            time.sleep(2)
+            
+            # Verificar novamente
+            ok, output = run_cmd(f"supervisorctl status {service}")
+            if "RUNNING" in output:
+                print(f"   ✅ {service}: iniciado")
+            else:
+                print(f"   ⚠️ {service}: {output.strip()}")
 
 def initialize_services():
     """Função principal de inicialização"""
     print("\n" + "="*50)
     print("  GAMATAURI ZÉ - Inicialização de Serviços")
+    print("  Usando Supervisor (não PM2)")
     print("="*50 + "\n")
     
-    check_and_install_dependencies()
-    configure_apache()
-    start_pm2_services()
+    # 1. Instalar Chromium se necessário
+    check_and_install_chromium()
+    
+    # 2. Instalar dependências Node.js
+    install_node_dependencies()
+    
+    # 3. Limpar locks do Chromium
+    clear_chromium_locks()
+    
+    # 4. Configurar Supervisor
+    setup_supervisor_config()
+    
+    # 5. Iniciar serviços
+    start_supervisor_services()
     
     print("\n" + "="*50)
     print("  Inicialização concluída!")
