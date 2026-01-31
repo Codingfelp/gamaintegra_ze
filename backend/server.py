@@ -193,7 +193,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pool de conexões MySQL - usando variáveis de ambiente
+# Pool de conexões MySQL - usando variáveis de ambiente com fallback
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'mainline.proxy.rlwy.net'),
     'port': int(os.environ.get('DB_PORT', '52996')),
@@ -202,8 +202,11 @@ DB_CONFIG = {
     'database': os.environ.get('DB_NAME', 'railway')
 }
 
+print(f"🔧 MySQL Config: {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
+
 try:
     db_pool = pooling.MySQLConnectionPool(pool_name="ze_pool", pool_size=5, **DB_CONFIG)
+    print("✅ Pool MySQL criado com sucesso")
 except Exception as e:
     print(f"⚠️ Erro ao criar pool MySQL: {e}")
     db_pool = None
