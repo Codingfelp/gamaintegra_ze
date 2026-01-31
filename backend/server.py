@@ -345,15 +345,31 @@ async def get_services_status():
     except Exception as e:
         status["data"]["mysql"] = {"status": "offline", "error": str(e)[:100], "host": DB_CONFIG['host']}
     
-    # PHP/Apache
+    # PHP Server (pode ser Apache ou built-in)
     ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
-    status["data"]["php"] = {"status": "online" if ok else "offline"}
+    if ok:
+        # Testar se PHP está realmente funcionando
+        test_ok, test_out = run_shell("curl -s -o /dev/null -w '%{http_code}' http://localhost:8088/zeduplo/ze_pedido.php 2>/dev/null", timeout=10)
+        if test_ok and test_out.strip() in ['200', '000']:  # 000 pode acontecer com resposta vazia válida
+            status["data"]["php"] = {"status": "online", "port": 8088}
+        else:
+            status["data"]["php"] = {"status": "degraded", "port": 8088, "note": "Porta aberta mas endpoint pode ter erro"}
+    else:
+        status["data"]["php"] = {"status": "offline"}
     
-    # Scripts
+    # Verificar se IMAP está disponível para login 2FA
+    ok, _ = run_shell("php -m | grep -i imap", timeout=5)
+    status["data"]["php_imap"] = {"status": "online" if ok else "offline"}
+    
+    # Scripts Node.js
     for name, script in [("v1.js", "puppeteer-wrapper.js v1.js"), ("v1-itens.js", "puppeteer-wrapper.js v1-itens.js"), ("sync", "sync-cron.js")]:
         ok, out = run_shell(f"pgrep -f '{script}'", timeout=5)
         pid = out.strip().split()[0] if ok and out.strip() else None
         status["data"][name] = {"status": "online" if ok else "offline", "pid": pid}
+    
+    # Chromium
+    ok, _ = run_shell("which chromium", timeout=5)
+    status["data"]["chromium"] = {"status": "online" if ok else "offline"}
     
     return status
 
