@@ -21,7 +21,8 @@ async function syncToLovable() {
   console.log(`\n[${timestamp}] 🔄 Iniciando sincronização...`);
   
   try {
-    // Buscar TODOS os pedidos com TODOS os detalhes (colunas compatíveis com dump original)
+    // Buscar pedidos ÚNICOS (por delivery_code) priorizando os que têm itens
+    // Usa subquery para pegar o registro com mais itens de cada código
     const [pedidos] = await pool.query(`
       SELECT 
         d.delivery_id,
@@ -51,8 +52,19 @@ async function syncToLovable() {
         d.delivery_email_entregador,
         d.delivery_tem_itens
       FROM delivery d
-      WHERE d.delivery_trash = 0
-      AND DATE(d.delivery_date_time) >= CURDATE() - INTERVAL 7 DAY
+      INNER JOIN (
+        SELECT delivery_code, MAX(delivery_id) as max_id
+        FROM delivery
+        WHERE delivery_trash = 0 AND delivery_tem_itens = 1
+        GROUP BY delivery_code
+        UNION
+        SELECT delivery_code, MAX(delivery_id) as max_id
+        FROM delivery
+        WHERE delivery_trash = 0 AND (delivery_tem_itens IS NULL OR delivery_tem_itens = 0)
+        AND delivery_code NOT IN (SELECT delivery_code FROM delivery WHERE delivery_trash = 0 AND delivery_tem_itens = 1)
+        GROUP BY delivery_code
+      ) best ON d.delivery_id = best.max_id
+      WHERE DATE(d.delivery_date_time) >= CURDATE() - INTERVAL 7 DAY
       ORDER BY d.delivery_date_time DESC
       LIMIT 200
     `);
