@@ -34,7 +34,7 @@ if ($DB->NumQuery($read_pedido) > '0') {
         $valorFloat = (float) $valorFormatado;
         $read_pedido_view['pedido_valor'] = $valorFloat;
 
-        $dev_form['delivery_id']                 = $read_pedido_view['pedido_id'];
+        // Removido delivery_id - é auto-incremento!
         $dev_form['delivery_data_hora_captura'] = $read_pedido_view['pedido_data_hora_captura'];
         $dev_form['delivery_ide_hub_delivery']     = $read_pedido_view['pedido_ide'];
         $dev_form['delivery_ide']                 = hash('md5', date('YmdHis') . rand(1000, 9999));
