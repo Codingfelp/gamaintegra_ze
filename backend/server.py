@@ -17,6 +17,9 @@ import threading
 # Flag para controlar inicialização
 services_initialized = False
 
+# PIDs dos processos iniciados manualmente (fallback para produção)
+manual_pids = {}
+
 def run_shell(cmd, timeout=120):
     """Executa comando shell"""
     try:
@@ -24,6 +27,36 @@ def run_shell(cmd, timeout=120):
         return result.returncode == 0, result.stdout + result.stderr
     except Exception as e:
         return False, str(e)
+
+def start_node_process_manually(name, script_path, working_dir, log_file):
+    """Inicia um processo Node.js manualmente com nohup (fallback para produção)"""
+    global manual_pids
+    
+    # Verificar se já está rodando
+    ok, output = run_shell(f"pgrep -f '{script_path}'")
+    if ok and output.strip():
+        pid = output.strip().split()[0]
+        print(f"   ✅ {name}: já rodando (PID {pid})")
+        manual_pids[name] = pid
+        return True
+    
+    # Iniciar com nohup
+    env_vars = f"NODE_ENV=production PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium"
+    cmd = f"cd {working_dir} && {env_vars} nohup /usr/bin/node {script_path} >> {log_file} 2>&1 &"
+    
+    ok, output = run_shell(cmd)
+    time.sleep(2)
+    
+    # Verificar se iniciou
+    ok, output = run_shell(f"pgrep -f '{script_path}'")
+    if ok and output.strip():
+        pid = output.strip().split()[0]
+        print(f"   ✅ {name}: iniciado (PID {pid})")
+        manual_pids[name] = pid
+        return True
+    else:
+        print(f"   ⚠️ {name}: falha ao iniciar")
+        return False
 
 def ensure_services_running():
     """Garante que os serviços Zé Delivery estejam rodando via Supervisor"""
