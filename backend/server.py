@@ -205,13 +205,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pool de conexões MySQL - usando variáveis de ambiente com fallback
+# Pool de conexões MySQL - FORÇANDO banco 'railway' (Railway Cloud)
+# IMPORTANTE: Ignorar DB_NAME se for 'zeconnect-base' (valor errado em produção)
+db_name_env = os.environ.get('DB_NAME', 'railway')
+if db_name_env == 'zeconnect-base' or db_name_env == 'test_database':
+    db_name_env = 'railway'  # Corrigir valor errado
+
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST', 'mainline.proxy.rlwy.net'),
     'port': int(os.environ.get('DB_PORT', '52996')),
     'user': os.environ.get('DB_USER', 'root'),
     'password': os.environ.get('DB_PASSWORD', 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU'),
-    'database': os.environ.get('DB_NAME', 'railway'),
+    'database': db_name_env,  # Usar valor corrigido
     'connection_timeout': 10,
     'autocommit': True
 }
