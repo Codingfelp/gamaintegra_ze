@@ -35,6 +35,10 @@ if ($DB->NumQuery($read_pedido) > '0') {
             $DB->Update('ze_pedido', $up, "WHERE pedido_id = '" . $read_pedido_view['pedido_id'] . "' LIMIT 1");
             continue;
         }
+        
+        // Resetar array para evitar dados residuais
+        $dev_form = [];
+        
         $explode_data = explode('/', $read_pedido_view['pedido_data']);
 
         $valorNumerico = preg_replace('/[^0-9]/', '', $read_pedido_view['pedido_valor']);
@@ -42,7 +46,7 @@ if ($DB->NumQuery($read_pedido) > '0') {
         $valorFloat = (float) $valorFormatado;
         $read_pedido_view['pedido_valor'] = $valorFloat;
 
-        // Removido delivery_id - é auto-incremento!
+        // delivery_id é auto-incremento, não definir!
         $dev_form['delivery_data_hora_captura'] = $read_pedido_view['pedido_data_hora_captura'];
         $dev_form['delivery_ide_hub_delivery']     = $read_pedido_view['pedido_ide'];
         $dev_form['delivery_ide']                 = hash('md5', date('YmdHis') . rand(1000, 9999));
