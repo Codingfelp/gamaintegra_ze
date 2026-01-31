@@ -204,17 +204,36 @@ DB_CONFIG = {
 
 print(f"🔧 MySQL Config: {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
 
-try:
-    db_pool = pooling.MySQLConnectionPool(pool_name="ze_pool", pool_size=5, **DB_CONFIG)
-    print("✅ Pool MySQL criado com sucesso")
-except Exception as e:
-    print(f"⚠️ Erro ao criar pool MySQL: {e}")
-    db_pool = None
+db_pool = None
+
+def create_db_pool():
+    global db_pool
+    try:
+        db_pool = pooling.MySQLConnectionPool(pool_name="ze_pool", pool_size=3, pool_reset_session=True, **DB_CONFIG)
+        print("✅ Pool MySQL criado com sucesso")
+        return True
+    except Exception as e:
+        print(f"⚠️ Erro ao criar pool MySQL: {e}")
+        db_pool = None
+        return False
+
+# Tentar criar pool na inicialização
+create_db_pool()
 
 def get_db():
-    if db_pool:
-        return db_pool.get_connection()
-    return mysql.connector.connect(**DB_CONFIG)
+    global db_pool
+    try:
+        if db_pool:
+            return db_pool.get_connection()
+    except Exception as e:
+        print(f"⚠️ Pool falhou, tentando conexão direta: {e}")
+    
+    # Fallback: conexão direta
+    try:
+        return mysql.connector.connect(**DB_CONFIG)
+    except Exception as e:
+        print(f"❌ Conexão MySQL falhou: {e}")
+        raise
 
 # ============= ROTAS DA API =============
 
