@@ -163,7 +163,13 @@ function App() {
     try {
       const res = await fetch(`${API_URL}/api/pedidos/${id}`);
       const data = await res.json();
-      if (data.success) setPedidoDetails(data.data);
+      if (data.success) {
+        // Formatar para o layout esperado: { pedido: {...}, itens: [...] }
+        const pedido = { ...data.data };
+        const itens = pedido.itens || [];
+        delete pedido.itens;
+        setPedidoDetails({ pedido, itens });
+      }
     } catch (err) {
       console.error('Erro ao buscar detalhes:', err);
     }
