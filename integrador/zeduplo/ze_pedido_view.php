@@ -218,7 +218,8 @@ if (count($json) > 0) {
         }
     }
     $uppedido['delivery_tem_itens'] = '1';
-    $DB->Update('delivery', $uppedido, "WHERE delivery_code = '" . $cdPedidoNovo . "' AND delivery_id = '" . $idPedidoNovo . "' LIMIT 1");
+    // Corrigido: usar apenas delivery_code
+    $DB->Update('delivery', $uppedido, "WHERE delivery_code = '" . $cdPedidoNovo . "' LIMIT 1");
 }
 // Retornar resposta JSON para o cliente Node.js
 header('Content-Type: application/json');
