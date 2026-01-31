@@ -1,0 +1,176 @@
+<analysis>**original_problem_statement:**
+The user's primary goal is to establish a reliable, 24/7 Zé Delivery integration. This involves orchestrating legacy PHP () and Node.js () services to scrape order data, storing it in a central Railway cloud MariaDB, and syncing it to a Lovable Cloud (Supabase) instance. Key requirements include creating a React monitoring dashboard, ensuring the system is stable in the production deployment environment, and resolving critical data integrity issues.
+
+**PRODUCT REQUIREMENTS:**
+1.  **Legacy System Integration:** Make the existing PHP and Node.js scraper projects work together seamlessly.
+2.  **24/7 Production Stability:** All components, especially the Node.js scrapers and the PHP service, must run continuously and restart automatically upon failure in the published production environment.
+3.  **Central Cloud Database:** Utilize a user-provided Railway cloud MariaDB instance as the single source of truth for all services.
+4.  **Lovable Cloud Sync & Data Integrity:**
+    *   Sync all new and updated orders to a Lovable Cloud endpoint.
+    -   Fix bugs where some orders arrive with empty item lists ().
+    *   Prevent customer data (CPF, address) from being nulled out for delivered orders.
+    *   Ensure the data payload matches the format expected by the user's new Supabase Edge Function.
+5.  **Dashboard:** A functional React-based UI to monitor service status and view order data.
+6.  **Documentation:** Provide a technical plan for the Lovable Cloud team and a non-technical project summary.
+
+**User's preferred language**: Português (Brasil). The next agent MUST respond in Portuguese.
+
+**what currently exists?**
+The application is a multi-service system orchestrated by a FastAPI backend (). This backend is responsible for dynamically installing dependencies (Apache, PHP, Chromium) and managing all legacy services as background processes.
+- **Frontend:** A React dashboard for monitoring.
+- **Backend:** A FastAPI server that acts as a central controller and process manager, using a custom watchdog to ensure Node.js scripts stay online.
+- **Database:** The system is connected to a remote MariaDB instance on Railway.
+- **Legacy Services:**
+    -  (PHP) is served by an Apache instance started by the backend.
+    -  (Node.js scrapers) and  (Lovable sync) are managed as persistent background processes by the FastAPI backend.
+- **Authentication:** The scraper () authenticates with Zé Delivery using a 2FA mechanism that reads a verification code from a Gmail account via a PHP script using IMAP.
+
+**Last working item**:
+- **Last item agent was working:** The user reported that after deployment, the PHP service is offline and the scrapers are not capturing any new orders, returning SEM PEDIDOS DISPONIVEIS. The user correctly suspects this is due to  not being correctly installed or enabled in the production environment, which breaks the scraper's 2FA login flow. The agent was starting to investigate this production-specific failure.
+- **Status:** IN PROGRESS
+- **Agent Testing Done:** N (The issue is specific to the production environment which the agent cannot directly test. Everything was working in the preview environment before the user's last message.)
+- **Which testing method agent to use?** The agent needs to debug the startup process for a clean production environment. This involves making the dependency installation in  more robust and ensuring all necessary PHP extensions are enabled for Apache. No direct testing is possible; the fix must be theoretical and based on the user's logs, then confirmed by the user after a new deployment.
+- **User Testing Done:** Y (User deployed the application and confirmed the services are offline).
+
+**All Pending/In progress Issue list**:
+- **Issue 1:** Production Stability: PHP Offline & Scrapers Not Working (P0)
+- **Issue 2:** Lovable Cloud Sync Data Conformance (P1)
+- **Issue 3:** Data Integrity: Null Data for Delivered Orders (P2)
+- **Issue 4:** Documentation (P2)
+
+**Issues Detail:**
+- **Issue 1: Production Stability: PHP Offline & Scrapers Not Working**
+    - **Description:** This is the highest priority and a recurring blocker. In the clean production environment, the runtime installation of dependencies fails. The user reports PHP is Offline on the dashboard, and scrapers return SEM PEDIDOS DISPONIVEIS. This is because the scraper's 2FA login depends on a PHP script that uses IMAP, and the PHP/IMAP service is not running correctly in production.
+    - **Attempted fixes:** The agent has evolved the architecture from PM2 to Supervisor, and finally to a custom watchdog process manager within  that installs dependencies (, , ) at runtime. While this works in the stateful preview environment, it's failing in the stateless production one.
+    - **Next debug checklist:**
+        1.  Review and harden the  function in .
+        2.  Ensure Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded. commands use the  flag and have error handling.
+        3.  Crucially, ensure  is **enabled for Apache**, not just the PHP CLI. This likely requires adding  and  followed by  to the startup script.
+        4.  Explain to the user the critical difference between the stateful preview and stateless production environments, which necessitates these robust installation steps.
+    - **Why fix this issue and what will be achieved with the fix?** The application is non-functional in production without this fix. Resolving it will achieve the user's primary goal of a 24/7 running integration.
+    - **Status:** IN PROGRESS
+    - **Is recurring issue?** Y
+    - **Should Test backend/both after fix?** Backend. The fix can only be verified by the user after a new deployment.
+    - **Blocked on other issue:** No, this is the main blocker.
+
+- **Issue 2: Lovable Cloud Sync Data Conformance**
+    - **Description:** The user has provided a definitive Deno/Supabase Edge Function script and expects the data sent from the  bridge to match the structure and logic within that script. This includes correct item formats, status mappings, and handling of different order types (Comum, Turbo, Retirada).
+    - **Attempted fixes:** The agent previously updated the sync script to include .
+    - **Next debug checklist:**
+        1.  Thoroughly analyze the user-provided Deno script (from message history).
+        2.  Compare the expected payload structure with what is currently generated in .
+        3.  Adjust  to exactly match the Lovable Cloud function's expectations.
+    - **Status:** NOT STARTED
+    - **Is recurring issue?** N
+    - **Should Test backend/both after fix?** Backend (by checking  logs).
+
+- **Issue 3: Data Integrity: Null Data for Delivered Orders**
+    - **Description:** The Zé Delivery website hides customer data (address, CPF) after an order is delivered. The system must capture this information on the first scrape and prevent it from being overwritten with null values on subsequent status updates.
+    - **Attempted fixes:** The agent modified  to only update fields if the new incoming value is not empty and the existing value in the database is empty.
+    - **Next debug checklist:** The fix is likely correct but needs verification in production once Issue #1 is resolved.
+    - **Status:** USER VERIFICATION PENDING
+    - **Is recurring issue?** Y
+    - **Should Test backend/both after fix?** Backend (DB verification).
+
+- **Issue 4: Documentation**
+    - **Description:** A non-technical summary for the user's manager is required.
+    - **Attempted fixes:** The file  was created and updated.
+    - **Next debug checklist:** Review and finalize the content after all major issues are resolved.
+    - **Status:** IN PROGRESS
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** N/A.
+
+**In progress Task List**:
+- **Task 1: Harden Production Startup Script (P0)**
+    - **Where to resume:** , inside the  function.
+    - **What will be achieved with this?** This will fix the PHP offline and Scrapers not working errors in production, making the application deployable and stable.
+    - **Status:** IN PROGRESS
+    - **Should Test frontend/backend/both after fix?** Backend.
+    - **Blocked on something:** No.
+
+**Upcoming and Future Tasks**
+- **Upcoming Tasks:**
+    - **(P1) Align Sync Payload:** Modify  to match the data structure of the user's Lovable Cloud Edge Function.
+    - **(P2) Finalize Documentation:** Complete the non-technical summary in .
+- **Future Tasks:**
+    - Guide the user to verify the Null Data fix in production.
+
+**Completed work in this session**
+- **Production-Ready Process Management:** Re-architected the service manager away from fragile Supervisor configs to a robust, self-healing watchdog within  that manages legacy Node.js processes via .
+- **Production DB Connection Fix:** Diagnosed and fixed the critical  error by forcing the correct DB name () in , overriding incorrect production environment variables. A debug endpoint () was created to aid this diagnosis.
+- **Scraper 2FA Login Fix:** Successfully diagnosed the scraper login failure, installed the  extension, and confirmed the scraper could read the 2FA code from Gmail and resume capturing orders in the preview environment.
+- **Data Integrity & Duplication Fixes:**
+    - Corrected the PHP update script () to prevent overwriting existing data with nulls.
+    - Updated the SQL query in the sync bridge () to handle and deduplicate order records, ensuring only the most complete version is sent.
+- **Deployment Health Check:** Implemented a  endpoint in the FastAPI backend.
+- **Dashboard UI Bug Fixes:** Resolved a JavaScript crash () and corrected the service status display to show the correct state of all managed processes.
+
+**Code Architecture**
+
+
+**Key Technical Concepts**
+- **Self-Healing Backend Orchestrator:** The FastAPI  is the heart of the system. It dynamically installs system dependencies (Apache, PHP, etc.) and manages the lifecycle of all legacy Node.js scripts using a custom watchdog, making it a single, robust entry point designed for stateless container environments.
+- **IMAP for 2FA Automation:** The system uses a PHP script with the  extension to programmatically read a 2FA login code from a Gmail inbox, allowing the Puppeteer scraper to automate its login to Zé Delivery.
+- **Environment-Agnostic Startup:** The startup logic aims to create a consistent environment by installing all required dependencies at runtime, bridging the gap between a stateful preview and a stateless production container.
+
+**key DB schema**
+- **database**: 
+    - : { , , , , , , ,  }
+    - : { ,  (FK), ,  }
+    - : { , ,  }
+
+**changes in tech stack**
+- The process management has fully shifted from standard tools like PM2 or Supervisor to a custom, application-level process manager and watchdog implemented in Python within .
+
+**All files of reference**
+- : **The most important file.** Contains the entire service startup, management, watchdog, and health check logic. This is where the production stability fix needs to happen.
+- : Contains the fix for the null data overwrite issue.
+- : The PHP script that uses IMAP to fetch 2FA codes.
+- : The script that syncs data to Lovable Cloud. Needs to be aligned with the user's Deno script.
+- : The main component for the monitoring dashboard.
+
+**Critical Info for New Agent**
+- **Production vs. Preview is the CORE PROBLEM.** The preview environment is stateful (keeps installed dependencies), while production is a clean, stateless container. All dependencies (, , ) MUST be flawlessly installed and enabled by  on *every single deploy*. The latest user report confirms this is failing.
+- **PHP/IMAP is the likely culprit for the current production failure.** The scrapers cannot get new orders because they cannot log in via 2FA. They cannot log in because the PHP script that reads the 2FA email code is failing. This is because the PHP service is offline in production. The agent must ensure  is not just installed but also **enabled for Apache** (, ) and that Apache is restarted *afterward*.
+- **The Database Name bug is fixed with a workaround.** The code in  now explicitly checks for the incorrect  DB name (from production environment variables) and forces it to . Be aware of this logic.
+
+**documents and test reports created in this job**
+- 
+- 
+- 
+- 
+- 
+
+**Last 10 User Messages and any pending HUMAN messages**
+1.  **LATEST:** PHP is offline in production. Scrapers are not getting new orders. I think is the problem. Make it all run 24/7 in production. - **Status: Unresolved. This is the current P0 task.**
+2.  User provided production endpoint responses confirming the DB name was  and that the DB connection was failing. - **Status: Resolved** by a workaround in .
+3.  User called the deployment agent; the logs were empty. - **Status: Informational.**
+4.  User reported the production DB was offline after deployment. - **Status: In Progress.**
+5.  User reported the frontend was a blank page. - **Status: Resolved.**
+6.  User reported  errors from production deploy. - **Status: In Progress (symptom of the main issue).**
+7.  User asked to fix  data for delivered orders and the  bug. - **Status:  data fix is pending verification;  was fixed.**
+8.  User provided a full Deno/Supabase Edge function script to serve as the definitive logic for the Lovable sync. - **Status: Pending Implementation.**
+9.  User asked to resend all orders to Lovable. - **Status: Done.**
+10. User confirmed  was sending empty items for some orders. - **Status: Resolved.**
+
+**Project Health Check:**
+- **Broken:** The application is **not functional in the production environment**. Core services (PHP, scrapers) fail to start after deployment, rendering the entire system useless for its primary purpose.
+- **Mocked:** None.
+
+**3rd Party Integrations**
+- **Zé Delivery:** Web scraping via Node.js/Puppeteer.
+- **Lovable Cloud (Supabase):** Custom API bridge () posts to a Supabase Edge Function.
+- **Railway.app:** External cloud MariaDB for all data storage.
+- **Gmail:** Used via a PHP script with an IMAP extension to automate 2FA for the Zé Delivery login.
+
+**Testing status**
+- Testing agent used after significant changes: NO
+- Troubleshoot agent used after agent stuck in loop: NO
+- Test files created: []
+- Known regressions: The system's stability in a stateless production environment has regressed or was never fully achieved, despite working in the preview environment.
+
+**What agent forgot to execute**
+- The agent has not yet fully addressed the environmental differences between preview and production. Specifically, the startup script in  is not robust enough to handle dependency installation in a clean container, missing steps like enabling PHP modules for Apache (, ) and restarting the service.</analysis>
