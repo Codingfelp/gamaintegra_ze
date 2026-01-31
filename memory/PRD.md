@@ -1,129 +1,125 @@
 # Gamatauri Zé Integrador - PRD
 
-## Status: ✅ FUNCIONAL COM SUPORTE A PRODUÇÃO
+## Status: ✅ PRONTO PARA DEPLOY
 
-## Atualização 31/01/2026 - Suporte a Produção
+## Correções Desta Sessão (31/01/2026)
 
-### Problema Resolvido
-Os scripts não rodavam em produção porque o Supervisor do Emergent só aceita scripts definidos no arquivo principal (`supervisord.conf`), que é **readonly**. Scripts adicionados em `/etc/supervisor/conf.d/` são ignorados em produção.
+### 1. Health Check Adicionado
+- Endpoint `/health` e `/api/health` adicionados
+- Retorna `{"status":"healthy","service":"ze-integrador"}`
+- **CRÍTICO** para o deploy funcionar
 
-### Solução Implementada
-O backend agora tem **duas formas** de iniciar os scripts:
+### 2. Detecção de Ambiente Corrigida
+- Detecta automaticamente se está em **preview** (com Supervisor) ou **produção** (sem Supervisor)
+- Verifica existência de `/var/run/supervisor.sock`
+- Em produção: usa `nohup` para iniciar scripts manualmente
 
-1. **Modo Supervisor** (preview): Usa `supervisorctl` 
-2. **Modo Manual** (produção): Usa `nohup` diretamente
+### 3. Instalações em Background
+- Apache, PHP, Chromium e dependências Node.js são instalados em **threads separadas**
+- Não bloqueia mais o startup do servidor
+- Health check responde imediatamente
 
-**Detecção automática:** O código detecta qual modo usar testando se `supervisorctl status ze-sync` funciona.
+### 4. Preservação de Dados
+- PHP modificado para **NÃO sobrescrever** dados que já existem no banco
+- Endereço, CPF, código de entrega são preservados após pedido ser entregue
+- Resolve o problema de dados ficarem NULL
 
-**Watchdog:** Um thread verifica a cada 60 segundos se os scripts estão rodando e os reinicia se caírem.
+### 5. Watchdog Corrigido
+- Usa apenas `pgrep` para verificar scripts (não `supervisorctl`)
+- Funciona tanto em preview quanto em produção
 
-## Arquitetura de Inicialização
+## Arquitetura de Inicialização (Atualizada)
 
 ```
 Backend Inicia
      │
-     ▼
-ensure_services_running()
-     │
-     ├─► Instala Apache + PHP (se necessário)
-     ├─► Instala Chromium (se necessário)
-     ├─► Limpa locks do Chromium
-     ├─► Instala dependências Node.js
+     ├─► /health responde IMEDIATAMENTE {"status":"healthy"}
      │
      ▼
-Testa: supervisorctl status ze-sync
+Thread Background (após 5s)
      │
-     ├─► "RUNNING/STOPPED" → Modo Supervisor
-     │        └─► supervisorctl start ze-v1 ze-v1-itens ze-sync
+     ├─► Detecta ambiente (preview ou produção)
      │
-     └─► "ERROR" → Modo Manual (Produção)
-              └─► nohup node puppeteer-wrapper.js v1.js &
-              └─► nohup node puppeteer-wrapper.js v1-itens.js &
-              └─► nohup node sync-cron.js &
+     ├─► Threads paralelas:
+     │   ├─► Instala Apache + PHP
+     │   ├─► Instala Chromium
+     │   └─► Instala dependências Node.js
+     │
+     ▼
+Se Preview (Supervisor existe):
+     └─► supervisorctl start ze-v1 ze-v1-itens ze-sync
+
+Se Produção (sem Supervisor):
+     └─► nohup node puppeteer-wrapper.js v1.js &
+     └─► nohup node puppeteer-wrapper.js v1-itens.js &
+     └─► nohup node sync-cron.js &
      │
      ▼
 Watchdog (a cada 60s)
-     └─► Verifica se scripts estão vivos
-     └─► Reinicia se caíram
+     └─► pgrep -f "script.js"
+     └─► Se não encontrar, reinicia com nohup
 ```
 
-## Dados do Banco (Railway Cloud)
+## Endpoints de Health Check
+
+| Endpoint | Resposta |
+|----------|----------|
+| `/health` | `{"status":"healthy","service":"ze-integrador"}` |
+| `/api/health` | `{"status":"healthy","service":"ze-integrador"}` |
+
+## Dados do Banco
 - 124 pedidos
-- 97 Pedido Comum | 16 Pedido de Retirada | 9 Pedido Turbo
-- 122 pedidos com itens
+- 122 com itens completos
+- 2 pedidos históricos sem itens (não recuperáveis)
 
-## Arquivos Principais
+## Arquivos Modificados
+
 ```
-/app/backend/server.py                # API + inicialização automática + watchdog
-/app/bridge/sync-cron.js              # Sync Lovable Cloud (10 seg)
-/app/bridge/force-resync.js           # Script para reenvio completo
-/app/ze-scripts.supervisor.conf       # Config Supervisor (preview)
-/app/docs/verificacao_producao.md     # Guia de verificação em produção
-/app/docs/correcoes_lovable_cloud.md  # Correções para equipe Lovable
+/app/backend/server.py                    # Health check + detecção ambiente + instalação background
+/app/integrador/zeduplo/ze_pedido_view.php # Preservação de dados existentes
 ```
 
-## Portas e Serviços
-| Serviço | Porta | Status |
-|---------|-------|--------|
-| Frontend React | 3000 | ✅ |
-| Backend FastAPI | 8001 | ✅ |
-| Apache/PHP | 8088 | ✅ |
-| MySQL Railway | 52996 | ✅ |
-
-## Sync com Lovable Cloud
-- ✅ Intervalo: 10 segundos
-- ✅ Campo `delivery_tipo_pedido` com valores exatos
-- ✅ Itens em formato correto (nome, quantidade, preco_unitario, preco_total)
-- ✅ Fallback `items_json` disponível
-- ✅ 122 pedidos TODOS com itens
-
-## Comandos Úteis
+## Para Testar Após Deploy
 
 ```bash
-# Ver status
-supervisorctl status
+# 1. Verificar health check
+curl https://seu-app.emergentagent.com/health
+
+# 2. Verificar logs
+tail -50 /var/log/supervisor/backend.out.log
+
+# Deve mostrar:
+# 🏭 Ambiente de PRODUÇÃO detectado (sem Supervisor)
+# 🚀 Iniciando scripts manualmente...
+# ✅ ze-v1: iniciado (PID xxx)
+# ✅ ze-v1-itens: iniciado (PID xxx)
+# ✅ ze-sync: iniciado (PID xxx)
+
+# 3. Verificar processos
 ps aux | grep -E "v1.js|sync-cron.js" | grep -v grep
-
-# Ver logs
-tail -f /app/logs/ze-sync-out.log
-tail -f /var/log/supervisor/backend.out.log
-
-# Forçar reenvio
-cd /app/bridge && node force-resync.js
-
-# Reiniciar tudo
-supervisorctl restart backend
 ```
-
-## Pendências
-
-### Para Usuário
-- [ ] **Fazer DEPLOY** e verificar logs com comandos acima
-- [ ] Confirmar se itens aparecem corretamente no Lovable Cloud
-
-### Para Equipe Lovable (já feito, apenas verificar)
-- [x] Usar `delivery_tipo_pedido` para tipo exato
-- [x] Fallback para `items_json`
-- [x] employee_id padrão
 
 ---
 
 ## Changelog
 
-### 31/01/2026 (Sessão Atual)
-- **NOVO:** Modo manual de inicialização para produção (nohup)
-- **NOVO:** Watchdog que reinicia scripts automaticamente
-- **NOVO:** Detecção automática de ambiente (preview vs produção)
-- Instalação automática de Apache + PHP + Chromium
-- Query SQL corrigida para evitar duplicatas
-- Campo `delivery_tipo_pedido` com valores exatos
-- Documentação de verificação em produção criada
+### 31/01/2026 v3 (Atual)
+- **FIX:** Adicionado endpoint `/health` para deploy
+- **FIX:** Instalações movidas para threads background
+- **FIX:** Detecção de ambiente por `/var/run/supervisor.sock`
+- **FIX:** Watchdog não usa mais supervisorctl
+- **FIX:** PHP preserva dados existentes (não sobrescreve com NULL)
 
-### 30/01/2026
-- Migração para Railway Cloud
-- Supervisor substituiu PM2
-- Sync atualizado para cada 10 segundos
+### 31/01/2026 v2
+- Modo dual de inicialização (Supervisor/manual)
+- Watchdog para reiniciar scripts
+- Documentação de verificação em produção
+
+### 31/01/2026 v1
+- Bridge verificado e funcionando
+- 122 pedidos com itens corretos
+- Campo delivery_tipo_pedido com valores exatos
 
 ---
 
-*Atualizado: 31/01/2026 09:25*
+*Atualizado: 31/01/2026 09:45*
