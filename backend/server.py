@@ -61,6 +61,25 @@ def start_node_script(name, script, workdir, logfile):
     print(f"   ⚠️ {name}: não iniciou")
     return False
 
+def start_php_server():
+    """Inicia servidor PHP embutido na porta 8088 (alternativa ao Apache para produção)"""
+    ok, output = run_shell("ss -tlnp | grep ':8088'", timeout=5)
+    if ok and output.strip():
+        print("   ✅ PHP Server: já rodando na porta 8088")
+        return True
+    
+    # Usar PHP built-in server (funciona em produção sem Apache)
+    cmd = "cd /app/integrador && nohup php -S 0.0.0.0:8088 >> /app/logs/php-server.log 2>&1 &"
+    run_shell(cmd, timeout=10)
+    time.sleep(2)
+    
+    ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
+    if ok:
+        print("   ✅ PHP Server: iniciado (built-in)")
+        return True
+    print("   ⚠️ PHP Server: não iniciou")
+    return False
+
 def setup_services():
     """Configura e inicia serviços em background - roda apenas uma vez"""
     global _init_started
@@ -79,19 +98,77 @@ def setup_services():
     is_production = not os.path.exists("/var/run/supervisor.sock")
     print(f"{'🏭 PRODUÇÃO' if is_production else '🔧 PREVIEW'} detectado")
     
-    # Instalar dependências em background (não bloquear)
-    def install_deps():
-        # Apache
-        ok, _ = run_shell("which apache2", timeout=5)
-        if not ok:
-            print("📦 Instalando Apache...")
-            run_shell("apt-get update -qq && apt-get install -y -qq apache2 libapache2-mod-php php-mysql 2>/dev/null", timeout=300)
+    # Limpar locks do Chromium
+    run_shell("rm -rf /app/zedelivery-clean/profile-ze-*/Singleton* 2>/dev/null", timeout=5)
+    
+    # Instalar dependências ANTES de iniciar serviços (blocking para produção)
+    def install_deps_sync():
+        """Instala dependências de forma síncrona para produção"""
+        print("📦 Verificando dependências...")
         
-        # Configurar Apache
-        ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
+        # 1. PHP e IMAP (CRÍTICO para login 2FA)
+        ok, _ = run_shell("php -m | grep -i imap", timeout=5)
         if not ok:
-            run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf", timeout=5)
-            run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'EOF'
+            print("   📦 Instalando PHP + IMAP...")
+            run_shell("apt-get update -qq", timeout=60)
+            ok, out = run_shell("apt-get install -y php php-imap php-mysql php-curl 2>&1", timeout=180)
+            if ok:
+                print("   ✅ PHP + IMAP instalado")
+            else:
+                print(f"   ⚠️ Erro instalando PHP: {out[:200]}")
+        else:
+            print("   ✅ PHP + IMAP já instalado")
+        
+        # 2. Chromium (CRÍTICO para scraping)
+        ok, _ = run_shell("which chromium", timeout=5)
+        if not ok:
+            print("   📦 Instalando Chromium...")
+            ok, out = run_shell("apt-get install -y chromium 2>&1", timeout=300)
+            if ok:
+                print("   ✅ Chromium instalado")
+            else:
+                print(f"   ⚠️ Erro instalando Chromium: {out[:200]}")
+        else:
+            print("   ✅ Chromium já instalado")
+        
+        # 3. Node modules
+        if not os.path.exists("/app/zedelivery-clean/node_modules"):
+            print("   📦 Instalando node_modules (zedelivery-clean)...")
+            run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=180)
+        if not os.path.exists("/app/bridge/node_modules"):
+            print("   📦 Instalando node_modules (bridge)...")
+            run_shell("cd /app/bridge && npm install --silent 2>/dev/null", timeout=180)
+    
+    if is_production:
+        # PRODUÇÃO: instalar dependências de forma SÍNCRONA antes de continuar
+        install_deps_sync()
+        
+        # Iniciar PHP Server (built-in, funciona em produção)
+        print("🚀 Iniciando serviços para PRODUÇÃO...")
+        start_php_server()
+        
+        # Aguardar PHP server estar pronto
+        time.sleep(2)
+        
+        # Iniciar scripts Node.js
+        start_node_script("ze-v1", "puppeteer-wrapper.js v1.js", "/app/zedelivery-clean", "/app/logs/ze-v1-out.log")
+        start_node_script("ze-v1-itens", "puppeteer-wrapper.js v1-itens.js", "/app/zedelivery-clean", "/app/logs/ze-v1-itens-out.log")
+        start_node_script("ze-sync", "sync-cron.js", "/app/bridge", "/app/logs/ze-sync-out.log")
+    else:
+        # PREVIEW: usar Apache + Supervisor (já funciona)
+        print("📋 Usando Apache + Supervisor para PREVIEW...")
+        
+        # Instalar dependências em background (não bloquear preview)
+        def install_deps_async():
+            ok, _ = run_shell("which apache2", timeout=5)
+            if not ok:
+                run_shell("apt-get update -qq && apt-get install -y -qq apache2 libapache2-mod-php php-mysql php-imap 2>/dev/null", timeout=300)
+            
+            # Configurar Apache
+            ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
+            if not ok:
+                run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf", timeout=5)
+                run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'EOF'
 <VirtualHost *:8088>
     DocumentRoot /app/integrador
     <Directory /app/integrador>
@@ -101,36 +178,23 @@ def setup_services():
     </Directory>
 </VirtualHost>
 EOF""", timeout=5)
-            run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null; apachectl start 2>/dev/null", timeout=10)
-            print("✅ Apache configurado")
+                run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null", timeout=5)
+                run_shell("phpenmod imap 2>/dev/null", timeout=5)
+                run_shell("apachectl start 2>/dev/null", timeout=10)
+            
+            ok, _ = run_shell("which chromium", timeout=5)
+            if not ok:
+                run_shell("apt-get install -y -qq chromium 2>/dev/null", timeout=300)
+            
+            if not os.path.exists("/app/zedelivery-clean/node_modules"):
+                run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=180)
+            if not os.path.exists("/app/bridge/node_modules"):
+                run_shell("cd /app/bridge && npm install --silent 2>/dev/null", timeout=180)
         
-        # Chromium
-        ok, _ = run_shell("which chromium", timeout=5)
-        if not ok:
-            print("📦 Instalando Chromium...")
-            run_shell("apt-get install -y -qq chromium chromium-driver 2>/dev/null", timeout=300)
+        threading.Thread(target=install_deps_async, daemon=True).start()
+        time.sleep(3)
         
-        # Node modules
-        if not os.path.exists("/app/zedelivery-clean/node_modules"):
-            print("📦 Instalando node_modules (zedelivery-clean)...")
-            run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=180)
-        if not os.path.exists("/app/bridge/node_modules"):
-            print("📦 Instalando node_modules (bridge)...")
-            run_shell("cd /app/bridge && npm install --silent 2>/dev/null", timeout=180)
-    
-    # Limpar locks do Chromium
-    run_shell("rm -rf /app/zedelivery-clean/profile-ze-*/Singleton* 2>/dev/null", timeout=5)
-    
-    # Iniciar instalação em background
-    threading.Thread(target=install_deps, daemon=True).start()
-    
-    # Aguardar um pouco para dependências básicas
-    time.sleep(3)
-    
-    # Iniciar scripts
-    if not is_production:
-        # Preview: usar Supervisor
-        print("📋 Usando Supervisor...")
+        # Configurar Supervisor
         run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf 2>/dev/null", timeout=5)
         run_shell("supervisorctl reread 2>/dev/null; supervisorctl update 2>/dev/null", timeout=10)
         
@@ -140,12 +204,6 @@ EOF""", timeout=5)
                 print(f"   ✅ {svc}: rodando (Supervisor)")
             else:
                 run_shell(f"supervisorctl start {svc} 2>/dev/null", timeout=10)
-    else:
-        # Produção: iniciar manualmente
-        print("🚀 Iniciando scripts manualmente...")
-        start_node_script("ze-v1", "puppeteer-wrapper.js v1.js", "/app/zedelivery-clean", "/app/logs/ze-v1-out.log")
-        start_node_script("ze-v1-itens", "puppeteer-wrapper.js v1-itens.js", "/app/zedelivery-clean", "/app/logs/ze-v1-itens-out.log")
-        start_node_script("ze-sync", "sync-cron.js", "/app/bridge", "/app/logs/ze-sync-out.log")
     
     print("✅ Setup concluído")
 
