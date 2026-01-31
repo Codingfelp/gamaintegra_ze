@@ -11,7 +11,7 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT || 3309,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'zedelivery',
+  database: process.env.DB_NAME || 'railway',
   waitForConnections: true,
   connectionLimit: 5,
 });
