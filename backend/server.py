@@ -61,25 +61,6 @@ def start_node_script(name, script, workdir, logfile):
     print(f"   ⚠️ {name}: não iniciou")
     return False
 
-def start_php_server():
-    """Inicia servidor PHP embutido na porta 8088 (alternativa ao Apache para produção)"""
-    ok, output = run_shell("ss -tlnp | grep ':8088'", timeout=5)
-    if ok and output.strip():
-        print("   ✅ PHP Server: já rodando na porta 8088")
-        return True
-    
-    # Usar PHP built-in server (funciona em produção sem Apache)
-    cmd = "cd /app/integrador && nohup php -S 0.0.0.0:8088 >> /app/logs/php-server.log 2>&1 &"
-    run_shell(cmd, timeout=10)
-    time.sleep(2)
-    
-    ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
-    if ok:
-        print("   ✅ PHP Server: iniciado (built-in)")
-        return True
-    print("   ⚠️ PHP Server: não iniciou")
-    return False
-
 def setup_services():
     """Configura e inicia serviços em background - roda apenas uma vez"""
     global _init_started
@@ -90,6 +71,7 @@ def setup_services():
         _init_started = True
     
     print("🔧 Iniciando setup de serviços Zé Delivery...")
+    print("📌 ARQUITETURA: PHP é CLI (não HTTP) - produção estável")
     
     # Criar diretório de logs
     os.makedirs("/app/logs", exist_ok=True)
@@ -101,12 +83,12 @@ def setup_services():
     # Limpar locks do Chromium
     run_shell("rm -rf /app/zedelivery-clean/profile-ze-*/Singleton* 2>/dev/null", timeout=5)
     
-    # Instalar dependências ANTES de iniciar serviços (blocking para produção)
-    def install_deps_sync():
-        """Instala dependências de forma síncrona para produção"""
+    # Instalar dependências ANTES de iniciar serviços
+    def install_deps():
+        """Instala dependências necessárias"""
         print("📦 Verificando dependências...")
         
-        # 1. PHP e IMAP (CRÍTICO para login 2FA)
+        # 1. PHP e IMAP (usado via CLI pelos scrapers para 2FA e inserção)
         ok, _ = run_shell("php -m | grep -i imap", timeout=5)
         if not ok:
             print("   📦 Instalando PHP + IMAP...")
@@ -141,43 +123,36 @@ def setup_services():
     
     if is_production:
         # PRODUÇÃO: instalar dependências de forma SÍNCRONA antes de continuar
-        install_deps_sync()
+        install_deps()
         
-        # Iniciar PHP Server (built-in, funciona em produção)
         print("🚀 Iniciando serviços para PRODUÇÃO...")
-        start_php_server()
-        
-        # Aguardar PHP server estar pronto
-        time.sleep(2)
+        # PHP NÃO é mais servidor HTTP - é chamado via CLI pelos scripts Node.js
+        # Isso elimina o gargalo do PHP built-in single-threaded
         
         # Iniciar scripts Node.js
         start_node_script("ze-v1", "puppeteer-wrapper.js v1.js", "/app/zedelivery-clean", "/app/logs/ze-v1-out.log")
         start_node_script("ze-v1-itens", "puppeteer-wrapper.js v1-itens.js", "/app/zedelivery-clean", "/app/logs/ze-v1-itens-out.log")
         start_node_script("ze-sync", "sync-cron.js", "/app/bridge", "/app/logs/ze-sync-out.log")
     else:
-        # PREVIEW: usar Apache + Supervisor (já funciona)
-        print("📋 Usando Apache + Supervisor para PREVIEW...")
+        # PREVIEW: usar Supervisor (Apache opcional para debug)
+        print("📋 Usando Supervisor para PREVIEW...")
         
         # Instalar dependências em background (não bloquear preview)
-        def install_deps_async():
-            ok, _ = run_shell("which apache2", timeout=5)
-            if not ok:
-                run_shell("apt-get update -qq && apt-get install -y -qq apache2 libapache2-mod-php php-mysql php-imap 2>/dev/null", timeout=300)
-            
-            # Configurar Apache
-            ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
-            if not ok:
-                run_shell("echo 'Listen 8088' > /etc/apache2/ports.conf", timeout=5)
-                run_shell("""cat > /etc/apache2/sites-available/zeduplo.conf << 'EOF'
-<VirtualHost *:8088>
-    DocumentRoot /app/integrador
-    <Directory /app/integrador>
-        Options Indexes FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-</VirtualHost>
-EOF""", timeout=5)
+        threading.Thread(target=install_deps, daemon=True).start()
+        time.sleep(3)
+        
+        # Configurar Supervisor para scripts Node.js
+        run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf 2>/dev/null", timeout=5)
+        run_shell("supervisorctl reread 2>/dev/null; supervisorctl update 2>/dev/null", timeout=10)
+        
+        for svc in ["ze-v1", "ze-v1-itens", "ze-sync"]:
+            ok, out = run_shell(f"supervisorctl status {svc} 2>/dev/null", timeout=10)
+            if "RUNNING" in out:
+                print(f"   ✅ {svc}: rodando (Supervisor)")
+            else:
+                run_shell(f"supervisorctl start {svc} 2>/dev/null", timeout=10)
+    
+    print("✅ Setup concluído")
                 run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null", timeout=5)
                 run_shell("phpenmod imap 2>/dev/null", timeout=5)
                 run_shell("apachectl start 2>/dev/null", timeout=10)
