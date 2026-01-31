@@ -21,7 +21,7 @@ async function forceResync() {
   console.log(`\n[${timestamp}] 🔄 FORÇANDO REENVIO DE TODOS OS PEDIDOS...`);
   
   try {
-    // Buscar TODOS os pedidos (sem limite de data)
+    // Buscar pedidos ÚNICOS (por delivery_code) priorizando os que têm itens
     const [pedidos] = await pool.query(`
       SELECT 
         d.delivery_id,
@@ -51,7 +51,18 @@ async function forceResync() {
         d.delivery_email_entregador,
         d.delivery_tem_itens
       FROM delivery d
-      WHERE d.delivery_trash = 0
+      INNER JOIN (
+        SELECT delivery_code, MAX(delivery_id) as max_id
+        FROM delivery
+        WHERE delivery_trash = 0 AND delivery_tem_itens = 1
+        GROUP BY delivery_code
+        UNION
+        SELECT delivery_code, MAX(delivery_id) as max_id
+        FROM delivery
+        WHERE delivery_trash = 0 AND (delivery_tem_itens IS NULL OR delivery_tem_itens = 0)
+        AND delivery_code NOT IN (SELECT delivery_code FROM delivery WHERE delivery_trash = 0 AND delivery_tem_itens = 1)
+        GROUP BY delivery_code
+      ) best ON d.delivery_id = best.max_id
       ORDER BY d.delivery_date_time DESC
     `);
 
