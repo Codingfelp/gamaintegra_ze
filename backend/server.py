@@ -13,6 +13,10 @@ import hashlib
 import random
 import time
 import threading
+from dotenv import load_dotenv
+
+# Carregar variáveis de ambiente do arquivo .env
+load_dotenv()
 
 # Flag para evitar múltiplas inicializações
 _init_started = False
