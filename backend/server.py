@@ -208,9 +208,17 @@ EOF""", timeout=5)
     print("✅ Setup concluído")
 
 def watchdog():
-    """Verifica scripts a cada 2 minutos"""
+    """Verifica scripts a cada 2 minutos e reinicia se necessário"""
     while True:
         time.sleep(120)
+        
+        # Verificar PHP Server
+        ok, _ = run_shell("ss -tlnp | grep ':8088'", timeout=5)
+        if not ok:
+            print("⚠️ Watchdog: reiniciando PHP Server")
+            start_php_server()
+        
+        # Verificar scripts Node.js
         scripts = [
             ("ze-v1", "puppeteer-wrapper.js v1.js", "/app/zedelivery-clean", "/app/logs/ze-v1-out.log"),
             ("ze-v1-itens", "puppeteer-wrapper.js v1-itens.js", "/app/zedelivery-clean", "/app/logs/ze-v1-itens-out.log"),
