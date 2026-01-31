@@ -15,8 +15,16 @@ import time
 import threading
 from dotenv import load_dotenv
 
-# Carregar variáveis de ambiente do arquivo .env
-load_dotenv()
+# Carregar variáveis de ambiente do arquivo .env (com caminho explícito)
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    # Tentar caminhos alternativos
+    for path in ['/app/backend/.env', '.env']:
+        if os.path.exists(path):
+            load_dotenv(path)
+            break
 
 # Flag para evitar múltiplas inicializações
 _init_started = False
