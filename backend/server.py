@@ -185,6 +185,18 @@ async def health():
 async def api_health():
     return {"status": "healthy"}
 
+# DEBUG - Mostra configuração atual do banco
+@app.get("/api/debug/db-config")
+async def debug_db_config():
+    return {
+        "host": DB_CONFIG.get('host'),
+        "port": DB_CONFIG.get('port'),
+        "database": DB_CONFIG.get('database'),
+        "user": DB_CONFIG.get('user'),
+        "env_db_name": os.environ.get('DB_NAME', 'NÃO DEFINIDO'),
+        "env_db_host": os.environ.get('DB_HOST', 'NÃO DEFINIDO'),
+    }
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
