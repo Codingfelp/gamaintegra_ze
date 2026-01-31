@@ -1,10 +1,40 @@
+
+
+### Lógica para Tipo de Pedido:
+
+```javascript
+function getOrderType(deliveryType) {
+  const type = (deliveryType || '').toLowerCase();
+  
+  if (type.includes('retirada')) {
+    return {
+      type: 'pickup',
+      icon: '🏃',
+      flow: 'Pendente → Aceito → Aguardando Retirada → Fechado'
+    };
+  }
+  
+  if (type.includes('turbo')) {
+    return {
+      type: 'express',
+      icon: '⚡',
+      flow: 'Pendente → Aceito → Em Preparo → Em Rota → Fechado/Acerto'
+    };
+  }
+  
+  return {
+    type: 'standard',
+    icon: '📦',
+    flow: 'Pendente → Aceito → Em Preparo → Em Rota → Fechado/Acerto'
+  };
+}
+```
+
 # Plano de Mapeamento: Zé Delivery → Lovable Cloud
 
 ## Resumo Executivo
 
 Este documento define como os dados do **Gamatauri Zé Integrador** devem ser mapeados para o sistema **Lovable Cloud** (Supabase). O objetivo é garantir que os pedidos do Zé Delivery apareçam corretamente no Kanban e nos relatórios.
-
----
 
 ## 1. Estrutura do Payload Enviado
 
@@ -168,38 +198,6 @@ function mapZeStatusToLovable(pedido) {
 | `Pedido Turbo` | Entrega expressa | Mesma lógica, prioridade alta |
 | `Retirada` | Cliente busca na loja | **NÃO vai para "Em Rota"** |
 
-### Lógica para Tipo de Pedido:
-
-```javascript
-function getOrderType(deliveryType) {
-  const type = (deliveryType || '').toLowerCase();
-  
-  if (type.includes('retirada')) {
-    return {
-      type: 'pickup',
-      icon: '🏃',
-      flow: 'Pendente → Aceito → Aguardando Retirada → Fechado'
-    };
-  }
-  
-  if (type.includes('turbo')) {
-    return {
-      type: 'express',
-      icon: '⚡',
-      flow: 'Pendente → Aceito → Em Preparo → Em Rota → Fechado/Acerto'
-    };
-  }
-  
-  return {
-    type: 'standard',
-    icon: '📦',
-    flow: 'Pendente → Aceito → Em Preparo → Em Rota → Fechado/Acerto'
-  };
-}
-```
-
----
-
 ## 4. Tratamento de Itens
 
 ### Problema Identificado:
@@ -236,21 +234,6 @@ function getOrderItems(pedido) {
   console.warn(`Pedido ${pedido.external_id} sem itens! items_count: ${pedido.items_count}`);
   return [];
 }
-```
-
----
-
-## 5. Colunas do Kanban Sugeridas
-
-| Coluna | Status Lovable | Descrição |
-|--------|---------------|-----------|
-| **NOVOS** | `pending` | Pedidos aguardando aceitação |
-| **PREPARO** | `preparing` | Pedidos sendo preparados |
-| **RETIRADA** | `ready_for_pickup` | Retiradas aguardando cliente |
-| **EM ROTA** | `shipped` | Entregas em andamento |
-| **ACERTO** | `awaiting_settlement` | Aguardando acerto de dinheiro |
-| **FECHADOS** | `closed` | Pedidos finalizados |
-| **CANCELADOS** | `cancelled` | Pedidos cancelados |
 
 ---
 
@@ -358,30 +341,3 @@ serve(async (req) => {
     headers: { 'Content-Type': 'application/json' }
   })
 })
-```
-
----
-
-## 8. Checklist de Implementação
-
-- [ ] Criar tabela `orders` no Supabase com todos os campos
-- [ ] Implementar Edge Function `ze-sync-mysql`
-- [ ] Adicionar mapeamento de status correto
-- [ ] Tratar fallback de itens (`items` → `items_json`)
-- [ ] **RETIRADA não vai para "Em Rota"** - vai para "Aguardando Retirada"
-- [ ] **ENTREGUE com dinheiro** vai para "Aguardando Acerto"
-- [ ] Configurar Kanban com as colunas corretas
-- [ ] Testar com pedidos reais
-
----
-
-## 9. Contato
-
-Para dúvidas técnicas sobre o payload enviado, verificar:
-- Logs: `/app/logs/ze-sync-out.log`
-- Payload de debug: `/app/logs/sync-payload.json`
-
----
-
-*Documento criado em: 31 de Janeiro de 2026*
-*Versão: 1.0*
