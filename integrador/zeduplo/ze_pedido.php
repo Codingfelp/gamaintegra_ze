@@ -139,6 +139,8 @@ if (!empty($orderData)) {
             $pedido_form['pedido_desconto'] = '0';
             $pedido_form['pedido_frete'] = '0';
             $pedido_form['pedido_st_delivery'] = '0';
+            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
+            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
             $DB->Create('ze_pedido', $pedido_form);
 
             $json = [
@@ -177,6 +179,8 @@ if (!empty($orderData)) {
             $pedido_form['pedido_desconto'] = '0';
             $pedido_form['pedido_frete'] = '0';
             $pedido_form['pedido_st_delivery'] = '0';
+            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
+            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
             $DB->Create('ze_pedido', $pedido_form);
 
             $json = [
@@ -218,6 +222,8 @@ if (!empty($orderData)) {
             $pedido_form['pedido_desconto'] = '0';
             $pedido_form['pedido_frete'] = '0';
             $pedido_form['pedido_st_delivery'] = '0';
+            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
+            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
             $DB->Create('ze_pedido', $pedido_form);
 
             $json = [
@@ -252,6 +258,8 @@ if (!empty($orderData)) {
             $pedido_form['pedido_desconto'] = '0';
             $pedido_form['pedido_frete'] = '0';
             $pedido_form['pedido_st_delivery'] = '0';
+            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
+            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
             $DB->Create('ze_pedido', $pedido_form);
 
             $json = [
@@ -286,6 +294,8 @@ if (!empty($orderData)) {
             $pedido_form['pedido_desconto'] = '0';
             $pedido_form['pedido_frete'] = '0';
             $pedido_form['pedido_st_delivery'] = '0';
+            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
+            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
             $DB->Create('ze_pedido', $pedido_form);
 
             $json = [
@@ -320,6 +330,8 @@ if (!empty($orderData)) {
             $pedido_form['pedido_desconto'] = '0';
             $pedido_form['pedido_frete'] = '0';
             $pedido_form['pedido_st_delivery'] = '0';
+            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
+            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
             $DB->Create('ze_pedido', $pedido_form);
 
             $json = [
