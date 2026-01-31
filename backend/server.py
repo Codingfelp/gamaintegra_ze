@@ -153,34 +153,6 @@ def setup_services():
                 run_shell(f"supervisorctl start {svc} 2>/dev/null", timeout=10)
     
     print("✅ Setup concluído")
-                run_shell("a2dissite 000-default 2>/dev/null; a2ensite zeduplo 2>/dev/null", timeout=5)
-                run_shell("phpenmod imap 2>/dev/null", timeout=5)
-                run_shell("apachectl start 2>/dev/null", timeout=10)
-            
-            ok, _ = run_shell("which chromium", timeout=5)
-            if not ok:
-                run_shell("apt-get install -y -qq chromium 2>/dev/null", timeout=300)
-            
-            if not os.path.exists("/app/zedelivery-clean/node_modules"):
-                run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=180)
-            if not os.path.exists("/app/bridge/node_modules"):
-                run_shell("cd /app/bridge && npm install --silent 2>/dev/null", timeout=180)
-        
-        threading.Thread(target=install_deps_async, daemon=True).start()
-        time.sleep(3)
-        
-        # Configurar Supervisor
-        run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf 2>/dev/null", timeout=5)
-        run_shell("supervisorctl reread 2>/dev/null; supervisorctl update 2>/dev/null", timeout=10)
-        
-        for svc in ["ze-v1", "ze-v1-itens", "ze-sync"]:
-            ok, out = run_shell(f"supervisorctl status {svc} 2>/dev/null", timeout=10)
-            if "RUNNING" in out:
-                print(f"   ✅ {svc}: rodando (Supervisor)")
-            else:
-                run_shell(f"supervisorctl start {svc} 2>/dev/null", timeout=10)
-    
-    print("✅ Setup concluído")
 
 def watchdog():
     """Verifica scripts Node.js a cada 2 minutos e reinicia se necessário"""
