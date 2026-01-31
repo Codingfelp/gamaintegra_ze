@@ -90,28 +90,29 @@ function App() {
       const servicesData = await servicesRes.json();
       if (servicesData.success) setServices(servicesData.data);
 
-      // Logs separados
+      // Logs separados - converter strings em arrays de objetos
       const logsRes = await fetch(`${API_URL}/api/services/logs`);
       const logsData = await logsRes.json();
       if (logsData.success && logsData.data) {
-        if (logsData.data.v1 || logsData.data.v1_itens) {
-          setLogs(logsData.data);
-        }
-      }
-      
-      // Também tentar ler logs dos arquivos
-      try {
-        const filesRes = await fetch(`${API_URL}/api/services/logs/files`);
-        const filesData = await filesRes.json();
-        if (filesData.success && filesData.data) {
-          const merged = {
-            v1: [...(logsData.data?.v1 || []), ...(filesData.data?.v1 || [])].slice(-100),
-            v1_itens: [...(logsData.data?.v1_itens || []), ...(filesData.data?.v1_itens || [])].slice(-100)
-          };
-          setLogs(merged);
-        }
-      } catch (e) {
-        // Usar apenas logs da memória
+        // Função para converter string de log em array de objetos
+        const parseLogString = (logStr) => {
+          if (!logStr || typeof logStr !== 'string') return [];
+          return logStr.split('\n')
+            .filter(line => line.trim())
+            .slice(-50) // Últimas 50 linhas
+            .map((line, idx) => ({
+              timestamp: new Date().toISOString(),
+              message: line,
+              type: line.toLowerCase().includes('error') || line.toLowerCase().includes('erro') ? 'error' : 'info'
+            }));
+        };
+        
+        const processedLogs = {
+          v1: Array.isArray(logsData.data.v1) ? logsData.data.v1 : parseLogString(logsData.data.v1),
+          v1_itens: Array.isArray(logsData.data['v1-itens']) ? logsData.data['v1-itens'] : parseLogString(logsData.data['v1-itens']),
+          sync: Array.isArray(logsData.data.sync) ? logsData.data.sync : parseLogString(logsData.data.sync)
+        };
+        setLogs(processedLogs);
       }
     } catch (err) {
       console.error('Erro ao buscar dados:', err);
