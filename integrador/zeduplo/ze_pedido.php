@@ -123,9 +123,12 @@ if (!empty($orderData)) {
         if ($DB->NumQuery($read_pedido) > '0') {
             foreach ($read_pedido as $read_pedido_view) {
                 $UpdateStatusPedido['delivery_status'] = '1';
-                $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
+                $updateResult = $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
+                // Log para debug
+                error_log("[ZE_PEDIDO] UPDATE Entregue: pedido=" . $read_pedido_view['pedido_code'] . " result=" . ($updateResult ? 'true' : 'false'));
                 $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber))
+                    "id_pedido" => trim(str_replace(' ', '', $orderNumber)),
+                    "status_updated" => $updateResult ? true : false
                 ];
                 echo json_encode($json);
             }
