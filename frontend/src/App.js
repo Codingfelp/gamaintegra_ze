@@ -232,7 +232,48 @@ function App() {
     if (activeTab === 'lojas') fetchLojas();
     if (activeTab === 'produtos') fetchProdutos();
     if (activeTab === 'config') fetchConfig();
+    if (activeTab === 'monitor') fetchMonitorData();
   }, [activeTab]);
+
+  // Funções de monitoramento
+  const fetchMonitorData = async () => {
+    try {
+      // Health check detalhado
+      const healthRes = await fetch(`${API_URL}/api/health/detailed`);
+      const healthJson = await healthRes.json();
+      setHealthData(healthJson);
+
+      // Métricas em tempo real
+      const metricsRes = await fetch(`${API_URL}/api/metrics/realtime`);
+      const metricsJson = await metricsRes.json();
+      setMetricsData(metricsJson);
+
+      // Status das sessões
+      const sessionsRes = await fetch(`${API_URL}/api/sessions/status`);
+      const sessionsJson = await sessionsRes.json();
+      setSessionsData(sessionsJson);
+
+      // Logs de erro
+      const errorsRes = await fetch(`${API_URL}/api/logs/errors?limit=20`);
+      const errorsJson = await errorsRes.json();
+      if (errorsJson.success) setErrorLogs(errorsJson.logs || []);
+    } catch (err) {
+      console.error('Erro ao buscar dados de monitoramento:', err);
+    }
+  };
+
+  const createBackup = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/sessions/backup`, { method: 'POST' });
+      const data = await res.json();
+      setBackupStatus(data);
+      setTimeout(() => setBackupStatus(null), 5000);
+    } catch (err) {
+      console.error('Erro ao criar backup:', err);
+    }
+    setLoading(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
