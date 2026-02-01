@@ -296,6 +296,11 @@ if (!empty($orderData)) {
             foreach ($read_pedido as $read_pedido_view) {
                 $UpdateStatusPedido['delivery_status'] = '5';
                 $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
+                
+                // Atualizar ze_pedido
+                $UpdateZePedido['pedido_status'] = 'Cancelado';
+                $DB->Update('ze_pedido', $UpdateZePedido, "WHERE pedido_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
+                
                 $json = [
                     "id_pedido" => trim(str_replace(' ', '', $orderNumber))
                 ];
