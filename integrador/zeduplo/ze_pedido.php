@@ -197,18 +197,25 @@ if (!empty($orderData)) {
         $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
         if ($DB->NumQuery($read_pedido) > '0') {
             foreach ($read_pedido as $read_pedido_view) {
-                // IMPORTANTE: Não reverter status se já foi marcado como Entregue (1) ou Cancelado (4,5)
+                // PROTEÇÃO COMPLETA: Não reverter status se já avançou na progressão
+                // Ordem: Pendente (0) → Aceito (2) → A Caminho (3) → Entregue (1) / Cancelado (4,5)
                 $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
                 if ($DB->NumQuery($check_status) > 0) {
                     foreach ($check_status as $status_row) {
-                        $current_status = $status_row['delivery_status'];
-                        if (in_array($current_status, ['1', '4', '5'])) {
-                            // Não atualizar - pedido já finalizado
-                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_final"];
+                        $current_status = intval($status_row['delivery_status']);
+                        // Status 1 (Entregue), 3 (A Caminho), 4, 5 (Cancelado) NÃO podem regredir para Aceito (2)
+                        if (in_array($current_status, [1, 3, 4, 5])) {
+                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "status_protection", "current" => $current_status];
                             echo json_encode($json);
-                            continue 2; // Sai do foreach externo
+                            continue 2;
                         }
-                        break; // Só precisa do primeiro resultado
+                        // Se já está Aceito (2), não precisa atualizar novamente
+                        if ($current_status == 2) {
+                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_aceito"];
+                            echo json_encode($json);
+                            continue 2;
+                        }
+                        break;
                     }
                 }
                 
@@ -222,7 +229,8 @@ if (!empty($orderData)) {
                 $UpdateDataPedido['delivery_data_hora_aceite'] = date('Y-m-d H:i:s', strtotime('-10 seconds'));
                 $DB->Update('delivery_data', $UpdateDataPedido, "WHERE delivery_data_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_data_hora_aceite IS NULL LIMIT 1");
                 $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber))
+                    "id_pedido" => trim(str_replace(' ', '', $orderNumber)),
+                    "updated_to" => "Aceito"
                 ];
                 echo json_encode($json);
             }
