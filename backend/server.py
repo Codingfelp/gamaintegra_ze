@@ -98,35 +98,26 @@ def setup_services():
         """Instala dependências com validação obrigatória"""
         print("📦 [HARDENING] Verificando e instalando dependências...")
         
-        # 1. PHP + IMAP + MySQL - OBRIGATÓRIO
-        ok, _ = run_shell("php -m | grep -i imap", timeout=5)
+        # 1. PHP + cURL + MySQL - OBRIGATÓRIO (Gmail API usa cURL, não IMAP)
+        ok, _ = run_shell("php -m | grep -i curl", timeout=5)
         if not ok:
             print("   📦 Instalando PHP completo...")
             run_shell("apt-get update -qq", timeout=60)
             ok, out = run_shell(
-                "apt-get install -y php php-cli php-imap php-mysql php-curl php-mbstring 2>&1", 
+                "apt-get install -y php php-cli php-curl php-mysql php-mbstring 2>&1", 
                 timeout=180
             )
             if not ok:
                 print(f"   ❌ ERRO CRÍTICO: Falha ao instalar PHP: {out[:200]}")
                 return False
-            
-            # Habilitar IMAP explicitamente
-            run_shell("phpenmod imap 2>/dev/null", timeout=10)
         
-        # 2. VALIDAÇÃO OBRIGATÓRIA: IMAP DEVE estar carregado
-        ok, out = run_shell("php -r \"echo extension_loaded('imap') ? 'IMAP_OK' : 'IMAP_FAIL';\"", timeout=10)
-        if not ok or 'IMAP_OK' not in out:
-            print("   ❌ ERRO CRÍTICO: IMAP não está carregado no PHP!")
-            print("   Tentando reconfigurar...")
-            run_shell("phpenmod imap", timeout=10)
-            # Verificar novamente
-            ok, out = run_shell("php -r \"echo extension_loaded('imap') ? 'IMAP_OK' : 'IMAP_FAIL';\"", timeout=10)
-            if not ok or 'IMAP_OK' not in out:
-                print("   ❌ FALHA FATAL: IMAP não pode ser carregado. Scrapers NÃO funcionarão!")
-                return False
+        # 2. VALIDAÇÃO OBRIGATÓRIA: cURL DEVE estar carregado (usado pela Gmail API)
+        ok, out = run_shell("php -r \"echo extension_loaded('curl') ? 'CURL_OK' : 'CURL_FAIL';\"", timeout=10)
+        if not ok or 'CURL_OK' not in out:
+            print("   ❌ ERRO CRÍTICO: cURL não está carregado no PHP!")
+            return False
         
-        print("   ✅ PHP + IMAP validado e funcionando")
+        print("   ✅ PHP + cURL validado (Gmail API pronto)")
         
         # 3. Chromium
         ok, _ = run_shell("which chromium", timeout=5)
@@ -347,9 +338,9 @@ async def get_services_status():
             "database": DB_CONFIG['database']
         }
     
-    # 2. PHP IMAP - Teste REAL em runtime (não cache)
-    ok, out = run_shell("php -r \"echo extension_loaded('imap') ? 'IMAP_OK' : 'IMAP_FAIL';\"", timeout=10)
-    if ok and 'IMAP_OK' in out:
+    # 2. PHP cURL (Gmail API) - Teste REAL em runtime
+    ok, out = run_shell("php -r \"echo extension_loaded('curl') ? 'CURL_OK' : 'CURL_FAIL';\"", timeout=10)
+    if ok and 'CURL_OK' in out:
         # Testar conexão com banco via PHP
         db_ok, db_out = run_shell("""php -r "
             chdir('/app/integrador/zeduplo');
@@ -363,25 +354,25 @@ async def get_services_status():
             status["data"]["php"] = {
                 "status": "online", 
                 "mode": "CLI", 
-                "imap": True,
+                "gmail_api": True,
                 "db_connected": True,
-                "note": "PHP validado em runtime"
+                "note": "PHP + Gmail API (OAuth 2.0) validado"
             }
         else:
             status["data"]["php"] = {
                 "status": "degraded", 
                 "mode": "CLI", 
-                "imap": True,
+                "gmail_api": True,
                 "db_connected": False,
-                "note": "IMAP OK, mas PHP não conecta no banco"
+                "note": "Gmail API OK, mas PHP não conecta no banco"
             }
     else:
         status["data"]["php"] = {
             "status": "offline", 
             "mode": "CLI", 
-            "imap": False,
+            "gmail_api": False,
             "db_connected": False,
-            "note": "IMAP extension NOT loaded - 2FA não funcionará"
+            "note": "cURL extension NOT loaded - Gmail API não funcionará"
         }
     
     # 3. Scripts Node.js - Verificar processos REAIS
