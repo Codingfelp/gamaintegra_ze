@@ -6,6 +6,32 @@ $_SESSION['ambiente'] = '1';
 
 require_once '_class/AutoLoad.php';
 
+/**
+ * SISTEMA INTELIGENTE DE PROGRESSÃO DE STATUS
+ * Status só pode AVANÇAR, nunca REGREDIR
+ */
+$STATUS_PRIORITY = [
+    '0' => 1,  // Pendente
+    '2' => 2,  // Aceito
+    '3' => 3,  // A Caminho
+    '1' => 4,  // Entregue (final)
+    '4' => 5,  // Cancelado (final)
+    '5' => 5,  // Desconsiderado (final)
+];
+$FINAL_STATUS = ['1', '4', '5'];
+
+function canUpdateStatusHere($current_status, $new_status) {
+    global $STATUS_PRIORITY, $FINAL_STATUS;
+    $current = strval($current_status);
+    $new = strval($new_status);
+    if (in_array($current, $FINAL_STATUS)) {
+        return false;
+    }
+    $current_priority = $STATUS_PRIORITY[$current] ?? 0;
+    $new_priority = $STATUS_PRIORITY[$new] ?? 0;
+    return $new_priority > $current_priority;
+}
+
 function exceptionHandler($exception)
 {
     header("Content-Type: application/json");
