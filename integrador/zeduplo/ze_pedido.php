@@ -122,6 +122,29 @@ if (!empty($orderData)) {
         $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
         if ($DB->NumQuery($read_pedido) > '0') {
             foreach ($read_pedido as $read_pedido_view) {
+                // PROTEÇÃO: Verificar status atual antes de atualizar
+                $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
+                if ($DB->NumQuery($check_status) > 0) {
+                    foreach ($check_status as $status_row) {
+                        $current_status = $status_row['delivery_status'];
+                        // Não reverter de "A Caminho" (3) ou "Aceito" (2) para "Entregue" (1)
+                        // O status deve seguir a ordem natural: Pendente -> Aceito -> A Caminho -> Entregue
+                        // Se já está em "A Caminho", só pode ir para "Entregue" quando realmente entregue
+                        // O scraper pode estar lendo dados antigos/cache - ignorar se status atual é mais avançado
+                        if (in_array($current_status, ['2', '3'])) {
+                            // Verificar se ze_pedido também diz "Entregue"
+                            $ze_status = $read_pedido_view['pedido_status'] ?? '';
+                            if (strtolower(trim($ze_status)) != 'entregue') {
+                                // Não atualizar - pode ser dado de cache
+                                $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "status_protected"];
+                                echo json_encode($json);
+                                continue 2;
+                            }
+                        }
+                        break;
+                    }
+                }
+                
                 // Atualizar status na tabela delivery
                 $UpdateStatusPedido['delivery_status'] = '1';
                 $updateResult = $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
