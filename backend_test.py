@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 
 class ZeDeliveryAPITester:
-    def __init__(self, base_url="https://zelivetrack.preview.emergentagent.com"):
+    def __init__(self, base_url="https://ze-order-tracker.preview.emergentagent.com"):
         self.base_url = base_url
         self.tests_run = 0
         self.tests_passed = 0
