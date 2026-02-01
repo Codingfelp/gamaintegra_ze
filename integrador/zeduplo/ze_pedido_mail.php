@@ -1,77 +1,231 @@
 <?php
 /**
- * ze_pedido_mail.php - Leitura de código 2FA do Gmail via IMAP
+ * ze_pedido_mail.php - Leitura de código 2FA do Gmail via API OAuth 2.0
  * 
- * HARDENED: Validação de extensão, timeout, tratamento de erro
+ * MIGRAÇÃO CONCLUÍDA: IMAP -> Gmail API
+ * - Usa refresh_token para obter access_token automaticamente
+ * - Busca emails do Zé Delivery via Gmail API REST
+ * - Extrai código 2FA de 6 dígitos
  */
 
-// Configurações de segurança
+// Configurações
 set_time_limit(60);
-ini_set('default_socket_timeout', 60);
+ini_set('default_socket_timeout', 30);
 error_reporting(0);
 
 header('Content-Type: application/json');
 
-try {
-    // 1. Validar extensão IMAP ANTES de qualquer coisa
-    if (!extension_loaded('imap')) {
-        throw new Exception('IMAP extension not loaded');
+// Credenciais OAuth 2.0
+$GMAIL_CONFIG = [
+    'client_id'     => '187165168994-bn629eu6t7rb601v54i5j4q258hpcacm.apps.googleusercontent.com',
+    'client_secret' => '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',
+    'refresh_token' => '4/0ASc3gC3oUxT6Z3aDmm6FzQcfYUoSMvT61fkjGrfrMiQJF9y-Z5ZcuPYZ86bDbsk36U0pug',
+    'token_url'     => 'https://oauth2.googleapis.com/token',
+    'gmail_api_url' => 'https://gmail.googleapis.com/gmail/v1/users/me'
+];
+
+/**
+ * Obtém access_token usando refresh_token
+ */
+function getAccessToken($config) {
+    $postData = [
+        'client_id'     => $config['client_id'],
+        'client_secret' => $config['client_secret'],
+        'refresh_token' => $config['refresh_token'],
+        'grant_type'    => 'refresh_token'
+    ];
+    
+    $ch = curl_init($config['token_url']);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => http_build_query($postData),
+        CURLOPT_HTTPHEADER     => ['Content-Type: application/x-www-form-urlencoded'],
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_SSL_VERIFYPEER => true
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+    
+    if ($curlError) {
+        throw new Exception("cURL error: $curlError");
     }
     
-    // 2. Configurações Gmail
-    $hostname = '{imap.gmail.com:993/imap/ssl}INBOX';
-    $username = 'gamataurize@gmail.com';
-    $password = 'kiks yhiw dxaf vwuw';
-    
-    // 3. Conectar com timeout
-    $inbox = @imap_open($hostname, $username, $password, 0, 3);
-    
-    if (!$inbox) {
-        $error = imap_last_error();
-        throw new Exception('IMAP connection failed: ' . ($error ?: 'unknown'));
+    if ($httpCode !== 200) {
+        $errorData = json_decode($response, true);
+        $errorMsg = $errorData['error_description'] ?? $errorData['error'] ?? "HTTP $httpCode";
+        throw new Exception("Token refresh failed: $errorMsg");
     }
     
-    // 4. Buscar e-mails não lidos
-    $emails = @imap_search($inbox, 'UNSEEN');
-    $assuntoFiltro = 'Zé Delivery - Código de acesso';
-    $codigoEncontrado = null;
+    $data = json_decode($response, true);
+    if (!isset($data['access_token'])) {
+        throw new Exception("No access_token in response");
+    }
     
-    if ($emails && is_array($emails)) {
-        rsort($emails);
-        
-        foreach ($emails as $email_number) {
-            $overview = @imap_fetch_overview($inbox, $email_number, 0);
-            if (!$overview || !isset($overview[0])) continue;
-            
-            $overview = $overview[0];
-            $body = @imap_fetchbody($inbox, $email_number, 1);
-            
-            // Decodificar assunto
-            $assuntoParts = @imap_mime_header_decode($overview->subject ?? '');
-            $assuntoDecodificado = '';
-            if (is_array($assuntoParts)) {
-                foreach ($assuntoParts as $part) {
-                    $assuntoDecodificado .= $part->text ?? '';
-                }
+    return $data['access_token'];
+}
+
+/**
+ * Busca mensagens do Gmail via API
+ * @param string $accessToken
+ * @param string $query - Filtro de busca (Gmail search syntax)
+ * @return array - Lista de message IDs
+ */
+function searchMessages($accessToken, $query, $config) {
+    $url = $config['gmail_api_url'] . '/messages?' . http_build_query([
+        'q' => $query,
+        'maxResults' => 10
+    ]);
+    
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER     => ["Authorization: Bearer $accessToken"],
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_SSL_VERIFYPEER => true
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        return [];
+    }
+    
+    $data = json_decode($response, true);
+    return $data['messages'] ?? [];
+}
+
+/**
+ * Obtém detalhes de uma mensagem específica
+ * @param string $accessToken
+ * @param string $messageId
+ * @return array|null
+ */
+function getMessage($accessToken, $messageId, $config) {
+    $url = $config['gmail_api_url'] . "/messages/$messageId?" . http_build_query([
+        'format' => 'full'
+    ]);
+    
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER     => ["Authorization: Bearer $accessToken"],
+        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_SSL_VERIFYPEER => true
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode !== 200) {
+        return null;
+    }
+    
+    return json_decode($response, true);
+}
+
+/**
+ * Extrai o assunto de uma mensagem
+ */
+function getSubject($message) {
+    $headers = $message['payload']['headers'] ?? [];
+    foreach ($headers as $header) {
+        if (strtolower($header['name']) === 'subject') {
+            return $header['value'];
+        }
+    }
+    return '';
+}
+
+/**
+ * Extrai o corpo da mensagem (decodifica base64url)
+ */
+function getBody($message) {
+    $payload = $message['payload'] ?? [];
+    
+    // Corpo direto no payload
+    if (isset($payload['body']['data'])) {
+        return base64UrlDecode($payload['body']['data']);
+    }
+    
+    // Corpo em partes (multipart)
+    if (isset($payload['parts'])) {
+        foreach ($payload['parts'] as $part) {
+            // Preferir text/plain
+            if (($part['mimeType'] ?? '') === 'text/plain' && isset($part['body']['data'])) {
+                return base64UrlDecode($part['body']['data']);
             }
-            
-            // Verificar se é email do Zé Delivery
-            if (stripos($assuntoDecodificado, $assuntoFiltro) !== false) {
-                $bodyDecoded = quoted_printable_decode($body);
-                
-                // Extrair código de 6 dígitos
-                if (preg_match('/\b\d{6}\b/', $bodyDecoded, $matches)) {
-                    $codigoEncontrado = $matches[0];
-                    break;
+        }
+        // Fallback para text/html
+        foreach ($payload['parts'] as $part) {
+            if (($part['mimeType'] ?? '') === 'text/html' && isset($part['body']['data'])) {
+                $html = base64UrlDecode($part['body']['data']);
+                return strip_tags($html);
+            }
+        }
+        // Tentar partes aninhadas
+        foreach ($payload['parts'] as $part) {
+            if (isset($part['parts'])) {
+                foreach ($part['parts'] as $subpart) {
+                    if (isset($subpart['body']['data'])) {
+                        return base64UrlDecode($subpart['body']['data']);
+                    }
                 }
             }
         }
     }
     
-    // 5. SEMPRE fechar conexão
-    @imap_close($inbox);
+    return '';
+}
+
+/**
+ * Decodifica base64url (Gmail usa esse formato)
+ */
+function base64UrlDecode($data) {
+    $data = str_replace(['-', '_'], ['+', '/'], $data);
+    return base64_decode($data);
+}
+
+// ============= EXECUÇÃO PRINCIPAL =============
+
+try {
+    // 1. Obter access token
+    $accessToken = getAccessToken($GMAIL_CONFIG);
     
-    // 6. Retornar resultado
+    // 2. Buscar emails do Zé Delivery (não lidos, últimas 24h)
+    $query = 'is:unread from:noreply@ze.delivery subject:"Código de acesso"';
+    $messages = searchMessages($accessToken, $query, $GMAIL_CONFIG);
+    
+    $codigoEncontrado = null;
+    
+    // 3. Processar mensagens (mais recente primeiro - já vem ordenado)
+    foreach ($messages as $msgRef) {
+        $message = getMessage($accessToken, $msgRef['id'], $GMAIL_CONFIG);
+        if (!$message) continue;
+        
+        $subject = getSubject($message);
+        
+        // Verificar se é email do Zé Delivery
+        if (stripos($subject, 'Código de acesso') !== false || 
+            stripos($subject, 'Zé Delivery') !== false) {
+            
+            $body = getBody($message);
+            
+            // Extrair código de 6 dígitos
+            if (preg_match('/\b(\d{6})\b/', $body, $matches)) {
+                $codigoEncontrado = $matches[1];
+                break;
+            }
+        }
+    }
+    
+    // 4. Retornar resultado (mesma interface do IMAP antigo)
     if ($codigoEncontrado) {
         echo json_encode(['codigo' => $codigoEncontrado]);
     } else {
@@ -79,12 +233,7 @@ try {
     }
     
 } catch (Throwable $e) {
-    // Garantir que conexão seja fechada mesmo em erro
-    if (isset($inbox) && $inbox) {
-        @imap_close($inbox);
-    }
-    
-    // Retornar erro estruturado
+    // Retornar erro estruturado (mesma interface do IMAP antigo)
     echo json_encode([
         'codigo' => 0,
         'erro' => true,
