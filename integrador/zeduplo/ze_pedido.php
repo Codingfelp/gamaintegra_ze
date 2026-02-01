@@ -164,354 +164,145 @@ if ($DB->NumQuery($read_itens_pedido) > '0') {
 }
 
 if (!empty($orderData)) {
-    $orderNumber = str_replace(' ', '', urldecode($orderData['orderNumber']));
-    $orderDateTime = explode(' - ', urldecode($orderData['orderDateTime']));
-    $customerName = urldecode($orderData['customerName']);
-    $status = urldecode($orderData['status']);
-    $deliveryType = urldecode($orderData['deliveryType']);
-    $paymentType = urldecode($orderData['paymentType']);
-    $totalPrice = str_replace('R$ ', '', urldecode($orderData['priceFormatted']));
+    $orderNumber = str_replace(' ', '', urldecode($orderData['orderNumber'] ?? ''));
+    $orderDateTime = explode(' - ', urldecode($orderData['orderDateTime'] ?? ''));
+    $customerName = urldecode($orderData['customerName'] ?? '');
+    $status = urldecode($orderData['status'] ?? '');
+    $deliveryType = urldecode($orderData['deliveryType'] ?? '');
+    $paymentType = urldecode($orderData['paymentType'] ?? '');
+    $totalPrice = str_replace('R$ ', '', urldecode($orderData['priceFormatted'] ?? ''));
 
-
-
-    $pedido_form['pedido_st_validacao'] = '0';
-    $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
-
-    $statusCancelado = trim($status);
-
-    $statusColocado = trim($status);
-
-    $explodeCancelado = explode(' - ', $statusCancelado);
-
-    if (trim($status) == 'Entregue') {
-        $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
-        if ($DB->NumQuery($read_pedido) > '0') {
-            foreach ($read_pedido as $read_pedido_view) {
-                // VERIFICAR SE ATUALIZAÇÃO É VÁLIDA (progressão de status)
-                // Ordem natural: Pendente (0) → Aceito (2) → A Caminho (3) → Entregue (1)
-                // "Entregue" só pode vir de "A Caminho" (3) ou de status menor
-                $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
-                $can_update = true;
-                
-                if ($DB->NumQuery($check_status) > 0) {
-                    foreach ($check_status as $status_row) {
-                        $current_status = intval($status_row['delivery_status']);
-                        // Se está em "Aceito" (2), NÃO pode pular direto para "Entregue" (1)
-                        // Deve primeiro ir para "A Caminho" (3)
-                        if ($current_status == 2) {
-                            $can_update = false;
-                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "must_be_acaminho_first"];
-                            echo json_encode($json);
-                            continue 2;
-                        }
-                        // Se já está "Entregue" (1), "Cancelado" (4,5), não precisa atualizar
-                        if ($current_status == 1 || $current_status == 4 || $current_status == 5) {
-                            $can_update = false;
-                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_final"];
-                            echo json_encode($json);
-                            continue 2;
-                        }
-                        break;
-                    }
-                }
-                
-                if (!$can_update) continue;
-                
-                // Atualizar status na tabela delivery
-                $UpdateStatusPedido['delivery_status'] = '1';
-                $updateResult = $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
-                
-                // IMPORTANTE: Também atualizar status na tabela ze_pedido
-                $UpdateZePedido['pedido_status'] = 'Entregue';
-                $DB->Update('ze_pedido', $UpdateZePedido, "WHERE pedido_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
-                
-                // Log para debug
-                error_log("[ZE_PEDIDO] UPDATE Entregue: pedido=" . $read_pedido_view['pedido_code'] . " result=" . ($updateResult ? 'true' : 'false'));
-                $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber)),
-                    "status_updated" => $updateResult ? true : false
-                ];
-                echo json_encode($json);
-            }
-        } else {
-            $pedido_form['pedido_ide']      = trim($orderNumberIde);
-            $pedido_form['pedido_st']       = '0';
-            $pedido_form['pedido_code']     = trim($orderNumber);
-            $pedido_form['pedido_nome']     = trim($customerName);
-            $pedido_form['pedido_data']     = trim($orderDateTime['0']);
-            $pedido_form['pedido_hora']     = trim($orderDateTime['1']);
-            $pedido_form['pedido_status']     = trim($status);
-            $pedido_form['pedido_email_entregador'] = trim('');
-            $pedido_form['pedido_valor'] = trim($totalPrice);
-            $pedido_form['pedido_pagamento'] = trim($paymentType);
-            $pedido_form['pedido_tipo'] = trim($deliveryType);
-            $pedido_form['pedido_cupom'] = trim('');
-            $pedido_form['pedido_desconto'] = '0';
-            $pedido_form['pedido_frete'] = '0';
-            $pedido_form['pedido_st_delivery'] = '0';
-            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
-            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
-            $DB->Create('ze_pedido', $pedido_form);
-
+    // Converter status texto para código numérico
+    $newStatusCode = statusTextToCode($status);
+    
+    // Verificar se o pedido já existe na tabela delivery
+    $conn = $DB->Conn();
+    $checkDelivery = mysqli_query($conn, "SELECT delivery_id, delivery_status FROM delivery WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "' LIMIT 1");
+    $existingDelivery = mysqli_fetch_assoc($checkDelivery);
+    
+    if ($existingDelivery) {
+        // PEDIDO JÁ EXISTE - Verificar se pode atualizar o status
+        $currentStatus = strval($existingDelivery['delivery_status']);
+        $canUpdate = canUpdateStatus($currentStatus, $newStatusCode);
+        
+        if (!$canUpdate['allowed']) {
+            // NÃO PODE ATUALIZAR - Status iria regredir ou já é final
             $json = [
-                "id_pedido" => trim($orderNumber)
+                "id_pedido" => $orderNumber,
+                "skipped" => true,
+                "reason" => $canUpdate['reason'],
+                "current_status" => $currentStatus,
+                "attempted_status" => $newStatusCode
             ];
             echo json_encode($json);
-        }
-    } else if (trim($status) == 'Aceito') {
-        $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
-        if ($DB->NumQuery($read_pedido) > '0') {
-            foreach ($read_pedido as $read_pedido_view) {
-                // PROTEÇÃO COMPLETA: Não reverter status se já avançou na progressão
-                // Ordem: Pendente (0) → Aceito (2) → A Caminho (3) → Entregue (1) / Cancelado (4,5)
-                $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
-                if ($DB->NumQuery($check_status) > 0) {
-                    foreach ($check_status as $status_row) {
-                        $current_status = intval($status_row['delivery_status']);
-                        // Status 1 (Entregue), 3 (A Caminho), 4, 5 (Cancelado) NÃO podem regredir para Aceito (2)
-                        if (in_array($current_status, [1, 3, 4, 5])) {
-                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "status_protection", "current" => $current_status];
-                            echo json_encode($json);
-                            continue 2;
-                        }
-                        // Se já está Aceito (2), não precisa atualizar novamente
-                        if ($current_status == 2) {
-                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_aceito"];
-                            echo json_encode($json);
-                            continue 2;
-                        }
-                        break;
-                    }
-                }
-                
-                $UpdateStatusPedido['delivery_status'] = '2';
-                $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
-                
-                // Atualizar ze_pedido
-                $UpdateZePedido['pedido_status'] = 'Aceito';
-                $DB->Update('ze_pedido', $UpdateZePedido, "WHERE pedido_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
-
-                $UpdateDataPedido['delivery_data_hora_aceite'] = date('Y-m-d H:i:s', strtotime('-10 seconds'));
-                $DB->Update('delivery_data', $UpdateDataPedido, "WHERE delivery_data_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_data_hora_aceite IS NULL LIMIT 1");
-                $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber)),
-                    "updated_to" => "Aceito"
-                ];
-                echo json_encode($json);
-            }
         } else {
-            $pedido_form['pedido_ide']      = trim($orderNumberIde);
-            $pedido_form['pedido_st']       = '0';
-            $pedido_form['pedido_code']     = trim($orderNumber);
-            $pedido_form['pedido_nome']     = trim($customerName);
-            $pedido_form['pedido_data']     = trim($orderDateTime['0']);
-            $pedido_form['pedido_hora']     = trim($orderDateTime['1']);
-            $pedido_form['pedido_status']     = trim($status);
-            $pedido_form['pedido_email_entregador'] = trim('');
-            $pedido_form['pedido_valor'] = trim($totalPrice);
-            $pedido_form['pedido_pagamento'] = trim($paymentType);
-            $pedido_form['pedido_tipo'] = trim($deliveryType);
-            $pedido_form['pedido_cupom'] = trim('');
-            $pedido_form['pedido_desconto'] = '0';
-            $pedido_form['pedido_frete'] = '0';
-            $pedido_form['pedido_st_delivery'] = '0';
-            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
-            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
-            $DB->Create('ze_pedido', $pedido_form);
-
+            // PODE ATUALIZAR - Status está avançando
+            mysqli_query($conn, "UPDATE delivery SET delivery_status = '" . $newStatusCode . "' WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'");
+            mysqli_query($conn, "UPDATE ze_pedido SET pedido_status = '" . mysqli_real_escape_string($conn, trim($status)) . "' WHERE pedido_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'");
+            
             $json = [
-                "id_pedido" => trim($orderNumber)
-            ];
-            echo json_encode($json);
-        }
-    } else if (stripos($status, 'colocado') !== false) {
-        $read_pedido_data = $DB->ReadComposta("SELECT * FROM delivery_data WHERE delivery_data_code = '" . trim($orderNumber) . "' ORDER BY delivery_data_id DESC LIMIT 1");
-        if ($DB->NumQuery($read_pedido_data) > '0') {
-        } else {
-            $pedido_form_dev['delivery_data_code']     = trim($orderNumber);
-            $pedido_form_dev['delivery_data_hora_pedido']     = date('Y-m-d H:i:s');
-            $DB->Create('delivery_data', $pedido_form_dev);
-        }
-        /*$read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
-        if ($DB->NumQuery($read_pedido) > '0') {
-            foreach ($read_pedido as $read_pedido_view) {
-                $UpdateStatusPedido['delivery_status'] = '0';
-                $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
-                $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber))
-                ];
-                echo json_encode($json);
-            }
-        } else {
-            $pedido_form['pedido_ide']      = trim($orderNumberIde);
-            $pedido_form['pedido_st']       = '0';
-            $pedido_form['pedido_code']     = trim($orderNumber);
-            $pedido_form['pedido_nome']     = trim($customerName);
-            $pedido_form['pedido_data']     = trim($orderDateTime['0']);
-            $pedido_form['pedido_hora']     = trim($orderDateTime['1']);
-            $pedido_form['pedido_status']     = trim($status);
-            $pedido_form['pedido_email_entregador'] = trim('');
-            $pedido_form['pedido_valor'] = trim($totalPrice);
-            $pedido_form['pedido_pagamento'] = trim($paymentType);
-            $pedido_form['pedido_tipo'] = trim($deliveryType);
-            $pedido_form['pedido_cupom'] = trim('');
-            $pedido_form['pedido_desconto'] = '0';
-            $pedido_form['pedido_frete'] = '0';
-            $pedido_form['pedido_st_delivery'] = '0';
-            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
-            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
-            $DB->Create('ze_pedido', $pedido_form);
-
-            $json = [
-                "id_pedido" => trim($orderNumber)
-            ];
-            echo json_encode($json);
-        }*/
-    } else if (trim($status) == 'Retirou' || trim($status) == 'A caminho') {
-        $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
-        if ($DB->NumQuery($read_pedido) > '0') {
-            foreach ($read_pedido as $read_pedido_view) {
-                // PROTEÇÃO: Não atualizar se já está Entregue (1) ou Cancelado (4, 5)
-                // "A Caminho" (3) é o penúltimo status antes de Entregue
-                $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
-                if ($DB->NumQuery($check_status) > 0) {
-                    foreach ($check_status as $status_row) {
-                        $current_status = intval($status_row['delivery_status']);
-                        // Status 1 (Entregue), 4, 5 (Cancelado) são finais - não podem regredir
-                        if (in_array($current_status, [1, 4, 5])) {
-                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_final", "current" => $current_status];
-                            echo json_encode($json);
-                            continue 2;
-                        }
-                        // Se já está "A Caminho" (3), não precisa atualizar novamente
-                        if ($current_status == 3) {
-                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_acaminho"];
-                            echo json_encode($json);
-                            continue 2;
-                        }
-                        break;
-                    }
-                }
-                
-                $UpdateStatusPedido['delivery_status'] = '3';
-                $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
-                
-                // Atualizar ze_pedido
-                $UpdateZePedido['pedido_status'] = trim($status);
-                $DB->Update('ze_pedido', $UpdateZePedido, "WHERE pedido_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
-                
-                $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber)),
-                    "updated_to" => "A Caminho"
-                ];
-                echo json_encode($json);
-            }
-        } else {
-            $pedido_form['pedido_ide']      = trim($orderNumberIde);
-            $pedido_form['pedido_st']       = '0';
-            $pedido_form['pedido_code']     = trim($orderNumber);
-            $pedido_form['pedido_nome']     = trim($customerName);
-            $pedido_form['pedido_data']     = trim($orderDateTime['0']);
-            $pedido_form['pedido_hora']     = trim($orderDateTime['1']);
-            $pedido_form['pedido_status']     = trim($status);
-            $pedido_form['pedido_email_entregador'] = trim('');
-            $pedido_form['pedido_valor'] = trim($totalPrice);
-            $pedido_form['pedido_pagamento'] = trim($paymentType);
-            $pedido_form['pedido_tipo'] = trim($deliveryType);
-            $pedido_form['pedido_cupom'] = trim('');
-            $pedido_form['pedido_desconto'] = '0';
-            $pedido_form['pedido_frete'] = '0';
-            $pedido_form['pedido_st_delivery'] = '0';
-            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
-            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
-            $DB->Create('ze_pedido', $pedido_form);
-
-            $json = [
-                "id_pedido" => trim($orderNumber)
-            ];
-            echo json_encode($json);
-        }
-    } else if (trim($explodeCancelado['0']) == 'Cancelado') {
-        $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
-        if ($DB->NumQuery($read_pedido) > '0') {
-            foreach ($read_pedido as $read_pedido_view) {
-                $UpdateStatusPedido['delivery_status'] = '5';
-                $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
-                
-                // Atualizar ze_pedido
-                $UpdateZePedido['pedido_status'] = 'Cancelado';
-                $DB->Update('ze_pedido', $UpdateZePedido, "WHERE pedido_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
-                
-                $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber))
-                ];
-                echo json_encode($json);
-            }
-        } else {
-            $pedido_form['pedido_ide']      = trim($orderNumberIde);
-            $pedido_form['pedido_st']       = '0';
-            $pedido_form['pedido_code']     = trim($orderNumber);
-            $pedido_form['pedido_nome']     = trim($customerName);
-            $pedido_form['pedido_data']     = trim($orderDateTime['0']);
-            $pedido_form['pedido_hora']     = trim($orderDateTime['1']);
-            $pedido_form['pedido_status']     = trim($status);
-            $pedido_form['pedido_email_entregador'] = trim('');
-            $pedido_form['pedido_valor'] = trim($totalPrice);
-            $pedido_form['pedido_pagamento'] = trim($paymentType);
-            $pedido_form['pedido_tipo'] = trim($deliveryType);
-            $pedido_form['pedido_cupom'] = trim('');
-            $pedido_form['pedido_desconto'] = '0';
-            $pedido_form['pedido_frete'] = '0';
-            $pedido_form['pedido_st_delivery'] = '0';
-            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
-            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
-            $DB->Create('ze_pedido', $pedido_form);
-
-            $json = [
-                "id_pedido" => trim($orderNumber)
-            ];
-            echo json_encode($json);
-        }
-    } else if (trim($status) == 'Desconsiderado') {
-        $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
-        if ($DB->NumQuery($read_pedido) > '0') {
-            foreach ($read_pedido as $read_pedido_view) {
-                $UpdateStatusPedido['delivery_status'] = '2';
-                $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
-                $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber))
-                ];
-                echo json_encode($json);
-            }
-        } else {
-            $pedido_form['pedido_ide']      = trim($orderNumberIde);
-            $pedido_form['pedido_st']       = '0';
-            $pedido_form['pedido_code']     = trim($orderNumber);
-            $pedido_form['pedido_nome']     = trim($customerName);
-            $pedido_form['pedido_data']     = trim($orderDateTime['0']);
-            $pedido_form['pedido_hora']     = trim($orderDateTime['1']);
-            $pedido_form['pedido_status']     = trim($status);
-            $pedido_form['pedido_email_entregador'] = trim('');
-            $pedido_form['pedido_valor'] = trim($totalPrice);
-            $pedido_form['pedido_pagamento'] = trim($paymentType);
-            $pedido_form['pedido_tipo'] = trim($deliveryType);
-            $pedido_form['pedido_cupom'] = trim('');
-            $pedido_form['pedido_desconto'] = '0';
-            $pedido_form['pedido_frete'] = '0';
-            $pedido_form['pedido_st_delivery'] = '0';
-            $pedido_form['pedido_st_validacao'] = '0';  // IMPORTANTE: permite v1-itens coletar detalhes
-            $pedido_form['pedido_data_hora_captura'] = date('Y-m-d H:i:s');
-            $DB->Create('ze_pedido', $pedido_form);
-
-            $json = [
-                "id_pedido" => trim($orderNumber)
+                "id_pedido" => $orderNumber,
+                "updated" => true,
+                "from_status" => $currentStatus,
+                "to_status" => $newStatusCode
             ];
             echo json_encode($json);
         }
     } else {
-        $json = [
-            "id_pedido" => 'SEM PEDIDO'
-        ];
-        echo json_encode($json);
+        // PEDIDO NÃO EXISTE - Verificar se existe em ze_pedido e criar em delivery
+        $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
+        
+        if ($DB->NumQuery($read_pedido) > 0) {
+            // Existe em ze_pedido mas não em delivery - Criar entrada
+            foreach ($read_pedido as $read_pedido_view) {
+                $explode_data = explode('/', $read_pedido_view['pedido_data']);
+                $valorNumerico = preg_replace('/[^0-9]/', '', $read_pedido_view['pedido_valor']);
+                $valorFormatado = substr($valorNumerico, 0, -2) . "." . substr($valorNumerico, -2);
+                $valorFloat = (float) $valorFormatado;
+                
+                // INSERT com proteção contra duplicatas (UNIQUE constraint)
+                $sql = "INSERT INTO delivery (
+                    delivery_data_hora_captura, delivery_ide_hub_delivery, delivery_ide,
+                    delivery_code, delivery_name_cliente, delivery_date_time, delivery_status,
+                    delivery_subtotal, delivery_forma_pagamento, delivery_desconto, delivery_frete,
+                    delivery_total, delivery_trash, delivery_id_company,
+                    delivery_cpf_cliente, delivery_endereco_rota, delivery_endereco_complemento,
+                    delivery_endereco_cidade_uf, delivery_endereco_cep, delivery_endereco_bairro
+                ) VALUES (
+                    '" . $read_pedido_view['pedido_data_hora_captura'] . "',
+                    '" . $read_pedido_view['pedido_ide'] . "',
+                    '" . md5(date('YmdHis') . rand(1000, 9999)) . "',
+                    '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_code']) . "',
+                    '" . mysqli_real_escape_string($conn, str_replace('ė', 'e', $read_pedido_view['pedido_nome'])) . "',
+                    '" . $explode_data[2] . '-' . $explode_data[1] . '-' . $explode_data[0] . ' ' . $read_pedido_view['pedido_hora'] . "',
+                    '" . $newStatusCode . "',
+                    '" . $valorFloat . "',
+                    '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_pagamento']) . "',
+                    '" . $read_pedido_view['pedido_desconto'] . "',
+                    '" . $read_pedido_view['pedido_frete'] . "',
+                    '" . ($valorFloat - $read_pedido_view['pedido_desconto']) . "',
+                    '0',
+                    '" . $read_pedido_view['hub_delivery_id_company'] . "',
+                    '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_cpf_cliente'] ?? '') . "',
+                    '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_endereco_rota'] ?? '') . "',
+                    '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_endereco_complemento'] ?? '') . "',
+                    '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_endereco_cidade_uf'] ?? '') . "',
+                    '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_endereco_cep'] ?? '') . "',
+                    '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_endereco_bairro'] ?? '') . "'
+                ) ON DUPLICATE KEY UPDATE 
+                    delivery_status = CASE 
+                        WHEN delivery_status IN ('1', '4', '5') THEN delivery_status
+                        WHEN '" . $newStatusCode . "' > delivery_status THEN '" . $newStatusCode . "'
+                        ELSE delivery_status
+                    END";
+                
+                mysqli_query($conn, $sql);
+                
+                // Atualizar ze_pedido
+                mysqli_query($conn, "UPDATE ze_pedido SET pedido_status = '" . mysqli_real_escape_string($conn, trim($status)) . "', pedido_st = '1' WHERE pedido_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'");
+                
+                $json = ["id_pedido" => $orderNumber, "created" => true, "status" => $newStatusCode];
+                echo json_encode($json);
+                break;
+            }
+        } else {
+            // Não existe em lugar nenhum - Criar em ze_pedido primeiro
+            $pedido_form = [
+                'pedido_ide' => trim($orderNumberIde),
+                'pedido_st' => '0',
+                'pedido_code' => trim($orderNumber),
+                'pedido_nome' => trim($customerName),
+                'pedido_data' => trim($orderDateTime[0] ?? ''),
+                'pedido_hora' => trim($orderDateTime[1] ?? ''),
+                'pedido_status' => trim($status),
+                'pedido_email_entregador' => '',
+                'pedido_valor' => trim($totalPrice),
+                'pedido_pagamento' => trim($paymentType),
+                'pedido_tipo' => trim($deliveryType),
+                'pedido_cupom' => '',
+                'pedido_desconto' => '0',
+                'pedido_frete' => '0',
+                'pedido_st_delivery' => '0',
+                'pedido_st_validacao' => '0',
+                'pedido_data_hora_captura' => date('Y-m-d H:i:s')
+            ];
+            
+            $DB->Create('ze_pedido', $pedido_form);
+            $json = ["id_pedido" => $orderNumber, "new_order" => true];
+            echo json_encode($json);
+        }
+    }
+    
+    // Processar status "colocado" para delivery_data
+    if (stripos($status, 'colocado') !== false) {
+        $check_data = $DB->ReadComposta("SELECT * FROM delivery_data WHERE delivery_data_code = '" . trim($orderNumber) . "' LIMIT 1");
+        if ($DB->NumQuery($check_data) == 0) {
+            $pedido_form_dev = [
+                'delivery_data_code' => trim($orderNumber),
+                'delivery_data_hora_pedido' => date('Y-m-d H:i:s')
+            ];
+            $DB->Create('delivery_data', $pedido_form_dev);
+        }
     }
 }
+
