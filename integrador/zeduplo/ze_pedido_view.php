@@ -9,10 +9,10 @@ require_once '_class/AutoLoad.php';
 $DB = new Database();
 $FE = new Ferraments();
 
-$id = addslashes($_POST['id']);
-$tags = addslashes($_POST['tags']);
-$endereco = addslashes($_POST['endereco']);
-$desconto = addslashes($_POST['desconto']);
+$id = addslashes($_POST['id'] ?? '');
+$tags = addslashes($_POST['tags'] ?? '');
+$endereco = addslashes($_POST['endereco'] ?? '');
+$desconto = addslashes($_POST['desconto'] ?? '');
 if ($desconto == '') {
     $desconto = 0;
 } else {
@@ -20,10 +20,14 @@ if ($desconto == '') {
     $desconto = str_replace(',', '.', $strreplacedesconto);
 }
 
+// Ler dados: priorizar php://input, fallback para $_POST['pedidosData']
 $input = file_get_contents('php://input');
+if (empty($input) && !empty($_POST['pedidosData'])) {
+    $input = $_POST['pedidosData'];
+}
 $json = json_decode($input, true);
 
-if (count($json) > 0) {
+if (is_array($json) && count($json) > 0) {
     for ($x = 0; $x < count($json); $x++) {
 
         $descricaoProduto = addslashes(trim($json[$x]['tags']['nome']));
