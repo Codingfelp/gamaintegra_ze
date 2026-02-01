@@ -76,6 +76,18 @@ if (is_array($json) && count($json) > 0) {
             } else {
                 $cpfCliente = trim($json[$x]['cpfCliente']);
             }
+            // Telefone do cliente
+            if (empty(trim($json[$x]['telefoneCliente'] ?? ''))) {
+                $telefoneCliente = '';
+            } else {
+                $telefoneCliente = trim($json[$x]['telefoneCliente']);
+            }
+            // Email do entregador
+            if (empty(trim($json[$x]['emailEntregador'] ?? ''))) {
+                $emailEntregador = '';
+            } else {
+                $emailEntregador = trim($json[$x]['emailEntregador']);
+            }
             if (trim($json[$x]['enderecoRota']) == '') {
                 $enderecoRota = 0;
             } else {
