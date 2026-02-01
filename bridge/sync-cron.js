@@ -207,6 +207,7 @@ async function syncToLovable() {
         // Cliente
         customer_name: pedido.delivery_name_cliente,
         customer_cpf: pedido.delivery_cpf_cliente,
+        customer_phone: pedido.delivery_telefone || pedido.pedido_telefone || null,
         
         // Endereço
         address: pedido.delivery_endereco_rota,
@@ -235,8 +236,9 @@ async function syncToLovable() {
         
         // Entrega - IMPORTANTE: enviar tipo exato do banco
         delivery_type: pedido.delivery_tipo_pedido || 'Pedido Comum',
-        delivery_tipo_pedido: pedido.delivery_tipo_pedido || 'Pedido Comum', // Campo adicional com valor exato
+        delivery_tipo_pedido: pedido.delivery_tipo_pedido || 'Pedido Comum',
         delivery_code: pedido.delivery_codigo_entrega,
+        pickup_code: pedido.delivery_codigo_entrega, // Campo esperado pelo Lovable
         courier_email: pedido.delivery_email_entregador || null,
         notes: pedido.delivery_obs,
         
@@ -244,7 +246,7 @@ async function syncToLovable() {
         items: itensFormatados,
         items_json: JSON.stringify(itensFormatados),
         items_count: itensFormatados.length,
-        has_items: itensFormatados.length > 0, // Flag para verificação
+        has_items: itensFormatados.length > 0,
         
         // Metadata
         source: 'ze-delivery',
