@@ -322,10 +322,10 @@ def get_db():
 
 @app.get("/api/services/status")
 async def get_services_status():
-    """Retorna status dos serviços"""
+    """Retorna status dos serviços - HEALTHCHECK REAL (runtime, não cosmético)"""
     status = {"success": True, "data": {}}
     
-    # MySQL Railway Cloud
+    # 1. MySQL Railway Cloud - Teste REAL de conexão
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -337,7 +337,7 @@ async def get_services_status():
             "status": "online", 
             "host": DB_CONFIG['host'],
             "database": DB_CONFIG['database'],
-            "note": "Railway Cloud MySQL"
+            "note": "Railway Cloud MySQL - conexão testada"
         }
     except Exception as e:
         status["data"]["mysql"] = {
@@ -347,32 +347,60 @@ async def get_services_status():
             "database": DB_CONFIG['database']
         }
     
-    # PHP CLI (usado pelos scrapers para 2FA e inserção no banco)
-    ok, _ = run_shell("php -m | grep -i imap", timeout=5)
-    if ok:
-        # Testar se PHP CLI funciona com o banco
-        test_ok, test_out = run_shell("""php -r "
+    # 2. PHP IMAP - Teste REAL em runtime (não cache)
+    ok, out = run_shell("php -r \"echo extension_loaded('imap') ? 'IMAP_OK' : 'IMAP_FAIL';\"", timeout=10)
+    if ok and 'IMAP_OK' in out:
+        # Testar conexão com banco via PHP
+        db_ok, db_out = run_shell("""php -r "
             chdir('/app/integrador/zeduplo');
             require_once '_class/AutoLoad.php';
             \$DB = new Database();
             \$conn = \$DB->Conn();
-            if (\$conn) { echo 'DB_OK'; } else { echo 'DB_FAIL'; }
+            echo \$conn ? 'DB_OK' : 'DB_FAIL';
         " """, timeout=10)
-        if test_ok and 'DB_OK' in test_out:
-            status["data"]["php"] = {"status": "online", "mode": "CLI", "db_connected": True}
+        
+        if db_ok and 'DB_OK' in db_out:
+            status["data"]["php"] = {
+                "status": "online", 
+                "mode": "CLI", 
+                "imap": True,
+                "db_connected": True,
+                "note": "PHP validado em runtime"
+            }
         else:
-            status["data"]["php"] = {"status": "degraded", "mode": "CLI", "db_connected": False, "note": "PHP não conecta no banco"}
+            status["data"]["php"] = {
+                "status": "degraded", 
+                "mode": "CLI", 
+                "imap": True,
+                "db_connected": False,
+                "note": "IMAP OK, mas PHP não conecta no banco"
+            }
     else:
-        status["data"]["php"] = {"status": "offline", "mode": "CLI", "note": "PHP IMAP não disponível"}
+        status["data"]["php"] = {
+            "status": "offline", 
+            "mode": "CLI", 
+            "imap": False,
+            "db_connected": False,
+            "note": "IMAP extension NOT loaded - 2FA não funcionará"
+        }
     
-    # Verificar se IMAP está disponível para login 2FA
-    status["data"]["php_imap"] = {"status": "online" if ok else "offline"}
-    
-    # Scripts Node.js
-    for name, script in [("v1.js", "puppeteer-wrapper.js v1.js"), ("v1-itens.js", "puppeteer-wrapper.js v1-itens.js"), ("sync", "sync-cron.js")]:
+    # 3. Scripts Node.js - Verificar processos REAIS
+    scripts_info = [
+        ("v1.js", "puppeteer-wrapper.js v1.js"), 
+        ("v1-itens.js", "puppeteer-wrapper.js v1-itens.js"), 
+        ("sync", "sync-cron.js")
+    ]
+    for name, script in scripts_info:
         ok, out = run_shell(f"pgrep -f '{script}'", timeout=5)
         pid = out.strip().split()[0] if ok and out.strip() else None
-        status["data"][name] = {"status": "online" if ok else "offline", "pid": pid}
+        status["data"][name] = {
+            "status": "online" if ok else "offline", 
+            "pid": pid
+        }
+    
+    # 4. Chromium
+    ok, _ = run_shell("which chromium", timeout=5)
+    status["data"]["chromium"] = {"status": "online" if ok else "offline"}
     
     # Chromium
     ok, _ = run_shell("which chromium", timeout=5)
