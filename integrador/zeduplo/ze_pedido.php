@@ -215,9 +215,26 @@ if (!empty($orderData)) {
     $paymentType = urldecode($orderData['paymentType'] ?? '');
     $totalPrice = str_replace('R$ ', '', urldecode($orderData['priceFormatted'] ?? ''));
     $delivererEmail = urldecode($orderData['delivererEmail'] ?? '');
+    
+    // Flag especial: aceite confirmado pelo aceitaScript
+    $aceiteConfirmado = isset($orderData['aceiteConfirmado']) && $orderData['aceiteConfirmado'];
 
     // Converter status texto para código numérico
     $newStatusCode = statusTextToCode($status);
+    
+    // REGRA DE SEGURANÇA: Status "Aceito" (2) só pode vir do aceitaScript com flag aceiteConfirmado
+    // Pedidos novos entram como "Pendente" e só mudam para "Aceito" após confirmação real
+    if ($newStatusCode === '2' && !$aceiteConfirmado) {
+        // Ignorar tentativa de marcar como Aceito sem confirmação
+        $json = [
+            "id_pedido" => $orderNumber,
+            "skipped" => true,
+            "reason" => "aceite_nao_confirmado",
+            "message" => "Status Aceito requer confirmacao do aceitaScript"
+        ];
+        echo json_encode($json);
+        exit;
+    }
     
     // Verificar se o pedido já existe na tabela delivery
     $conn = $DB->Conn();
@@ -227,6 +244,29 @@ if (!empty($orderData)) {
     if ($existingDelivery) {
         // PEDIDO JÁ EXISTE - Verificar se pode atualizar o status
         $currentStatus = strval($existingDelivery['delivery_status']);
+        
+        // Se aceite confirmado, permitir atualização para Aceito mesmo de Pendente
+        if ($aceiteConfirmado && $newStatusCode === '2') {
+            // Aceite confirmado pelo aceitaScript - SEMPRE PERMITIR
+            $updateSql = "UPDATE delivery SET delivery_status = '2'";
+            if (!empty($delivererEmail)) {
+                $updateSql .= ", delivery_email_entregador = '" . mysqli_real_escape_string($conn, $delivererEmail) . "'";
+            }
+            $updateSql .= " WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'";
+            mysqli_query($conn, $updateSql);
+            mysqli_query($conn, "UPDATE ze_pedido SET pedido_status = 'Aceito' WHERE pedido_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'");
+            
+            $json = [
+                "id_pedido" => $orderNumber,
+                "aceite_confirmado" => true,
+                "updated" => true,
+                "from_status" => $currentStatus,
+                "to_status" => "2"
+            ];
+            echo json_encode($json);
+            exit;
+        }
+        
         $canUpdate = canUpdateStatus($currentStatus, $newStatusCode);
         
         if (!$canUpdate['allowed']) {
