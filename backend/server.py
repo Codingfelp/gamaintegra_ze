@@ -26,6 +26,16 @@ else:
             load_dotenv(path)
             break
 
+# CONFIGURAÇÃO RAILWAY CLOUD - HARDCODED COMO FALLBACK ABSOLUTO
+# Isso garante que MESMO SEM .env, o sistema conecta no Railway MySQL
+RAILWAY_MYSQL_CONFIG = {
+    'host': 'mainline.proxy.rlwy.net',
+    'port': 52996,
+    'user': 'root',
+    'password': 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU',
+    'database': 'railway'
+}
+
 # Flag para evitar múltiplas inicializações
 _init_started = False
 _init_lock = threading.Lock()
