@@ -1,24 +1,42 @@
 # Gamatauri Zé Integrador - PRD
 
-## Status: ✅ FUNCIONANDO - GMAIL API IMPLEMENTADA
+## Status: ✅ FUNCIONANDO - SISTEMA MONITORÁVEL 24/7
 
-**Última atualização:** 03/02/2026 - Migração IMAP → Gmail API concluída
+**Última atualização:** 01/02/2026 - Dashboard de Monitoramento implementado
 
 ---
 
-## 🎉 Migração P0 Concluída (03/02/2026)
+## 🎉 Implementações Recentes
 
-### IMAP → Gmail API (OAuth 2.0)
-- **Problema:** `php-imap` era instável em produção (causa raiz identificada pelo usuário)
+### 01/02/2026 - Sistema de Monitoramento 24/7
+- **Health Check Detalhado**: `/api/health/detailed` com status de todos componentes
+- **Métricas em Tempo Real**: `/api/metrics/realtime` com pedidos 24h, faturamento
+- **Backup de Sessões Zé**: Sistema de backup/restore das sessões do Chromium
+- **Logs Estruturados**: `/api/logs/structured` com filtro por serviço e nível
+- **Dashboard Monitor**: Nova aba "Monitor 24/7" no frontend
+
+### 03/02/2026 - Migração IMAP → Gmail API (OAuth 2.0)
+- **Problema:** `php-imap` era instável em produção
 - **Solução:** Gmail API REST com OAuth 2.0
 - **Resultado:** 
   - Zero dependência de `php-imap`
   - Autenticação permanente via refresh_token
   - Resposta < 5 segundos (vs 60+ com IMAP)
 
-### Credenciais OAuth
-- **Client ID:** `187165168994-bn629eu6t7rb601v54i5j4q258hpcacm.apps.googleusercontent.com`
-- **Refresh Token:** Armazenado em `ze_pedido_mail.php`
+---
+
+## Endpoints de Monitoramento
+
+```
+GET  /api/health/detailed           # Health check completo
+GET  /api/metrics/realtime          # Métricas em tempo real
+GET  /api/sessions/status           # Status das sessões Zé
+POST /api/sessions/backup           # Criar backup de sessões
+GET  /api/sessions/backups          # Listar backups
+POST /api/sessions/restore/{name}   # Restaurar sessão
+GET  /api/logs/structured           # Logs estruturados
+GET  /api/logs/errors               # Apenas erros
+```
 
 ---
 
@@ -28,7 +46,8 @@
 - ✅ **PHP**: CLI mode com **Gmail API** (não mais IMAP)
 - ✅ **Scrapers**: v1.js + v1-itens.js rodando
 - ✅ **Sync**: Lovable Cloud + sincronização local
-- ✅ **Modal**: CPF, endereço, itens funcionando
+- ✅ **Monitor**: Dashboard 24/7 com métricas em tempo real
+- ✅ **Backup**: Sistema de backup/restore de sessões
 
 ---
 
