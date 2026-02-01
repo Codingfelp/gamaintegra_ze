@@ -222,24 +222,28 @@ if (!empty($orderData)) {
     // Converter status texto para código numérico
     $newStatusCode = statusTextToCode($status);
     
-    // REGRA DE SEGURANÇA: Status "Aceito" (2) só pode vir do aceitaScript com flag aceiteConfirmado
-    // Pedidos novos entram como "Pendente" e só mudam para "Aceito" após confirmação real
-    if ($newStatusCode === '2' && !$aceiteConfirmado) {
-        // Ignorar tentativa de marcar como Aceito sem confirmação
-        $json = [
-            "id_pedido" => $orderNumber,
-            "skipped" => true,
-            "reason" => "aceite_nao_confirmado",
-            "message" => "Status Aceito requer confirmacao do aceitaScript"
-        ];
-        echo json_encode($json);
-        exit;
-    }
-    
     // Verificar se o pedido já existe na tabela delivery
     $conn = $DB->Conn();
     $checkDelivery = mysqli_query($conn, "SELECT delivery_id, delivery_status FROM delivery WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "' LIMIT 1");
     $existingDelivery = mysqli_fetch_assoc($checkDelivery);
+    
+    // REGRA DE SEGURANÇA: Status "Aceito" (2) só pode ser definido se:
+    // 1. Vem do aceitaScript com flag aceiteConfirmado
+    // 2. OU pedido já está como "Aceito" no banco (permitir manter)
+    $currentStatusInDb = $existingDelivery ? strval($existingDelivery['delivery_status']) : '0';
+    
+    if ($newStatusCode === '2' && !$aceiteConfirmado && $currentStatusInDb !== '2') {
+        // Tentativa de mudar para Aceito sem confirmação e pedido não está Aceito
+        $json = [
+            "id_pedido" => $orderNumber,
+            "skipped" => true,
+            "reason" => "aceite_nao_confirmado",
+            "message" => "Status Aceito requer confirmacao do aceitaScript",
+            "current_status" => $currentStatusInDb
+        ];
+        echo json_encode($json);
+        exit;
+    }
     
     if ($existingDelivery) {
         // PEDIDO JÁ EXISTE - Verificar se pode atualizar o status
