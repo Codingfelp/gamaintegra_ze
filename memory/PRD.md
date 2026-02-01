@@ -1,12 +1,22 @@
 # Gamatauri Zé Integrador - PRD
 
-## Status: ✅ FUNCIONANDO - SISTEMA MONITORÁVEL 24/7
+## Status: ✅ FUNCIONANDO - SISTEMA INTELIGENTE DE STATUS
 
-**Última atualização:** 01/02/2026 - Dashboard de Monitoramento implementado
+**Última atualização:** 01/02/2026 - Sistema de Proteção de Status implementado
 
 ---
 
 ## 🎉 Implementações Recentes
+
+### 01/02/2026 - Sistema Inteligente de Progressão de Status
+- **UNIQUE Constraint**: Adicionada constraint `unique_delivery_code` para prevenir duplicatas
+- **Proteção de Regressão**: Status só pode AVANÇAR na progressão:
+  - `Pendente (0)` → `Aceito (2)` → `A Caminho (3)` → `Entregue (1)`
+- **Status Finais**: `Entregue (1)`, `Cancelado (4)`, `Desconsiderado (5)` não podem ser alterados
+- **INSERT ON DUPLICATE KEY UPDATE**: Todas as inserções usam lógica atômica anti-duplicata
+- **Arquivos Modificados**:
+  - `/app/integrador/zeduplo/ze_pedido.php` - Lógica principal com proteção
+  - `/app/integrador/zeduplo/ze_pedido_view_status.php` - Webhook com proteção
 
 ### 01/02/2026 - Sistema de Monitoramento 24/7
 - **Health Check Detalhado**: `/api/health/detailed` com status de todos componentes
@@ -22,6 +32,39 @@
   - Zero dependência de `php-imap`
   - Autenticação permanente via refresh_token
   - Resposta < 5 segundos (vs 60+ com IMAP)
+
+---
+
+## Sistema de Progressão de Status
+
+```
+Ordem de Progressão (só avança, nunca regride):
+
+  Pendente (0) → Aceito (2) → A Caminho (3) → Entregue (1)
+                                            ↘ Cancelado (4,5)
+
+Status Finais (imutáveis):
+  - Entregue (1)
+  - Cancelado Cliente (4)
+  - Cancelado Loja / Desconsiderado (5)
+```
+
+### Código de Proteção (`ze_pedido.php`)
+```php
+$STATUS_PRIORITY = [
+    '0' => 1,  // Pendente
+    '2' => 2,  // Aceito
+    '3' => 3,  // A Caminho
+    '1' => 4,  // Entregue (final)
+    '4' => 5,  // Cancelado (final)
+    '5' => 5,  // Desconsiderado (final)
+];
+
+function canUpdateStatus($current, $new) {
+    // Retorna true apenas se new_priority > current_priority
+    // E current não é status final
+}
+```
 
 ---
 
@@ -48,6 +91,8 @@ GET  /api/logs/errors               # Apenas erros
 - ✅ **Sync**: Lovable Cloud + sincronização local
 - ✅ **Monitor**: Dashboard 24/7 com métricas em tempo real
 - ✅ **Backup**: Sistema de backup/restore de sessões
+- ✅ **Proteção**: Sistema inteligente anti-regressão de status
+- ✅ **Anti-Duplicata**: UNIQUE constraint + INSERT ON DUPLICATE KEY UPDATE
 
 ---
 
