@@ -122,22 +122,35 @@ if (!empty($orderData)) {
         $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
         if ($DB->NumQuery($read_pedido) > '0') {
             foreach ($read_pedido as $read_pedido_view) {
-                // PROTEÇÃO FORTE: Verificar status atual antes de atualizar
+                // VERIFICAR SE ATUALIZAÇÃO É VÁLIDA (progressão de status)
+                // Ordem natural: Pendente (0) → Aceito (2) → A Caminho (3) → Entregue (1)
+                // "Entregue" só pode vir de "A Caminho" (3) ou de status menor
                 $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
+                $can_update = true;
+                
                 if ($DB->NumQuery($check_status) > 0) {
                     foreach ($check_status as $status_row) {
                         $current_status = intval($status_row['delivery_status']);
-                        // Se está em "A Caminho" (3) ou "Aceito" (2), NÃO permitir atualização para "Entregue"
-                        // O scraper pode estar lendo dados de cache/histórico
-                        // Para atualizar para "Entregue", o pedido deve estar em status diferente ou já ser "Entregue"
-                        if ($current_status == 2 || $current_status == 3) {
-                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "status_protected_acaminho"];
+                        // Se está em "Aceito" (2), NÃO pode pular direto para "Entregue" (1)
+                        // Deve primeiro ir para "A Caminho" (3)
+                        if ($current_status == 2) {
+                            $can_update = false;
+                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "must_be_acaminho_first"];
+                            echo json_encode($json);
+                            continue 2;
+                        }
+                        // Se já está "Entregue" (1), "Cancelado" (4,5), não precisa atualizar
+                        if ($current_status == 1 || $current_status == 4 || $current_status == 5) {
+                            $can_update = false;
+                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_final"];
                             echo json_encode($json);
                             continue 2;
                         }
                         break;
                     }
                 }
+                
+                if (!$can_update) continue;
                 
                 // Atualizar status na tabela delivery
                 $UpdateStatusPedido['delivery_status'] = '1';
