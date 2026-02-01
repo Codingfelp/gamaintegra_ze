@@ -241,14 +241,23 @@ if (!empty($orderData)) {
             echo json_encode($json);
         } else {
             // PODE ATUALIZAR - Status está avançando
-            mysqli_query($conn, "UPDATE delivery SET delivery_status = '" . $newStatusCode . "' WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'");
+            $updateSql = "UPDATE delivery SET delivery_status = '" . $newStatusCode . "'";
+            
+            // Se tiver email do entregador, atualizar também
+            if (!empty($delivererEmail)) {
+                $updateSql .= ", delivery_email_entregador = '" . mysqli_real_escape_string($conn, $delivererEmail) . "'";
+            }
+            
+            $updateSql .= " WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'";
+            mysqli_query($conn, $updateSql);
             mysqli_query($conn, "UPDATE ze_pedido SET pedido_status = '" . mysqli_real_escape_string($conn, trim($status)) . "' WHERE pedido_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'");
             
             $json = [
                 "id_pedido" => $orderNumber,
                 "updated" => true,
                 "from_status" => $currentStatus,
-                "to_status" => $newStatusCode
+                "to_status" => $newStatusCode,
+                "deliverer" => $delivererEmail ?: null
             ];
             echo json_encode($json);
         }
