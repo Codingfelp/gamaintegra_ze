@@ -193,7 +193,7 @@ async function syncToLovable() {
         imagem: item.produto_link_imagem || ''
       }));
 
-      console.log(`   Pedido ${pedido.delivery_code}: ${itensFormatados.length} itens`);
+      console.log(`   Pedido ${pedido.delivery_code}: ${itensFormatados.length} itens, entregador: ${pedido.delivery_email_entregador || 'N/A'}`);
       
       // Formatar pedido para Lovable
       pedidosFormatados.push({
@@ -201,6 +201,7 @@ async function syncToLovable() {
         id_local: pedido.delivery_id,
         external_id: pedido.delivery_code,
         ide: pedido.delivery_ide,
+        delivery_id: pedido.delivery_id,
         
         // Cliente
         customer_name: pedido.delivery_name_cliente,
@@ -214,21 +215,29 @@ async function syncToLovable() {
         address_city: pedido.delivery_endereco_cidade_uf,
         address_zip: pedido.delivery_endereco_cep,
         
-        // Status e datas
+        // Status e datas - ENVIANDO MÚLTIPLOS FORMATOS
         status: pedido.delivery_status,
+        delivery_status: pedido.delivery_status,
         status_text: getStatusText(pedido.delivery_status),
         created_at: pedido.delivery_date_time,
+        delivery_date_time: pedido.delivery_date_time, // Horário original do pedido
+        order_datetime: pedido.delivery_date_time, // Campo adicional para Lovable
         captured_at: pedido.delivery_data_hora_captura,
         
         // Valores
         subtotal: parseFloat(pedido.delivery_subtotal) || 0,
+        delivery_subtotal: parseFloat(pedido.delivery_subtotal) || 0,
         discount: parseFloat(pedido.delivery_desconto) || 0,
+        delivery_desconto: parseFloat(pedido.delivery_desconto) || 0,
         delivery_fee: parseFloat(pedido.delivery_frete) || 0,
+        delivery_frete: parseFloat(pedido.delivery_frete) || 0,
         total: parseFloat(pedido.delivery_total) || 0,
+        delivery_total: parseFloat(pedido.delivery_total) || 0,
         convenience_fee: parseFloat(pedido.delivery_taxa_conveniencia) || 0,
         
         // Pagamento
         payment_method: pedido.delivery_forma_pagamento,
+        delivery_forma_pagamento: pedido.delivery_forma_pagamento,
         change_for: parseFloat(pedido.delivery_troco_para) || 0,
         change: parseFloat(pedido.delivery_troco) || 0,
         
@@ -236,12 +245,20 @@ async function syncToLovable() {
         delivery_type: pedido.delivery_tipo_pedido || 'Pedido Comum',
         delivery_tipo_pedido: pedido.delivery_tipo_pedido || 'Pedido Comum',
         delivery_code: pedido.delivery_codigo_entrega,
+        delivery_codigo_entrega: pedido.delivery_codigo_entrega,
         pickup_code: pedido.delivery_codigo_entrega, // Campo esperado pelo Lovable
+        
+        // ENTREGADOR - Múltiplos campos para garantir
         courier_email: pedido.delivery_email_entregador || null,
+        delivery_email_entregador: pedido.delivery_email_entregador || null,
+        delivery_entregador_email: pedido.delivery_email_entregador || null,
+        deliverer_name: pedido.delivery_email_entregador || null,
+        
         notes: pedido.delivery_obs,
         
         // ITENS - enviar como array E como JSON string para redundância
         items: itensFormatados,
+        itens: itensFormatados,
         items_json: JSON.stringify(itensFormatados),
         items_count: itensFormatados.length,
         has_items: itensFormatados.length > 0,
