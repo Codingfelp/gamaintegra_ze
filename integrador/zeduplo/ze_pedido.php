@@ -242,7 +242,7 @@ if (!empty($orderData)) {
         if ($DB->NumQuery($read_pedido) > '0') {
             foreach ($read_pedido as $read_pedido_view) {
                 $UpdateStatusPedido['delivery_status'] = '3';
-                //$DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
+                $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
                 $json = [
                     "id_pedido" => trim(str_replace(' ', '', $orderNumber))
                 ];
