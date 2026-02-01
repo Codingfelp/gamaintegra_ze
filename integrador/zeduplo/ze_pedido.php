@@ -170,12 +170,15 @@ if (!empty($orderData)) {
                 // IMPORTANTE: Não reverter status se já foi marcado como Entregue (1) ou Cancelado (4,5)
                 $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
                 if ($DB->NumQuery($check_status) > 0) {
-                    $current_status = $check_status[0]['delivery_status'];
-                    if (in_array($current_status, ['1', '4', '5'])) {
-                        // Não atualizar - pedido já finalizado
-                        $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_final"];
-                        echo json_encode($json);
-                        continue;
+                    foreach ($check_status as $status_row) {
+                        $current_status = $status_row['delivery_status'];
+                        if (in_array($current_status, ['1', '4', '5'])) {
+                            // Não atualizar - pedido já finalizado
+                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_final"];
+                            echo json_encode($json);
+                            continue 2; // Sai do foreach externo
+                        }
+                        break; // Só precisa do primeiro resultado
                     }
                 }
                 
