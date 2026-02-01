@@ -1,176 +1,172 @@
 <analysis>**original_problem_statement:**
-The user's primary goal is to establish a reliable, 24/7 Zé Delivery integration. This involves orchestrating legacy PHP () and Node.js () services to scrape order data, storing it in a central Railway cloud MariaDB, and syncing it to a Lovable Cloud (Supabase) instance. Key requirements include creating a React monitoring dashboard, ensuring the system is stable in the production deployment environment, and resolving critical data integrity issues.
+The user's primary goal is to establish a reliable, 24/7 Zé Delivery integration. This involves orchestrating legacy PHP () and Node.js () services to scrape order data, storing it in a central Railway cloud MariaDB, and syncing it to a Lovable Cloud (Supabase) instance. Key requirements include creating a React monitoring dashboard, ensuring the system is stable in the production deployment environment, and resolving critical data integrity issues. The latest critical requirement is to replace the fragile IMAP-based 2FA login with a robust solution using the Google Gmail API with OAuth 2.0 to achieve production stability.
 
 **PRODUCT REQUIREMENTS:**
-1.  **Legacy System Integration:** Make the existing PHP and Node.js scraper projects work together seamlessly.
-2.  **24/7 Production Stability:** All components, especially the Node.js scrapers and the PHP service, must run continuously and restart automatically upon failure in the published production environment.
-3.  **Central Cloud Database:** Utilize a user-provided Railway cloud MariaDB instance as the single source of truth for all services.
+1.  **Legacy System Integration:** Make the existing PHP and Node.js scraper projects work together seamlessly using a PHP-CLI architecture.
+2.  **24/7 Production Stability:** All components must run continuously. This requires migrating the 2FA login from the unstable PHP-IMAP extension to the Google Gmail API (OAuth 2.0).
+3.  **Central Cloud Database:** Utilize the user-provided Railway cloud MariaDB instance as the single source of truth, ensuring connection stability in production.
 4.  **Lovable Cloud Sync & Data Integrity:**
-    *   Sync all new and updated orders to a Lovable Cloud endpoint.
-    -   Fix bugs where some orders arrive with empty item lists ().
-    *   Prevent customer data (CPF, address) from being nulled out for delivered orders.
-    *   Ensure the data payload matches the format expected by the user's new Supabase Edge Function.
-5.  **Dashboard:** A functional React-based UI to monitor service status and view order data.
-6.  **Documentation:** Provide a technical plan for the Lovable Cloud team and a non-technical project summary.
+    *   Sync all new and updated orders (including all customer data and items) to a Lovable Cloud endpoint.
+    *   Fix bugs preventing customer data (CPF, address) and order items from being saved and synced correctly.
+    *   Prevent duplicate order entries.
+5.  **Dashboard:** A functional React-based UI to monitor service status and view detailed order data, including a working modal for individual order details.
+6.  **Documentation:** Provide a technical plan and a non-technical project summary.
 
 **User's preferred language**: Português (Brasil). The next agent MUST respond in Portuguese.
 
 **what currently exists?**
-The application is a multi-service system orchestrated by a FastAPI backend (). This backend is responsible for dynamically installing dependencies (Apache, PHP, Chromium) and managing all legacy services as background processes.
-- **Frontend:** A React dashboard for monitoring.
-- **Backend:** A FastAPI server that acts as a central controller and process manager, using a custom watchdog to ensure Node.js scripts stay online.
-- **Database:** The system is connected to a remote MariaDB instance on Railway.
-- **Legacy Services:**
-    -  (PHP) is served by an Apache instance started by the backend.
-    -  (Node.js scrapers) and  (Lovable sync) are managed as persistent background processes by the FastAPI backend.
-- **Authentication:** The scraper () authenticates with Zé Delivery using a 2FA mechanism that reads a verification code from a Gmail account via a PHP script using IMAP.
+The application has been significantly refactored into a more robust architecture. A FastAPI backend () orchestrates the system, managing Node.js scrapers as background processes. The core architectural change is that PHP no longer runs as an HTTP server (Apache/built-in); instead, it operates purely as a Command Line Interface (CLI) worker. A new  module allows the Node.js scrapers to execute PHP scripts (, , etc.) securely via . This decouples the services and improves stability. The system connects to a remote Railway MariaDB, with hardcoded fallbacks to prevent environment-specific connection issues. However, the 2FA login mechanism still relies on the  extension, which has been identified as the primary cause of production failures.
 
 **Last working item**:
-- **Last item agent was working:** The user reported that after deployment, the PHP service is offline and the scrapers are not capturing any new orders, returning SEM PEDIDOS DISPONIVEIS. The user correctly suspects this is due to  not being correctly installed or enabled in the production environment, which breaks the scraper's 2FA login flow. The agent was starting to investigate this production-specific failure.
-- **Status:** IN PROGRESS
-- **Agent Testing Done:** N (The issue is specific to the production environment which the agent cannot directly test. Everything was working in the preview environment before the user's last message.)
-- **Which testing method agent to use?** The agent needs to debug the startup process for a clean production environment. This involves making the dependency installation in  more robust and ensuring all necessary PHP extensions are enabled for Apache. No direct testing is possible; the fix must be theoretical and based on the user's logs, then confirmed by the user after a new deployment.
-- **User Testing Done:** Y (User deployed the application and confirmed the services are offline).
+- **Last item agent was working:** The user provided a definitive analysis that the root cause of production instability is the  extension. They have mandated a migration to the Google Gmail API using OAuth 2.0 for fetching the 2FA code. The user has supplied the necessary OAuth Client ID and Client Secret to proceed with this implementation. The agent's last action was to acknowledge this new, critical requirement and prepare for the migration.
+- **Status:** NOT STARTED
+- **Agent Testing Done:** N
+- **Which testing method agent to use?** Backend testing agent. The agent will need to: 1. Implement the OAuth 2.0 flow to obtain a refresh token (this might require a one-off script or manual step explained to the user). 2. Modify  to use the Gmail API with the refresh token to get an access token and fetch the latest 2FA email. 3. Test by calling the script via the  and ensuring it returns the 2FA code correctly.
+- **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-- **Issue 1:** Production Stability: PHP Offline & Scrapers Not Working (P0)
+- **Issue 1:** Migrate 2FA from PHP-IMAP to Google Gmail API (P0)
 - **Issue 2:** Lovable Cloud Sync Data Conformance (P1)
-- **Issue 3:** Data Integrity: Null Data for Delivered Orders (P2)
+- **Issue 3:** Data Integrity: Prevent Order Duplication (P2)
 - **Issue 4:** Documentation (P2)
 
 **Issues Detail:**
-- **Issue 1: Production Stability: PHP Offline & Scrapers Not Working**
-    - **Description:** This is the highest priority and a recurring blocker. In the clean production environment, the runtime installation of dependencies fails. The user reports PHP is Offline on the dashboard, and scrapers return SEM PEDIDOS DISPONIVEIS. This is because the scraper's 2FA login depends on a PHP script that uses IMAP, and the PHP/IMAP service is not running correctly in production.
-    - **Attempted fixes:** The agent has evolved the architecture from PM2 to Supervisor, and finally to a custom watchdog process manager within  that installs dependencies (, , ) at runtime. While this works in the stateful preview environment, it's failing in the stateless production one.
+- **Issue 1: Migrate 2FA from PHP-IMAP to Google Gmail API**
+    - **Description:** This is the highest priority task and the main blocker for production stability. The current  implementation is fragile, fails intermittently in clean production environments, and is considered a legacy anti-pattern. The user has explicitly requested to replace it with the official Google Gmail API using OAuth 2.0.
+    - **Attempted fixes:** The agent previously hardened the IMAP installation, but this proved insufficient. The entire IMAP approach is being abandoned.
     - **Next debug checklist:**
-        1.  Review and harden the  function in .
-        2.  Ensure Reading package lists...
-Building dependency tree...
-Reading state information...
-0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded. commands use the  flag and have error handling.
-        3.  Crucially, ensure  is **enabled for Apache**, not just the PHP CLI. This likely requires adding  and  followed by  to the startup script.
-        4.  Explain to the user the critical difference between the stateful preview and stateless production environments, which necessitates these robust installation steps.
-    - **Why fix this issue and what will be achieved with the fix?** The application is non-functional in production without this fix. Resolving it will achieve the user's primary goal of a 24/7 running integration.
-    - **Status:** IN PROGRESS
+        1.  Integrate a PHP library for Google API clients or use cURL to handle the OAuth 2.0 flow.
+        2.  Store the user-provided Client ID, Client Secret, and the generated Refresh Token securely (e.g., in  or environment variables).
+        3.  Rewrite  to:
+            a. Use the refresh token to get a new access token.
+            b. Call the Gmail API endpoint  to find the latest 2FA email from Zé Delivery.
+            c. Call  to retrieve the email content.
+            d. Parse the email body to extract the 2FA code.
+            e. Return the code as JSON, maintaining the same interface for .
+        4.  Remove all  installation and health check logic from .
+    - **Why fix this issue and what will be achieved with the fix?** This will eliminate the primary source of production instability and make the 2FA login process reliable and compliant with modern standards, finally achieving the user's goal of a 24/7 service.
+    - **Status:** NOT STARTED
     - **Is recurring issue?** Y
-    - **Should Test backend/both after fix?** Backend. The fix can only be verified by the user after a new deployment.
+    - **Should Test backend/both after fix?** Backend.
     - **Blocked on other issue:** No, this is the main blocker.
 
 - **Issue 2: Lovable Cloud Sync Data Conformance**
-    - **Description:** The user has provided a definitive Deno/Supabase Edge Function script and expects the data sent from the  bridge to match the structure and logic within that script. This includes correct item formats, status mappings, and handling of different order types (Comum, Turbo, Retirada).
-    - **Attempted fixes:** The agent previously updated the sync script to include .
-    - **Next debug checklist:**
-        1.  Thoroughly analyze the user-provided Deno script (from message history).
-        2.  Compare the expected payload structure with what is currently generated in .
-        3.  Adjust  to exactly match the Lovable Cloud function's expectations.
+    - **Description:** The payload sent by  needs to be perfectly aligned with the structure expected by the user's Supabase Edge Function.
     - **Status:** NOT STARTED
     - **Is recurring issue?** N
     - **Should Test backend/both after fix?** Backend (by checking  logs).
 
-- **Issue 3: Data Integrity: Null Data for Delivered Orders**
-    - **Description:** The Zé Delivery website hides customer data (address, CPF) after an order is delivered. The system must capture this information on the first scrape and prevent it from being overwritten with null values on subsequent status updates.
-    - **Attempted fixes:** The agent modified  to only update fields if the new incoming value is not empty and the existing value in the database is empty.
-    - **Next debug checklist:** The fix is likely correct but needs verification in production once Issue #1 is resolved.
+- **Issue 3: Data Integrity: Prevent Order Duplication**
+    - **Description:** Duplicate orders have appeared in the  table multiple times during the development process. The agent has added fixes, but a final verification is needed once the architecture is fully stable.
     - **Status:** USER VERIFICATION PENDING
     - **Is recurring issue?** Y
     - **Should Test backend/both after fix?** Backend (DB verification).
 
 - **Issue 4: Documentation**
-    - **Description:** A non-technical summary for the user's manager is required.
-    - **Attempted fixes:** The file  was created and updated.
-    - **Next debug checklist:** Review and finalize the content after all major issues are resolved.
+    - **Description:** The non-technical summary () and technical architecture docs () need to be finalized.
     - **Status:** IN PROGRESS
     - **Is recurring issue?** N
     - **Should Test frontend/backend/both after fix?** N/A.
 
 **In progress Task List**:
-- **Task 1: Harden Production Startup Script (P0)**
-    - **Where to resume:** , inside the  function.
-    - **What will be achieved with this?** This will fix the PHP offline and Scrapers not working errors in production, making the application deployable and stable.
-    - **Status:** IN PROGRESS
-    - **Should Test frontend/backend/both after fix?** Backend.
-    - **Blocked on something:** No.
+None. The previous refactoring task is complete, and the new Gmail API task has not yet begun.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
+    - **(P0) Implement Gmail API for 2FA:** Rewrite  to use OAuth 2.0.
     - **(P1) Align Sync Payload:** Modify  to match the data structure of the user's Lovable Cloud Edge Function.
-    - **(P2) Finalize Documentation:** Complete the non-technical summary in .
 - **Future Tasks:**
-    - Guide the user to verify the Null Data fix in production.
+    - **(P2)** Guide the user to verify the data duplication fix in production.
+    - **(P2)** Finalize all documentation.
 
 **Completed work in this session**
-- **Production-Ready Process Management:** Re-architected the service manager away from fragile Supervisor configs to a robust, self-healing watchdog within  that manages legacy Node.js processes via .
-- **Production DB Connection Fix:** Diagnosed and fixed the critical  error by forcing the correct DB name () in , overriding incorrect production environment variables. A debug endpoint () was created to aid this diagnosis.
-- **Scraper 2FA Login Fix:** Successfully diagnosed the scraper login failure, installed the  extension, and confirmed the scraper could read the 2FA code from Gmail and resume capturing orders in the preview environment.
-- **Data Integrity & Duplication Fixes:**
-    - Corrected the PHP update script () to prevent overwriting existing data with nulls.
-    - Updated the SQL query in the sync bridge () to handle and deduplicate order records, ensuring only the most complete version is sent.
-- **Deployment Health Check:** Implemented a  endpoint in the FastAPI backend.
-- **Dashboard UI Bug Fixes:** Resolved a JavaScript crash () and corrected the service status display to show the correct state of all managed processes.
+- **Architecture Refactoring (PHP HTTP to CLI):** The entire architecture was successfully refactored. PHP no longer runs as a failure-prone HTTP server. It is now a robust CLI worker invoked by Node.js scrapers via a custom  module. This was a major step towards production stability.
+- **Database Stability:** Implemented hardcoded fallbacks and support for multiple environment variable naming schemes ( vs. ) to ensure the application always connects to the correct Railway MySQL database, resolving a critical production vs. preview environment mismatch.
+- **Data Integrity & Flow Fixes:**
+    - Corrected the logic in PHP scripts (, ) to handle  vs. , fixing a bug where new orders were not being inserted.
+    - Fixed a primary key violation bug that was halting the processing of new orders from  to the  table.
+    - Corrected update logic to use  instead of mismatched IDs, allowing customer details (CPF, address) to be saved correctly.
+    - Implemented a sync process in  to automatically copy data from  to , and items from  to .
+    - Removed duplicate order entries from the database.
+- **Frontend UI Fixes:**
+    - Fixed the Ver Pedido modal in the React dashboard, which was previously empty. It now correctly fetches and displays all order details, including customer data and a list of items.
+    - Fixed the API endpoint () to include  in its response.
+- **Runtime Hardening:** Implemented deterministic installation and runtime health checks for PHP dependencies in .
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Self-Healing Backend Orchestrator:** The FastAPI  is the heart of the system. It dynamically installs system dependencies (Apache, PHP, etc.) and manages the lifecycle of all legacy Node.js scripts using a custom watchdog, making it a single, robust entry point designed for stateless container environments.
-- **IMAP for 2FA Automation:** The system uses a PHP script with the  extension to programmatically read a 2FA login code from a Gmail inbox, allowing the Puppeteer scraper to automate its login to Zé Delivery.
-- **Environment-Agnostic Startup:** The startup logic aims to create a consistent environment by installing all required dependencies at runtime, bridging the gap between a stateful preview and a stateless production container.
+- **PHP as a CLI Worker:** The architecture was changed from a fragile PHP HTTP server model to a robust one where PHP scripts are executed on-demand via the command line () by Node.js. This isolates processes and prevents server-wide crashes.
+- **Orchestration via FastAPI:** A Python backend () acts as the main process manager, ensuring all Node.js scrapers are running via a watchdog.
+- **Gmail API with OAuth 2.0 (Upcoming):** The next critical step is to replace the IMAP-based 2FA login with the official, more stable Gmail API, using OAuth 2.0 for authentication.
 
 **key DB schema**
 - **database**: 
-    - : { , , , , , , ,  }
-    - : { ,  (FK), ,  }
-    - : { , ,  }
+    - : { , , , , , ,  }
+    - : { ,  (FK), , ,  }
+    - : { , ,  (0 for pending, 1 for processed) }
+    - : Staging table for items before they are moved to .
 
 **changes in tech stack**
-- The process management has fully shifted from standard tools like PM2 or Supervisor to a custom, application-level process manager and watchdog implemented in Python within .
+- The use of PHP has fundamentally changed from an HTTP service (via Apache or built-in server) to a pure CLI-based worker.
+- The system is migrating from  to the Google Gmail API for 2FA.
 
 **All files of reference**
-- : **The most important file.** Contains the entire service startup, management, watchdog, and health check logic. This is where the production stability fix needs to happen.
-- : Contains the fix for the null data overwrite issue.
-- : The PHP script that uses IMAP to fetch 2FA codes.
-- : The script that syncs data to Lovable Cloud. Needs to be aligned with the user's Deno script.
-- : The main component for the monitoring dashboard.
+- : **NEEDS REWRITE.** The target for the Gmail API migration.
+- : The module that executes PHP scripts. May need updates to support the new authentication flow.
+- : The main orchestrator. Will need  installation logic removed.
+- : Contains the frontend logic for the dashboard and order detail modal.
+- : Handles order insertion and processing logic.
+- : Handles updating orders with details.
+- : Handles data synchronization to the external service (Lovable) and between internal tables.
 
 **Critical Info for New Agent**
-- **Production vs. Preview is the CORE PROBLEM.** The preview environment is stateful (keeps installed dependencies), while production is a clean, stateless container. All dependencies (, , ) MUST be flawlessly installed and enabled by  on *every single deploy*. The latest user report confirms this is failing.
-- **PHP/IMAP is the likely culprit for the current production failure.** The scrapers cannot get new orders because they cannot log in via 2FA. They cannot log in because the PHP script that reads the 2FA email code is failing. This is because the PHP service is offline in production. The agent must ensure  is not just installed but also **enabled for Apache** (, ) and that Apache is restarted *afterward*.
-- **The Database Name bug is fixed with a workaround.** The code in  now explicitly checks for the incorrect  DB name (from production environment variables) and forces it to . Be aware of this logic.
+- **MIGRATE TO GMAIL API. This is the top priority (P0).** The user has identified  as the root cause of all production instability and has explicitly ordered a migration to the Google Gmail API using OAuth 2.0. **Do not try to fix IMAP.**
+- **User has provided OAuth credentials:**
+    - **clientId:** 
+    - **clientSecret:** 
+- You will need to guide the user on how to get a **** as it's a one-time manual process.
+- The architecture is now **PHP-CLI**. Do not re-introduce any HTTP servers for PHP. All PHP execution must happen via the existing .
+- The production vs. preview database mismatch has been solved with hardcoded fallbacks. The system should now reliably connect to the Railway MySQL instance.
 
 **documents and test reports created in this job**
-- 
-- 
-- 
+-  (Explains the new PHP-CLI architecture)
 - 
 - 
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **LATEST:** PHP is offline in production. Scrapers are not getting new orders. I think is the problem. Make it all run 24/7 in production. - **Status: Unresolved. This is the current P0 task.**
-2.  User provided production endpoint responses confirming the DB name was  and that the DB connection was failing. - **Status: Resolved** by a workaround in .
-3.  User called the deployment agent; the logs were empty. - **Status: Informational.**
-4.  User reported the production DB was offline after deployment. - **Status: In Progress.**
-5.  User reported the frontend was a blank page. - **Status: Resolved.**
-6.  User reported  errors from production deploy. - **Status: In Progress (symptom of the main issue).**
-7.  User asked to fix  data for delivered orders and the  bug. - **Status:  data fix is pending verification;  was fixed.**
-8.  User provided a full Deno/Supabase Edge function script to serve as the definitive logic for the Lovable sync. - **Status: Pending Implementation.**
-9.  User asked to resend all orders to Lovable. - **Status: Done.**
-10. User confirmed  was sending empty items for some orders. - **Status: Resolved.**
+1.  **LATEST:** User asks for clarification on where/how PHP runs. Status: **Resolved** (Agent provided a detailed explanation of the new PHP-CLI architecture).
+2.  User gives a final, detailed technical analysis confirming the PHP-CLI architecture is correct but the  dependency is the final point of failure, demanding a switch to Gmail API and providing technical guidance. Status: **Unresolved - THIS IS THE NEXT TASK.**
+3.  User provides OAuth credentials and extensive documentation on the Gmail API, confirming the migration requirement. Status: **Unresolved - THIS IS THE NEXT TASK.**
+4.  User reports  in production. Status: **Resolved** (Agent fixed an escaping issue in ).
+5.  User reports PHP is offline in production and provides production environment variables, confirming a mismatch (production env vars are , not ). Status: **Resolved** (Agent added support for both naming conventions).
+6.  User provides an in-depth analysis of why the PHP built-in server is failing in production (single-threaded, blocking IMAP calls) and recommends moving to a pure PHP-CLI architecture. Status: **Resolved** (Agent successfully implemented this refactor).
+7.  User reports new orders are not being scraped. Status: **Resolved** (Agent found and fixed a critical bug where  was being used incorrectly in CLI mode, preventing new orders from being inserted).
+8.  User reports the Ver modal is empty. Status: **Resolved** (Agent fixed frontend  to handle the API response structure correctly and added missing fields to the backend API query).
+9.  User reports customer data (CPF, address) and items are missing from the sync and the UI. Status: **Resolved** (Agent fixed multiple bugs in data flow between , , , and  tables and implemented auto-sync logic).
+10. User confirms PHP is offline in production and suspects a database mismatch ( vs ). Status: **Resolved** (Agent implemented a hardcoded fallback to the Railway DB).
 
 **Project Health Check:**
-- **Broken:** The application is **not functional in the production environment**. Core services (PHP, scrapers) fail to start after deployment, rendering the entire system useless for its primary purpose.
-- **Mocked:** None.
+- **Broken:** The application is **not functional in production** because the  based 2FA login is unstable and fails on new deployments. The core scraper functionality is blocked until the migration to the Gmail API is complete.
 
 **3rd Party Integrations**
 - **Zé Delivery:** Web scraping via Node.js/Puppeteer.
 - **Lovable Cloud (Supabase):** Custom API bridge () posts to a Supabase Edge Function.
 - **Railway.app:** External cloud MariaDB for all data storage.
-- **Gmail:** Used via a PHP script with an IMAP extension to automate 2FA for the Zé Delivery login.
+- **Gmail (via PHP-IMAP):** CURRENTLY USED for 2FA. **This is the source of failure and must be replaced.**
+- **Google Gmail API (OAuth 2.0):** **TO BE IMPLEMENTED.** This is the required replacement for IMAP.
 
 **Testing status**
 - Testing agent used after significant changes: NO
 - Troubleshoot agent used after agent stuck in loop: NO
 - Test files created: []
-- Known regressions: The system's stability in a stateless production environment has regressed or was never fully achieved, despite working in the preview environment.
+- Known regressions: Production stability of the 2FA login process is a known, recurring failure point.
+
+**Credentials to test flow:**
+- **Gmail OAuth Client ID:** 
+- **Gmail OAuth Client Secret:** 
+- **Note:** A **refresh token** will need to be generated.
 
 **What agent forgot to execute**
-- The agent has not yet fully addressed the environmental differences between preview and production. Specifically, the startup script in  is not robust enough to handle dependency installation in a clean container, missing steps like enabling PHP modules for Apache (, ) and restarting the service.</analysis>
+The agent has been thorough in following the user's increasingly specific and accurate technical guidance. The main miss was not proactively identifying IMAP as an architectural anti-pattern for production environments earlier in the process. However, now that the user has mandated the correct solution (Gmail API), the agent is on the right track.</analysis>
