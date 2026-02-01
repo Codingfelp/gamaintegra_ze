@@ -56,6 +56,57 @@ const pool = mysql.createPool({
   connectionLimit: 5,
 });
 
+// Sincroniza dados de ze_pedido para delivery e itens
+async function syncLocalData() {
+  try {
+    // 1. Sincronizar CPF/endereço de ze_pedido para delivery
+    await pool.query(`
+      UPDATE delivery d
+      INNER JOIN ze_pedido z ON d.delivery_code = z.pedido_code
+      SET 
+        d.delivery_cpf_cliente = COALESCE(NULLIF(z.pedido_cpf_cliente, ''), d.delivery_cpf_cliente),
+        d.delivery_endereco_rota = COALESCE(NULLIF(z.pedido_endereco_rota, ''), d.delivery_endereco_rota),
+        d.delivery_endereco_complemento = COALESCE(NULLIF(z.pedido_endereco_complemento, ''), d.delivery_endereco_complemento),
+        d.delivery_endereco_cidade_uf = COALESCE(NULLIF(z.pedido_endereco_cidade_uf, ''), d.delivery_endereco_cidade_uf),
+        d.delivery_endereco_cep = COALESCE(NULLIF(z.pedido_endereco_cep, ''), d.delivery_endereco_cep),
+        d.delivery_endereco_bairro = COALESCE(NULLIF(z.pedido_endereco_bairro, ''), d.delivery_endereco_bairro)
+      WHERE (d.delivery_cpf_cliente IS NULL OR d.delivery_cpf_cliente = '')
+    `);
+    
+    // 2. Sincronizar itens de ze_itens_pedido para delivery_itens
+    await pool.query(`
+      INSERT INTO delivery_itens (delivery_itens_id_delivery, delivery_itens_id_produto, delivery_itens_descricao, delivery_itens_qtd, delivery_itens_valor_unitario, delivery_itens_valor_total)
+      SELECT DISTINCT
+        d.delivery_id,
+        zi.itens_pedido_id_produto,
+        zi.itens_pedido_descricao_produto,
+        zi.itens_pedido_qtd,
+        zi.itens_pedido_valor_unitario,
+        zi.itens_pedido_valor_total
+      FROM ze_itens_pedido zi
+      INNER JOIN ze_pedido zp ON zi.itens_pedido_id_pedido = zp.pedido_id
+      INNER JOIN delivery d ON d.delivery_code = zp.pedido_code
+      LEFT JOIN delivery_itens di ON di.delivery_itens_id_delivery = d.delivery_id 
+        AND di.delivery_itens_descricao = zi.itens_pedido_descricao_produto
+      WHERE di.delivery_itens_id IS NULL
+    `);
+    
+    // 3. Atualizar flag tem_itens
+    await pool.query(`
+      UPDATE delivery d
+      INNER JOIN (
+        SELECT delivery_itens_id_delivery, COUNT(*) as cnt
+        FROM delivery_itens
+        GROUP BY delivery_itens_id_delivery
+      ) di ON d.delivery_id = di.delivery_itens_id_delivery
+      SET d.delivery_tem_itens = 1
+      WHERE d.delivery_tem_itens IS NULL OR d.delivery_tem_itens = 0
+    `);
+  } catch (err) {
+    console.error('Erro na sincronização local:', err.message);
+  }
+}
+
 async function syncToLovable() {
   const timestamp = new Date().toISOString();
   console.log(`\n[${timestamp}] 🔄 Iniciando sincronização...`);
