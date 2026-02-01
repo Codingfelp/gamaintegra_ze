@@ -533,6 +533,123 @@ async def start_services():
     threading.Thread(target=setup_services, daemon=True).start()
     return {"success": True, "message": "Serviços sendo iniciados"}
 
+
+# ============= PRODUTOS =============
+
+@app.get("/api/produtos")
+async def get_produtos():
+    """Lista todos os produtos"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT produto_id, produto_descricao, produto_tipo, 
+                   produto_link_imagem, produto_codigo_ze
+            FROM produto
+            ORDER BY produto_descricao
+        """)
+        produtos = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return {"success": True, "data": produtos}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# ============= LOJAS =============
+
+@app.get("/api/lojas")
+async def get_lojas():
+    """Lista todas as lojas cadastradas"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT hub_delivery_id, hub_delivery_ide, hub_delivery_status,
+                   hub_delivery_ide_client, hub_delivery_clientid, 
+                   hub_delivery_secretid, hub_delivery_auth
+            FROM hub_delivery
+            WHERE hub_delivery_trash = 0
+        """)
+        lojas = cursor.fetchall()
+        
+        # Adicionar nomes para exibição
+        for loja in lojas:
+            loja['hub_delivery_nome'] = f"Loja {loja['hub_delivery_id']}"
+            loja['hub_delivery_email'] = loja.get('hub_delivery_ide_client', 'N/A')
+        
+        cursor.close()
+        conn.close()
+        return {"success": True, "data": lojas}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/lojas")
+async def criar_loja(loja: dict):
+    """Cria uma nova loja"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO hub_delivery (hub_delivery_id_company, hub_delivery_ide_client, 
+                                      hub_delivery_ide, hub_delivery_status, hub_delivery_trash)
+            VALUES (2, %s, %s, 1, 0)
+        """, (loja.get('email', ''), loja.get('nome', '')))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"success": True, "message": "Loja criada"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.delete("/api/lojas/{loja_id}")
+async def deletar_loja(loja_id: int):
+    """Deleta uma loja (soft delete)"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE hub_delivery SET hub_delivery_trash = 1 WHERE hub_delivery_id = %s", (loja_id,))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return {"success": True, "message": "Loja deletada"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# ============= CONFIG =============
+
+@app.get("/api/config")
+async def get_config():
+    """Retorna configuração do sistema"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Buscar loja principal
+        cursor.execute("""
+            SELECT hub_delivery_id, hub_delivery_ide, hub_delivery_ide_client,
+                   hub_delivery_clientid, hub_delivery_secretid
+            FROM hub_delivery
+            WHERE hub_delivery_trash = 0
+            LIMIT 1
+        """)
+        loja = cursor.fetchone()
+        
+        config = {
+            "login": loja.get('hub_delivery_ide_client', '') if loja else '',
+            "token": loja.get('hub_delivery_ide', '') if loja else '',
+            "url_pedido": "https://www.ze.delivery/parceiros",
+            "url_view": "https://www.ze.delivery/parceiros/pedidos",
+            "url_duplo": "https://www.ze.delivery/parceiros/duplo"
+        }
+        
+        cursor.close()
+        conn.close()
+        return {"success": True, "data": config}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 # ============= HEALTH CHECK AVANÇADO =============
 
 @app.get("/api/health/detailed")
