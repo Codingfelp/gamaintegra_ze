@@ -129,6 +129,7 @@ async function syncToLovable() {
         d.delivery_frete,
         d.delivery_total,
         d.delivery_cpf_cliente,
+        d.delivery_telefone,
         d.delivery_endereco_rota,
         d.delivery_endereco_complemento,
         d.delivery_endereco_cidade_uf,
@@ -141,8 +142,10 @@ async function syncToLovable() {
         d.delivery_tipo_pedido,
         d.delivery_codigo_entrega,
         d.delivery_email_entregador,
-        d.delivery_tem_itens
+        d.delivery_tem_itens,
+        zp.pedido_telefone
       FROM delivery d
+      LEFT JOIN ze_pedido zp ON d.delivery_code = zp.pedido_code
       INNER JOIN (
         SELECT delivery_code, MAX(delivery_id) as max_id
         FROM delivery
