@@ -15,30 +15,40 @@ const RAILWAY_CONFIG = {
   database: 'railway'
 };
 
-// Detectar configuração errada (MongoDB, zeconnect-base, localhost)
-const envHost = process.env.DB_HOST || '';
-const envDb = process.env.DB_NAME || '';
+// Verificar TODAS as variáveis possíveis (DB_* para preview, MYSQL* para produção)
+const envHost = process.env.DB_HOST || process.env.MYSQLHOST || '';
+const envPort = process.env.DB_PORT || process.env.MYSQLPORT || '';
+const envUser = process.env.DB_USER || process.env.MYSQLUSER || '';
+const envPass = process.env.DB_PASS || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD || '';
+const envDb = process.env.DB_NAME || process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE || '';
+
+// Detectar configuração errada (MongoDB, zeconnect-base, localhost, internal)
+// IMPORTANTE: mysql.railway.internal NÃO funciona externamente
 const isWrongConfig = (
   envHost === '' ||
   envHost === 'localhost' ||
+  envHost.includes('railway.internal') ||
   envDb.includes('zeconnect') ||
   envDb === 'test_database'
 );
 
 const dbConfig = isWrongConfig ? RAILWAY_CONFIG : {
-  host: process.env.DB_HOST || RAILWAY_CONFIG.host,
-  port: parseInt(process.env.DB_PORT) || RAILWAY_CONFIG.port,
-  user: process.env.DB_USER || RAILWAY_CONFIG.user,
-  password: process.env.DB_PASS || RAILWAY_CONFIG.password,
-  database: process.env.DB_NAME || RAILWAY_CONFIG.database,
+  host: envHost || RAILWAY_CONFIG.host,
+  port: parseInt(envPort) || RAILWAY_CONFIG.port,
+  user: envUser || RAILWAY_CONFIG.user,
+  password: envPass || RAILWAY_CONFIG.password,
+  database: envDb || RAILWAY_CONFIG.database,
 };
 
 // Forçar database railway se vier errado
-if (dbConfig.database === 'zeconnect-base' || dbConfig.database === 'test_database') {
+if (dbConfig.database === 'zeconnect-base' || dbConfig.database === 'test_database' || !dbConfig.database) {
   dbConfig.database = 'railway';
 }
 
 console.log(`🔧 MySQL Config: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+if (isWrongConfig) {
+  console.log('⚠️ Usando Railway MySQL PÚBLICO (config internal ou vazia detectada)');
+}
 
 const pool = mysql.createPool({
   ...dbConfig,
