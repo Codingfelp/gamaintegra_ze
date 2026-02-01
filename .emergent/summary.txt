@@ -1,5 +1,5 @@
 <analysis>**original_problem_statement:**
-The user's primary goal is to establish a reliable, 24/7 Zé Delivery integration. This involves orchestrating legacy PHP () and Node.js () services to scrape order data, storing it in a central Railway cloud MariaDB, and syncing it to a Lovable Cloud (Supabase) instance. Key requirements include creating a React monitoring dashboard, ensuring the system is stable in the production deployment environment, and resolving critical data integrity issues. The latest critical requirement was to replace the fragile IMAP-based 2FA login with a robust solution using the Google Gmail API with OAuth 2.0 to achieve production stability.
+The user's primary goal is to establish a reliable, 24/7 Zé Delivery integration. This involves orchestrating legacy PHP () and Node.js () services to scrape order data, storing it in a central Railway cloud MariaDB, and syncing it to a Lovable Cloud (Supabase) instance. Key requirements include creating a React monitoring dashboard, ensuring the system is stable in the production deployment environment, and resolving critical data integrity issues.
 
 **PRODUCT REQUIREMENTS:**
 1.  **Legacy System Integration:** Make the existing PHP and Node.js scraper projects work together seamlessly using a PHP-CLI architecture.
@@ -15,130 +15,190 @@ The user's primary goal is to establish a reliable, 24/7 Zé Delivery integratio
 **User's preferred language**: Português (Brasil). The next agent MUST respond in Portuguese.
 
 **what currently exists?**
-The application architecture consists of a FastAPI backend () that orchestrates Node.js scrapers (, ) as background processes. These Node.js scripts, in turn, execute legacy PHP scripts as CLI workers via a  module. The critical, production-breaking dependency on  for 2FA has been successfully migrated to the Google Gmail API using OAuth 2.0, resolving the primary source of instability. The system connects to a remote Railway MariaDB. A Node.js script () is responsible for synchronizing data to the user's Lovable Cloud (Supabase) endpoint. The agent was in the process of verifying the integrity of this data sync when the user provided a new query.
+The application consists of a FastAPI backend () that orchestrates two Node.js scrapers ( for new orders/status,  for order details). These scrapers execute legacy PHP scripts as CLI workers. The system uses a remote MariaDB and syncs data to a Lovable Cloud endpoint via a cron job ().
+
+A major bug causing incorrect order status updates (e.g., Entregue reverting to Aceito) has been fixed by implementing a state progression protection logic in .
+
+The frontend has been enhanced with a Monitor 24/7 dashboard that provides real-time health checks, metrics, and logs via newly created API endpoints. API endpoints for the Produtos, Lojas, and Config tabs have also been created, but the frontend part is likely not fully wired up.
 
 **Last working item**:
-- **Last item agent was working:** The user asked for an analysis of the Lovable Cloud sync. They provided a CSV export () from Lovable Cloud and requested verification to ensure all data, particularly order items, is being synced correctly from the local MariaDB. The user also asked for a professional opinion on whether migrating the sync mechanism from the current cron job to a webhook-based system would be better.
-- **Status:** IN PROGRESS
-- **Agent Testing Done:** N
-- **Which testing method agent to use?** Manual backend analysis. The agent must:
-    1.  Read and parse the user-provided CSV file.
-    2.  Query the  and  tables in the MariaDB.
-    3.  Compare the data from the CSV against the database records to identify any discrepancies, especially missing item data.
-    4.  Analyze the payload construction in .
-    5.  Formulate and provide a reasoned opinion on the cron vs. webhook synchronization strategy for this specific use case.
+- **Last item agent was working:** The user reported that order statuses were still incorrect and not updating. The agent diagnosed that the scraper was capturing correct data, but a previously implemented protection was too restrictive, and status updates were being incorrectly blocked or reverted. The agent implemented a more robust status progression logic in , manually corrected all statuses in the database according to the user's input, and verified that the new protection logic prevents incorrect regressions while allowing legitimate updates.
+- **Status:** USER VERIFICATION PENDING
+- **Agent Testing Done:** Y
+- **Which testing method agent to use?** The user needs to manually test by observing the dashboard and comparing it with the actual Zé Delivery portal to confirm statuses are correct and update properly over time.
 - **User Testing Done:** N
 
 **All Pending/In progress Issue list**:
-- **Issue 1:** Verify Lovable Cloud Sync Integrity & Advise on Webhooks (P0)
-- **Issue 2:** Data Integrity: Prevent Order Duplication (P2)
+- **Issue 1:** Final User Verification of Status Updates (P0)
+- **Issue 2:** Prevent Order Duplication in MariaDB (P1)
+- **Issue 3:** Frontend Tabs are Blank (Produtos, Lojas, Config) (P1)
+- **Issue 4:** Lovable Cloud Not Receiving Order Items (P2)
 
 **Issues Detail:**
-- **Issue 1: Verify Lovable Cloud Sync Integrity & Advise on Webhooks**
-    - **Description:** This is the highest priority task. The user has provided a CSV export from their Lovable Cloud instance and suspects that order items might not be syncing correctly. The agent needs to compare the data in the CSV with the source MariaDB database. Additionally, the user has asked for an opinion on replacing the current cron-based sync with a webhook model.
-    - **Attempted fixes:** The agent confirmed that the sync *connection* to Lovable Cloud is successful and that the sync logic correctly skips orders that already exist in the destination to avoid duplicates. The logs show  but the content integrity has not been verified.
-    - **Next debug checklist:**
-        1.  Read the provided artifact: .
-        2.  Query the local MariaDB for all orders and their items from the  and  tables.
-        3.  Compare the records from the database with the CSV file, focusing on whether the number and details of items match.
-        4.  Review  to trace how the  array is constructed and added to the payload sent to Lovable Cloud.
-        5.  Based on the findings and the application's architecture, provide the user with a clear analysis of the data sync and a recommendation regarding cron vs. webhooks.
-    - **Status:** IN PROGRESS
-    - **Is recurring issue?** N
-    - **Should Test backend/both after fix?** Backend.
-    - **Blocked on other issue:** No. This is the current primary task.
-- **Issue 2: Data Integrity: Prevent Order Duplication**
-    - **Description:** Duplicate orders have appeared in the  table during development. While fixes were implemented, the user needs to perform a final verification once the system is fully stable.
+- **Issue 1: Final User Verification of Status Updates**
+    - **Description:** The most critical operational issue was the system incorrectly updating order statuses, often reverting Entregue orders back to Aceito. This was caused by the scraper capturing old data from the Zé Delivery website.
+    - **Attempted fixes:** The agent implemented a sophisticated state progression logic in . This logic ensures a status can only move forward (e.g.,  ->  -> ) and cannot regress, solving the primary bug.
+    - **Next debug checklist:** The user needs to monitor the live system to confirm that the statuses of the orders on the dashboard now correctly reflect the statuses on the Zé Delivery portal and are not being reverted.
     - **Status:** USER VERIFICATION PENDING
     - **Is recurring issue?** Y
-    - **Should Test backend/both after fix?** Backend (DB verification).
+    - **Should Test frontend/backend/both after fix?** Both.
     - **Blocked on other issue:** No.
 
-**In progress Task List**:
-- **Task 1: Analyze Lovable Cloud Sync**
-    - **Where to resume:** Start by reading the  file and querying the database to begin the data comparison.
-    - **What will be achieved with this?** Confirm whether the data sync is complete and correct, and provide the user with the requested analysis on sync strategies.
+- **Issue 2: Prevent Order Duplication in MariaDB**
+    - **Description:** Duplicate orders have been observed in the  table (e.g., orders 957451154, 537805529). This is likely a race condition where the script checks for an order, doesn't find it, and before it can insert, another process does the same.
+    - **Attempted fixes:** None for the MariaDB database.
+    - **Next debug checklist:**
+        1.  Add a  constraint to the  column in the  table to enforce uniqueness at the database level.
+        2.  Modify the  logic in  to use an  statement. This will atomically handle new and existing orders, preventing duplicates.
+    - **Status:** NOT STARTED
+    - **Is recurring issue?** Y
+    - **Should Test frontend/backend/both after fix?** Backend.
+    - **Blocked on other issue:** No.
+
+- **Issue 3: Frontend Tabs are Blank (Produtos, Lojas, Config)**
+    - **Description:** The user reported that the Produtos, Lojas, and Config tabs are not showing any data.
+    - **Attempted fixes:** The agent successfully created the necessary backend endpoints (, , ) in  and verified them with . However, the agent did not connect these endpoints to the frontend.
+    - **Next debug checklist:**
+        1.  Open .
+        2.  Locate the  for produtos, lojas, and config.
+        3.  Implement  hooks for each tab to fetch data from their respective new API endpoints.
+        4.  Use  to store the fetched data.
+        5.  Render the data within the components.
     - **Status:** IN PROGRESS
-    - **Should Test backend/both after fix?** Backend.
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** Frontend.
+    - **Blocked on other issue:** No.
+
+- **Issue 4: Lovable Cloud Not Receiving Order Items**
+    - **Description:** An earlier investigation revealed that the user's external Lovable Cloud (Supabase) Edge Function was not correctly processing and saving the  field for orders.
+    - **Attempted fixes:** The agent analyzed the user-provided Deno script, found multiple bugs, and provided a complete, corrected, and hardened version of the script to the user.
+    - **Next debug checklist:** Remind the user that this fix must be applied on their Lovable Cloud/Supabase project, as it is external to the agent's environment. The agent cannot perform this action.
+    - **Status:** BLOCKED
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** N/A.
+    - **Blocked on other issue:** User action required.
+
+**In progress Task List**:
+- **Task 1: Connect Frontend Tabs to API**
+    - **Where to resume:** In , implement the data fetching and rendering logic for the Produtos, Lojas, and Config tabs.
+    - **What will be achieved with this?** The frontend will display the data correctly, resolving the user's report.
+    - **Status:** IN PROGRESS
+    - **Should Test frontend/backend/both after fix?** Frontend.
     - **Blocked on something:** No.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **(P1)** Based on the sync analysis, fix any data payload issues discovered in .
+    - (P1) Fix order duplication issue in MariaDB.
 - **Future Tasks:**
-    - **(P2)** Guide the user to verify the data duplication fix in production.
-    - **(P2)** Finalize all documentation, including .
+    - (P2) Finalize all documentation, including .
+    - (P2) Guide the user to verify the Lovable Cloud sync once they've updated the Edge Function.
 
 **Completed work in this session**
-- **P0 Blocker Resolved: Migrated 2FA from IMAP to Google Gmail API:** The primary cause of production instability was resolved by completely rewriting the 2FA logic.
-    - Replaced the fragile  dependency with the official Google Gmail API using OAuth 2.0.
-    - Rewrote  to handle the OAuth token exchange and API calls via cURL.
-    - Correctly handled the OAuth flow, exchanging a user-provided  for a permanent .
-    - Removed all  installation and health check logic from  and .
-- **System Stability Verified:** Confirmed that all services (MySQL, PHP with Gmail API, Node.js scrapers) are online and healthy after the migration.
-- **Dashboard & Lovable Sync Check:** Performed an initial check showing the frontend dashboard is operational and that the Lovable sync connection is successful, correctly skipping already-synced orders.
-- **Documentation Updated:** Updated  and  to reflect the migration to the Gmail API.
+- **Resolved Critical Status Update Bug:** Implemented a robust state progression logic in  to prevent scrapers from incorrectly reverting order statuses.
+- **Fixed Multiple PHP/Scraper Errors:** Resolved  errors, PHP  object errors, and  errors in the Node.js scraper.
+- **Implemented Full Monitoring Suite:**
+    - **Backend:** Added API endpoints for comprehensive health checks (), metrics (), session status (), and error logs ().
+    - **Frontend:** Added a Monitor 24/7 tab to the UI that displays real-time system status from the new monitoring endpoints.
+- **Created Missing API Endpoints:** Implemented and tested , , and  in .
+- **Analyzed and Advised on Lovable Cloud:** Diagnosed that the  sync issue was in the external Edge Function and provided the user with a corrected Deno script.
+
+**Earlier issues found/mentioned but not fixed**
+- **Issue 1: Order Duplication in MariaDB**
+    - **Debug checklist:** Add a  constraint on  in the  table and change the  logic in  to .
+    - **Why to solve this issue and what will be achieved with this?** This will fix data integrity issues and prevent fake orders from appearing on the dashboard.
+    - **Should Test frontend/backend/both after fix:** Backend.
+    - **Is recurring issue?** Y.
+- **Issue 2: Frontend Data Display for Tabs**
+    - **Debug checklist:** Open  and implement  calls in  hooks for the 'produtos', 'lojas', and 'config' tabs to display data from the newly created APIs.
+    - **Why to solve this issue and what will be achieved with this?** This will make the respective UI tabs functional as per the user's request.
+    - **Should Test frontend/backend/both after fix:** Frontend.
+    - **Is recurring issue?** N.
+
+**Known issue recurrence from previous fork**
+- **Issue recurrence in previous fork:** Data Integrity: Prevent Order Duplication. This was pending user verification in the last fork and was observed again during this session.
+- **Recurrence count:** 2+
+- **Status:** NOT STARTED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **PHP as a CLI Worker:** PHP scripts are executed on-demand via the command line () by Node.js, ensuring process isolation and stability.
-- **Orchestration via FastAPI:** A Python backend acts as the main process manager and health checker for all services.
-- **Google Gmail API with OAuth 2.0:** The 2FA login now uses the official, stable Gmail API with a refresh token for authentication. This has replaced the unreliable  method.
+- **PHP as a CLI Worker:** PHP scripts are executed on-demand by Node.js.
+- **Orchestration via FastAPI:** A Python backend acts as the main process manager.
+- **State Progression Logic:** A key concept was introduced in  to prevent status regressions (e.g., from  back to ) by checking the current status before updating.
+- **Google Gmail API with OAuth 2.0:** Used for stable 2FA code retrieval.
 
 **key DB schema**
 - **database**: 
-    - : { , , , , , ,  }
-    - : { ,  (FK), , ,  }
+    - : { , , , ,  }
+    - : { ,  (FK),  }
     - : { , ,  (0 for pending, 1 for processed) }
 
 **changes in tech stack**
-- **Authentication:** Migrated from  to the **Google Gmail API (OAuth 2.0)** for 2FA code retrieval.
+- No changes.
 
 **All files of reference**
-- : **(NEW)** User-provided artifact for data sync verification.
-- : **(Under Investigation)** The script responsible for syncing data to Lovable Cloud.
-- : **(Rewritten)** Now uses Gmail API for 2FA.
-- : **(Modified)** Removed  dependency logic.
-- : **(Updated)** Reflects the Gmail API migration.
-- : **(Updated)** Reflects the Gmail API migration.
+- : Heavily modified to implement the critical status update protection logic.
+- : Modified to add several new API endpoints for monitoring and data retrieval.
+- : Modified to add the Monitor 24/7 tab and its components.
+- : Modified to correctly call the PHP bridge for status updates.
+- : Updated to reflect the addition of monitoring features.
+
+**Areas that need refactoring**:
+- **/app/frontend/src/App.js**: This file has grown significantly and manages the state and UI for multiple, distinct tabs. It should be broken down into smaller, reusable components (e.g., , ).
+- **/app/integrador/zeduplo/ze_pedido.php**: This PHP script now contains complex logic for handling inserts and updates for various statuses. It could be refactored into a class or separate functions for better readability and maintenance.
+
+**key api endpoints**
+- **/api/health/full**: (NEW) Provides a detailed health check of all system components.
+- **/api/metrics**: (NEW) Returns real-time metrics like orders in the last 24h, faturamento, etc.
+- **/api/sessions/status**: (NEW) Checks the validity of scraper login sessions.
+- **/api/logs/errors**: (NEW) Retrieves recent error logs.
+- **/api/produtos**: (NEW) Lists all products from the database.
+- **/api/lojas**: (NEW) Lists store configurations.
+- **/api/config**: (NEW) Retrieves general Zé duplo configuration.
+- **/api/pedidos**: Lists all orders.
 
 **Critical Info for New Agent**
-- The primary P0 blocker (IMAP instability) is **RESOLVED**. The system's core scraping functionality is now stable.
-- The new highest priority (P0) is to address the user's latest request:
-    1.  **Analyze Data Sync:** Compare the data in the provided  file with the MariaDB to verify if order items are being synced correctly to Lovable Cloud.
-    2.  **Advise on Webhooks:** Provide a professional opinion on whether a webhook-based approach would be superior to the current cron job for data synchronization.
-- Start by reading the CSV file and querying the local database for comparison.
+- The most critical bug (incorrect status updates) has been fixed by adding a state progression logic in . You MUST understand this logic before modifying status-related code. The new progression is:  ->  ->  ->  or . The code now prevents reversals.
+- The user must verify the status fix. Your first task should be to confirm with the user if the statuses are now behaving correctly.
+- The next priorities are fixing the blank frontend tabs (Produtos, Lojas, Config) and addressing the order duplication bug.
+- The  not syncing to Lovable Cloud is an **EXTERNAL** issue. The fix is a Deno script that the user must deploy to their Supabase project. Do not try to fix this within the  directory.
 
 **documents and test reports created in this job**
-- User-provided artifact: 
--  (Updated)
 -  (Updated)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **LATEST/PENDING:** User provided a CSV export from Lovable Cloud () and asked the agent to:
-    a. Verify if all information, especially order items, is being synced correctly from the local database.
-    b. Provide an opinion on whether a webhook-based sync would be a better approach than the current cron job.
-2.  User asked for the status of the Lovable Cloud sync, whether it was working correctly or generating errors.
+1.  **LATEST:** User specified the exact current status of 5 key orders (A caminho, Aceito, Retirada) and confirmed that the system should have two processes: one for new orders and one for updates. (Status: Addressed)
+2.  User asked for status corrections, stating that only 4 orders are A Caminho and one is Cancelado, with all others Entregue. (Status: Addressed)
+3.  User reported that scripts are not capturing new orders or updating statuses in real-time. (Status: Addressed, agent found and fixed the root cause).
+4.  User reported a new PHP error in the logs and asked for a health check of the scrapers. (Status: Addressed, agent found and fixed the PHP bug).
+5.  User confirmed the status protection logic was working and finalized the current state of orders. (Status: Addressed).
+6.  User asked for a final summary of the work done on status updates. (Status: Agent was preparing this).
+7.  User reported that scrapers were still not updating statuses correctly, with many orders stuck in Aceito or Pendente. (Status: Addressed, led to the final complex fix).
+8.  User asked for an update, mentioning new orders were being captured but statuses were not updating. (Status: Addressed).
+9.  User confirmed  was updating Lovable Cloud. (Status: Acknowledged).
+10. User specified the correct statuses for several orders and asked for them to be updated. (Status: Addressed).
 
 **Project Health Check:**
-- The primary production instability has been **resolved**. The application is now in a state of **Verification**, where the end-to-end data flow to the final destination (Lovable Cloud) is being actively investigated for data integrity.
+- **Broken:**
+    - Frontend tabs Produtos, Lojas, and Config do not display data because the UI is not wired to the new backend endpoints.
+    - Data duplication for orders exists in the MariaDB.
+- **Mocked:** None.
 
 **3rd Party Integrations**
 - **Zé Delivery:** Web scraping via Node.js/Puppeteer.
 - **Lovable Cloud (Supabase):** Custom API bridge () posts to a Supabase Edge Function.
 - **Railway.app:** External cloud MariaDB for all data storage.
-- **Google Gmail API (OAuth 2.0):** Used for fetching 2FA codes. Replaced .
+- **Google Gmail API (OAuth 2.0):** Used for fetching 2FA codes.
 
 **Testing status**
 - Testing agent used after significant changes: NO
 - Troubleshoot agent used after agent stuck in loop: NO
 - Test files created: []
-- Known regressions: None from this session. The previous recurring failure (IMAP) has been fixed.
+- Known regressions: None. The critical status update regression was the main bug fixed in this session.
 
 **Credentials to test flow:**
-- A  for the Google Gmail API has been obtained and is now hardcoded within . No further manual credential handling is required for this part.
+- A  for the Google Gmail API is hardcoded within . No manual credential handling is required.
 
 **What agent forgot to execute**
-The agent was about to call the  tool to conclude the successful Gmail API migration but was interrupted by the user's follow-up question regarding the Lovable Cloud sync. The agent correctly pivoted to address the user's new, higher-priority query. The next step is to complete the analysis requested by the user.</analysis>
+- After creating the backend endpoints for Produtos, Lojas, and Config, the agent did not implement the corresponding frontend logic in  to fetch and display the data, leaving the user's initial bug report for those pages unresolved.</analysis>
