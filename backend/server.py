@@ -306,7 +306,7 @@ async def get_services_status():
     """Retorna status dos serviços"""
     status = {"success": True, "data": {}}
     
-    # MySQL
+    # MySQL Railway Cloud
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -314,19 +314,35 @@ async def get_services_status():
         cursor.fetchone()
         cursor.close()
         conn.close()
-        status["data"]["mysql"] = {"status": "online", "host": DB_CONFIG['host']}
+        status["data"]["mysql"] = {
+            "status": "online", 
+            "host": DB_CONFIG['host'],
+            "database": DB_CONFIG['database'],
+            "note": "Railway Cloud MySQL"
+        }
     except Exception as e:
-        status["data"]["mysql"] = {"status": "offline", "error": str(e)[:100], "host": DB_CONFIG['host']}
+        status["data"]["mysql"] = {
+            "status": "offline", 
+            "error": str(e)[:100], 
+            "host": DB_CONFIG['host'],
+            "database": DB_CONFIG['database']
+        }
     
     # PHP CLI (usado pelos scrapers para 2FA e inserção no banco)
     ok, _ = run_shell("php -m | grep -i imap", timeout=5)
     if ok:
-        # Testar se PHP CLI funciona (teste básico)
-        test_ok, test_out = run_shell("php -r 'echo \"OK\";'", timeout=5)
-        if test_ok and 'OK' in test_out:
-            status["data"]["php"] = {"status": "online", "mode": "CLI", "note": "PHP usado via CLI pelos scrapers"}
+        # Testar se PHP CLI funciona com o banco
+        test_ok, test_out = run_shell("""php -r "
+            chdir('/app/integrador/zeduplo');
+            require_once '_class/AutoLoad.php';
+            \$DB = new Database();
+            \$conn = \$DB->Conn();
+            if (\$conn) { echo 'DB_OK'; } else { echo 'DB_FAIL'; }
+        " """, timeout=10)
+        if test_ok and 'DB_OK' in test_out:
+            status["data"]["php"] = {"status": "online", "mode": "CLI", "db_connected": True}
         else:
-            status["data"]["php"] = {"status": "degraded", "mode": "CLI", "note": "PHP CLI com problemas"}
+            status["data"]["php"] = {"status": "degraded", "mode": "CLI", "db_connected": False, "note": "PHP não conecta no banco"}
     else:
         status["data"]["php"] = {"status": "offline", "mode": "CLI", "note": "PHP IMAP não disponível"}
     
