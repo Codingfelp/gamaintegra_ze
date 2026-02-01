@@ -2,146 +2,110 @@
 
 ## Status: ✅ FUNCIONANDO - PRONTO PARA PRODUÇÃO
 
-**Última atualização:** 01/02/2026 00:00
+**Última atualização:** 01/02/2026 02:00
 
 ---
 
-## Correções Críticas (Sessão 31/01/2026)
+## Correções Finais (01/02/2026)
 
-### 1. Arquitetura PHP Refatorada
-**Problema:** PHP built-in server é single-threaded, IMAP bloqueante travava produção.
-**Solução:** PHP agora é CLI, não HTTP. Node.js chama PHP via `exec()`.
+### 1. PHP Bridge Refatorado
+- **Problema:** `php -r` causava erro de sintaxe em produção
+- **Solução:** Usa arquivo temporário ao invés de `php -r`
 
-### 2. Bug de IDs Diferentes
-**Problema:** `ze_pedido.pedido_id` ≠ `delivery.delivery_id`, UPDATE falhava silenciosamente.
-**Solução:** Corrigido `ze_pedido_view.php` para usar apenas `delivery_code`.
+### 2. PHP Scripts Corrigidos
+- **Problema:** `ze_pedido.php` e `ze_pedido_view.php` liam de `php://input`, vazio no CLI
+- **Solução:** Fallback para `$_POST` quando `php://input` está vazio
 
-### 3. Dados de Cliente Não Aparecem
-**Problema:** `ze_pedido.php` não definia `pedido_st_validacao=0`, v1-itens não coletava detalhes.
-**Solução:** Adicionado campo + script de sincronização retroativa.
+### 3. API Corrigida
+- **Problema:** Endpoint `/api/pedidos` não incluía CPF/endereço na query
+- **Solução:** Adicionados campos `delivery_cpf_cliente`, `delivery_endereco_*`
 
-### 4. Itens Não Aparecem no Modal
-**Problema:** Itens ficavam em `ze_itens_pedido`, não copiados para `delivery_itens`.
-**Solução:** Script de sincronização + correção no frontend.
+### 4. Sincronização Automática
+- **Problema:** Dados ficavam em `ze_pedido` mas não iam para `delivery`
+- **Solução:** `sync-cron.js` agora sincroniza `ze_pedido → delivery` + itens automaticamente
 
-### 5. Modal de Detalhes Vazio
-**Problema:** Frontend esperava `pedidoDetails.pedido`, API retornava `data.data`.
-**Solução:** Ajustado `fetchPedidoDetails` no App.js.
+### 5. Suporte MYSQL* Variables
+- **Problema:** Produção usa `MYSQLHOST` ao invés de `DB_HOST`
+- **Solução:** Backend e bridge detectam ambos os padrões + fallback hardcoded
+
+### 6. Duplicatas Removidas
+- **Problema:** 15+ registros duplicados em `delivery`
+- **Solução:** Script de limpeza executado
+
+---
+
+## Status Atual
+
+- ✅ **193 pedidos** (sem duplicatas)
+- ✅ **MySQL**: Railway Cloud (`mainline.proxy.rlwy.net`)
+- ✅ **PHP**: CLI mode (db_connected: true)
+- ✅ **Scrapers**: v1.js + v1-itens.js rodando
+- ✅ **Sync**: Lovable Cloud + sincronização local
+- ✅ **Modal**: CPF, endereço, itens funcionando
 
 ---
 
 ## Arquitetura Final
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                 FastAPI Backend (server.py)                  │
-│                 Porta 8001 - API REST                        │
-│  - Gerencia scrapers via nohup (produção) ou Supervisor      │
-│  - Instala dependências no startup (php, chromium)           │
-└──────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     FastAPI Backend (8001)                      │
+│  - Detecta MYSQL* ou DB_* variables                             │
+│  - Fallback hardcoded para Railway                              │
+└─────────────────────────────────────────────────────────────────┘
                               │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-        ▼                     ▼                     ▼
-┌─────────────┐       ┌─────────────┐       ┌─────────────┐
-│   v1.js     │       │ v1-itens.js │       │ sync-cron   │
-│  (Scraper)  │       │  (Detalhes) │       │  (Lovable)  │
-└─────────────┘       └─────────────┘       └─────────────┘
-        │                     │
-        └──────────┬──────────┘
-                   │
-                   ▼
-         ┌─────────────────┐
-         │  php-bridge.js  │
-         │  (exec() CLI)   │
-         └─────────────────┘
-                   │
-                   ▼
-         ┌─────────────────┐
-         │   PHP Scripts   │
-         │  (CLI, não HTTP)│
-         └─────────────────┘
-                   │
-                   ▼
-         ┌─────────────────┐
-         │     MySQL       │
-         │ Railway Cloud   │
-         └─────────────────┘
+     ┌────────────────────────┼────────────────────────┐
+     │                        │                        │
+     ▼                        ▼                        ▼
+┌──────────┐           ┌──────────────┐          ┌───────────┐
+│  v1.js   │           │ v1-itens.js  │          │sync-cron.js│
+│ (Scraper)│           │ (Detalhes)   │          │  (Sync)    │
+└──────────┘           └──────────────┘          └───────────┘
+     │                        │                        │
+     └────────────┬───────────┘                        │
+                  │                                    │
+                  ▼                                    │
+          ┌──────────────┐                             │
+          │php-bridge.js │                             │
+          │(Arquivo temp)│                             │
+          └──────────────┘                             │
+                  │                                    │
+                  ▼                                    │
+          ┌──────────────┐                             │
+          │ PHP Scripts  │                             │
+          │  (CLI mode)  │                             │
+          └──────────────┘                             │
+                  │                                    │
+                  └──────────────┬─────────────────────┘
+                                 │
+                                 ▼
+                     ┌───────────────────┐
+                     │   MySQL Railway   │
+                     │mainline.proxy.rlwy│
+                     └───────────────────┘
 ```
 
 ---
 
-## Arquivos Modificados
+## Garantias para Produção
 
-```
-/app/zedelivery-clean/
-├── php-bridge.js                  # NOVO - Bridge Node→PHP via CLI
-├── v1.js                          # Usa php-bridge
-├── v1-itens.js                    # Usa php-bridge
-
-/app/integrador/zeduplo/
-├── ze_pedido.php                  # Fix: pedido_st_validacao=0, delivery_id auto-increment
-├── ze_pedido_view.php             # Fix: UPDATE usa delivery_code apenas
-
-/app/backend/
-├── server.py                      # Removido PHP HTTP server
-
-/app/frontend/src/
-├── App.js                         # Fix: fetchPedidoDetails formata dados corretamente
-```
+1. **Credenciais Hardcoded**: Se variáveis de ambiente forem erradas (MongoDB, internal), usa Railway direto
+2. **PHP via CLI**: Não depende de servidor HTTP, cada chamada é isolada
+3. **Sincronização Automática**: `sync-cron.js` sincroniza dados a cada 10 segundos
+4. **Detecção de Ambiente**: Reconhece tanto `DB_*` quanto `MYSQL*` variables
+5. **Fallback para railway.internal**: Se detectar host interno, usa proxy público
 
 ---
 
-## Sincronização de Dados
-
-Os dados fluem assim:
-1. `ze_pedido` ← v1.js insere pedido básico
-2. `delivery` ← ze_pedido.php copia para tabela final
-3. `ze_pedido` ← v1-itens.js atualiza com CPF, endereço, itens
-4. `delivery` ← ze_pedido_view.php sincroniza detalhes
-5. `delivery_itens` ← ze_pedido_view.php insere itens
-6. Lovable Cloud ← sync-cron.js envia tudo formatado
-
----
-
-## Comandos de Verificação
+## Endpoints de Diagnóstico
 
 ```bash
-# Status dos serviços
-curl http://localhost:8001/api/services/status
+# Status completo
+curl /api/services/status
 
-# Ver último pedido com detalhes
-curl http://localhost:8001/api/pedidos/160358
+# Config do banco
+curl /api/debug/db-config
 
-# Logs do scraper
-tail -f /app/logs/ze-v1-out.log
-
-# Sincronizar itens pendentes manualmente
-php -r "chdir('/app/integrador/zeduplo'); require '_class/AutoLoad.php'; ..."
+# Health check
+curl /health
 ```
-
----
-
-## Para Produção
-
-O sistema está pronto. O `server.py` agora:
-1. Detecta se é produção (`/var/run/supervisor.sock` não existe)
-2. Instala PHP + IMAP + Chromium de forma **síncrona**
-3. Inicia scrapers via nohup (não depende de Supervisor)
-4. PHP não expõe porta HTTP (chamado via CLI)
-
-**Isso elimina todos os problemas anteriores de instabilidade.**
-
----
-
-## Status Atual
-
-- ✅ **168 pedidos** no sistema
-- ✅ **R$ 11.500+** faturamento
-- ✅ Modal de detalhes funcionando com CPF, endereço, itens
-- ✅ Sync para Lovable Cloud enviando dados completos
-- ✅ Arquitetura estável para produção
-
----
-
-*Documentação técnica detalhada em:* `/app/docs/arquitetura_php.md`
