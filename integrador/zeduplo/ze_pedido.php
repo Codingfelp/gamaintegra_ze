@@ -306,6 +306,28 @@ if (!empty($orderData)) {
         $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
         if ($DB->NumQuery($read_pedido) > '0') {
             foreach ($read_pedido as $read_pedido_view) {
+                // PROTEÇÃO: Não atualizar se já está Entregue (1) ou Cancelado (4, 5)
+                // "A Caminho" (3) é o penúltimo status antes de Entregue
+                $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
+                if ($DB->NumQuery($check_status) > 0) {
+                    foreach ($check_status as $status_row) {
+                        $current_status = intval($status_row['delivery_status']);
+                        // Status 1 (Entregue), 4, 5 (Cancelado) são finais - não podem regredir
+                        if (in_array($current_status, [1, 4, 5])) {
+                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_final", "current" => $current_status];
+                            echo json_encode($json);
+                            continue 2;
+                        }
+                        // Se já está "A Caminho" (3), não precisa atualizar novamente
+                        if ($current_status == 3) {
+                            $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_acaminho"];
+                            echo json_encode($json);
+                            continue 2;
+                        }
+                        break;
+                    }
+                }
+                
                 $UpdateStatusPedido['delivery_status'] = '3';
                 $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
                 
@@ -314,7 +336,8 @@ if (!empty($orderData)) {
                 $DB->Update('ze_pedido', $UpdateZePedido, "WHERE pedido_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
                 
                 $json = [
-                    "id_pedido" => trim(str_replace(' ', '', $orderNumber))
+                    "id_pedido" => trim(str_replace(' ', '', $orderNumber)),
+                    "updated_to" => "A Caminho"
                 ];
                 echo json_encode($json);
             }
