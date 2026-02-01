@@ -533,6 +533,446 @@ async def start_services():
     threading.Thread(target=setup_services, daemon=True).start()
     return {"success": True, "message": "Serviços sendo iniciados"}
 
+# ============= HEALTH CHECK AVANÇADO =============
+
+@app.get("/api/health/detailed")
+async def detailed_health_check():
+    """
+    Health check completo para monitoramento externo.
+    Retorna status detalhado de todos os componentes.
+    Use este endpoint para monitorar o sistema 24/7.
+    """
+    health_status = {
+        "timestamp": datetime.now().isoformat(),
+        "overall_status": "healthy",
+        "components": {},
+        "alerts": [],
+        "metrics": {}
+    }
+    
+    critical_failures = 0
+    warnings = 0
+    
+    # 1. MySQL Railway Cloud
+    try:
+        start = time.time()
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT COUNT(*) as total FROM delivery WHERE delivery_trash = 0")
+        result = cursor.fetchone()
+        cursor.execute("SELECT MAX(delivery_date_time) as last_order FROM delivery")
+        last_order = cursor.fetchone()
+        latency = round((time.time() - start) * 1000, 2)
+        cursor.close()
+        conn.close()
+        
+        health_status["components"]["mysql"] = {
+            "status": "healthy",
+            "latency_ms": latency,
+            "total_orders": result['total'] if result else 0,
+            "last_order": last_order['last_order'].isoformat() if last_order and last_order['last_order'] else None
+        }
+        health_status["metrics"]["db_latency_ms"] = latency
+        health_status["metrics"]["total_orders"] = result['total'] if result else 0
+    except Exception as e:
+        critical_failures += 1
+        health_status["components"]["mysql"] = {"status": "unhealthy", "error": str(e)[:100]}
+        health_status["alerts"].append({"level": "critical", "component": "mysql", "message": f"Database offline: {str(e)[:50]}"})
+    
+    # 2. PHP + Gmail API
+    ok, out = run_shell("php -r \"echo extension_loaded('curl') ? 'OK' : 'FAIL';\"", timeout=10)
+    if ok and 'OK' in out:
+        health_status["components"]["php_gmail_api"] = {"status": "healthy", "curl_enabled": True}
+    else:
+        critical_failures += 1
+        health_status["components"]["php_gmail_api"] = {"status": "unhealthy", "curl_enabled": False}
+        health_status["alerts"].append({"level": "critical", "component": "php", "message": "PHP cURL not loaded - Gmail API broken"})
+    
+    # 3. Node.js Scrapers
+    scrapers = [
+        {"name": "v1_scraper", "pattern": "puppeteer-wrapper.js v1.js", "log": "/app/logs/ze-v1-out.log"},
+        {"name": "v1_itens_scraper", "pattern": "puppeteer-wrapper.js v1-itens.js", "log": "/app/logs/ze-v1-itens-out.log"},
+        {"name": "sync_cron", "pattern": "sync-cron.js", "log": "/app/logs/ze-sync-out.log"}
+    ]
+    
+    for scraper in scrapers:
+        ok, out = run_shell(f"pgrep -f '{scraper['pattern']}'", timeout=5)
+        pid = out.strip().split()[0] if ok and out.strip() else None
+        
+        # Verificar última atividade no log
+        last_activity = None
+        log_lines = 0
+        if os.path.exists(scraper['log']):
+            try:
+                mtime = os.path.getmtime(scraper['log'])
+                last_activity = datetime.fromtimestamp(mtime).isoformat()
+                with open(scraper['log'], 'r') as f:
+                    log_lines = sum(1 for _ in f)
+            except:
+                pass
+        
+        if ok and pid:
+            health_status["components"][scraper['name']] = {
+                "status": "healthy",
+                "pid": pid,
+                "last_activity": last_activity,
+                "log_lines": log_lines
+            }
+        else:
+            warnings += 1
+            health_status["components"][scraper['name']] = {
+                "status": "unhealthy",
+                "pid": None,
+                "last_activity": last_activity
+            }
+            health_status["alerts"].append({
+                "level": "warning",
+                "component": scraper['name'],
+                "message": f"Scraper not running"
+            })
+    
+    # 4. Chromium
+    ok, _ = run_shell("which chromium && pgrep chromium", timeout=5)
+    health_status["components"]["chromium"] = {"status": "healthy" if ok else "degraded"}
+    
+    # 5. Sessão do Zé Delivery
+    session_files = [
+        "/app/zedelivery-clean/profile-ze-v1/Default/Cookies",
+        "/app/zedelivery-clean/profile-ze-v1-itens/Default/Cookies"
+    ]
+    sessions_valid = 0
+    for sf in session_files:
+        if os.path.exists(sf):
+            age_hours = (time.time() - os.path.getmtime(sf)) / 3600
+            if age_hours < 24:
+                sessions_valid += 1
+    
+    health_status["components"]["ze_sessions"] = {
+        "status": "healthy" if sessions_valid > 0 else "degraded",
+        "valid_sessions": sessions_valid,
+        "total_sessions": len(session_files)
+    }
+    if sessions_valid == 0:
+        warnings += 1
+        health_status["alerts"].append({
+            "level": "warning",
+            "component": "ze_sessions",
+            "message": "No valid Zé Delivery sessions found"
+        })
+    
+    # 6. Disk Space
+    try:
+        ok, out = run_shell("df -h /app | tail -1 | awk '{print $5}'", timeout=5)
+        if ok:
+            usage = int(out.strip().replace('%', ''))
+            health_status["metrics"]["disk_usage_percent"] = usage
+            if usage > 90:
+                warnings += 1
+                health_status["alerts"].append({"level": "warning", "component": "disk", "message": f"Disk usage at {usage}%"})
+    except:
+        pass
+    
+    # 7. Memory
+    try:
+        ok, out = run_shell("free -m | grep Mem | awk '{print int($3/$2*100)}'", timeout=5)
+        if ok:
+            mem_usage = int(out.strip())
+            health_status["metrics"]["memory_usage_percent"] = mem_usage
+    except:
+        pass
+    
+    # Determinar status geral
+    if critical_failures > 0:
+        health_status["overall_status"] = "unhealthy"
+    elif warnings > 0:
+        health_status["overall_status"] = "degraded"
+    
+    health_status["metrics"]["critical_failures"] = critical_failures
+    health_status["metrics"]["warnings"] = warnings
+    
+    return health_status
+
+
+# ============= LOGS ESTRUTURADOS =============
+
+@app.get("/api/logs/structured")
+async def get_structured_logs(
+    service: Optional[str] = None,
+    level: Optional[str] = None,
+    limit: int = 100
+):
+    """
+    Retorna logs estruturados em formato JSON.
+    Filtra por serviço (v1, v1-itens, sync) e nível (error, warning, info).
+    """
+    logs = []
+    log_files = {
+        "v1": ["/app/logs/ze-v1-out.log", "/app/logs/ze-v1-error.log"],
+        "v1-itens": ["/app/logs/ze-v1-itens-out.log", "/app/logs/ze-v1-itens-error.log"],
+        "sync": ["/app/logs/ze-sync-out.log", "/app/logs/ze-sync-error.log"]
+    }
+    
+    files_to_read = []
+    if service and service in log_files:
+        files_to_read = [(service, f) for f in log_files[service]]
+    else:
+        for svc, files in log_files.items():
+            files_to_read.extend([(svc, f) for f in files])
+    
+    for svc, filepath in files_to_read:
+        if not os.path.exists(filepath):
+            continue
+        try:
+            is_error_file = "error" in filepath
+            with open(filepath, 'r') as f:
+                lines = f.readlines()[-limit:]
+                for i, line in enumerate(lines):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    
+                    # Detectar nível do log
+                    log_level = "error" if is_error_file else "info"
+                    if "❌" in line or "error" in line.lower() or "fail" in line.lower():
+                        log_level = "error"
+                    elif "⚠️" in line or "warn" in line.lower():
+                        log_level = "warning"
+                    elif "✅" in line or "success" in line.lower():
+                        log_level = "info"
+                    
+                    if level and log_level != level:
+                        continue
+                    
+                    logs.append({
+                        "service": svc,
+                        "level": log_level,
+                        "message": line[:500],
+                        "file": os.path.basename(filepath),
+                        "line_number": i + 1
+                    })
+        except Exception as e:
+            logs.append({
+                "service": svc,
+                "level": "error",
+                "message": f"Error reading {filepath}: {str(e)}",
+                "file": os.path.basename(filepath)
+            })
+    
+    # Ordenar por nível (errors primeiro)
+    level_order = {"error": 0, "warning": 1, "info": 2}
+    logs.sort(key=lambda x: level_order.get(x["level"], 3))
+    
+    return {
+        "success": True,
+        "total": len(logs),
+        "logs": logs[:limit]
+    }
+
+
+@app.get("/api/logs/errors")
+async def get_error_logs(limit: int = 50):
+    """Retorna apenas logs de erro dos últimos arquivos."""
+    return await get_structured_logs(level="error", limit=limit)
+
+
+# ============= BACKUP DE SESSÃO ZÉ DELIVERY =============
+
+@app.get("/api/sessions/status")
+async def get_sessions_status():
+    """
+    Verifica status das sessões do Zé Delivery.
+    Importante para monitorar se o login ainda está válido.
+    """
+    sessions = []
+    profile_dirs = [
+        "/app/zedelivery-clean/profile-ze-v1",
+        "/app/zedelivery-clean/profile-ze-v1-itens"
+    ]
+    
+    for profile_dir in profile_dirs:
+        session_info = {
+            "profile": os.path.basename(profile_dir),
+            "exists": os.path.exists(profile_dir),
+            "cookies_valid": False,
+            "last_activity": None,
+            "age_hours": None
+        }
+        
+        cookies_path = os.path.join(profile_dir, "Default", "Cookies")
+        if os.path.exists(cookies_path):
+            mtime = os.path.getmtime(cookies_path)
+            age_hours = (time.time() - mtime) / 3600
+            session_info["cookies_valid"] = age_hours < 48  # Válido por 48h
+            session_info["last_activity"] = datetime.fromtimestamp(mtime).isoformat()
+            session_info["age_hours"] = round(age_hours, 2)
+        
+        sessions.append(session_info)
+    
+    all_valid = all(s["cookies_valid"] for s in sessions)
+    
+    return {
+        "success": True,
+        "overall_valid": all_valid,
+        "sessions": sessions,
+        "recommendation": None if all_valid else "Sessões podem estar expiradas. Verifique se o scraper está funcionando."
+    }
+
+
+@app.post("/api/sessions/backup")
+async def backup_sessions():
+    """
+    Cria backup das sessões do Zé Delivery.
+    Útil para restaurar em caso de problemas.
+    """
+    backup_dir = "/app/backups/sessions"
+    os.makedirs(backup_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(backup_dir, f"sessions_{timestamp}")
+    os.makedirs(backup_path, exist_ok=True)
+    
+    backed_up = []
+    profile_dirs = [
+        "/app/zedelivery-clean/profile-ze-v1",
+        "/app/zedelivery-clean/profile-ze-v1-itens"
+    ]
+    
+    for profile_dir in profile_dirs:
+        if os.path.exists(profile_dir):
+            profile_name = os.path.basename(profile_dir)
+            dest = os.path.join(backup_path, profile_name)
+            ok, _ = run_shell(f"cp -r {profile_dir} {dest}", timeout=30)
+            if ok:
+                backed_up.append(profile_name)
+    
+    return {
+        "success": len(backed_up) > 0,
+        "backup_path": backup_path,
+        "profiles_backed_up": backed_up,
+        "timestamp": timestamp
+    }
+
+
+@app.get("/api/sessions/backups")
+async def list_session_backups():
+    """Lista backups de sessão disponíveis."""
+    backup_dir = "/app/backups/sessions"
+    backups = []
+    
+    if os.path.exists(backup_dir):
+        for item in sorted(os.listdir(backup_dir), reverse=True):
+            item_path = os.path.join(backup_dir, item)
+            if os.path.isdir(item_path):
+                backups.append({
+                    "name": item,
+                    "path": item_path,
+                    "created": datetime.fromtimestamp(os.path.getctime(item_path)).isoformat()
+                })
+    
+    return {"success": True, "backups": backups[:10]}  # Últimos 10
+
+
+@app.post("/api/sessions/restore/{backup_name}")
+async def restore_session_backup(backup_name: str):
+    """
+    Restaura sessões de um backup anterior.
+    CUIDADO: Isso irá parar os scrapers temporariamente.
+    """
+    backup_path = f"/app/backups/sessions/{backup_name}"
+    
+    if not os.path.exists(backup_path):
+        raise HTTPException(status_code=404, detail="Backup não encontrado")
+    
+    # Parar scrapers
+    run_shell("pkill -f 'puppeteer-wrapper.js'", timeout=10)
+    time.sleep(2)
+    
+    # Restaurar profiles
+    restored = []
+    for profile_name in ["profile-ze-v1", "profile-ze-v1-itens"]:
+        src = os.path.join(backup_path, profile_name)
+        dest = f"/app/zedelivery-clean/{profile_name}"
+        if os.path.exists(src):
+            run_shell(f"rm -rf {dest}", timeout=10)
+            ok, _ = run_shell(f"cp -r {src} {dest}", timeout=30)
+            if ok:
+                restored.append(profile_name)
+    
+    # Reiniciar scrapers
+    global _init_started
+    _init_started = False
+    threading.Thread(target=setup_services, daemon=True).start()
+    
+    return {
+        "success": len(restored) > 0,
+        "restored_profiles": restored,
+        "message": "Scrapers sendo reiniciados"
+    }
+
+
+# ============= MÉTRICAS EM TEMPO REAL =============
+
+@app.get("/api/metrics/realtime")
+async def get_realtime_metrics():
+    """
+    Métricas em tempo real para dashboard.
+    Atualizar a cada 10-30 segundos no frontend.
+    """
+    metrics = {
+        "timestamp": datetime.now().isoformat(),
+        "scrapers": {},
+        "orders": {},
+        "sync": {}
+    }
+    
+    # Status dos scrapers
+    for name, pattern in [("v1", "puppeteer-wrapper.js v1.js"), ("v1_itens", "puppeteer-wrapper.js v1-itens.js"), ("sync", "sync-cron.js")]:
+        ok, out = run_shell(f"pgrep -f '{pattern}'", timeout=5)
+        metrics["scrapers"][name] = {
+            "running": ok,
+            "pid": out.strip().split()[0] if ok and out.strip() else None
+        }
+    
+    # Métricas de pedidos
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Pedidos nas últimas 24h
+        cursor.execute("""
+            SELECT 
+                COUNT(*) as total_24h,
+                SUM(CASE WHEN delivery_status = 1 THEN 1 ELSE 0 END) as entregues_24h,
+                SUM(CASE WHEN delivery_status = 1 THEN delivery_total ELSE 0 END) as faturamento_24h
+            FROM delivery 
+            WHERE delivery_trash = 0 
+            AND delivery_date_time >= NOW() - INTERVAL 24 HOUR
+        """)
+        stats_24h = cursor.fetchone()
+        metrics["orders"]["last_24h"] = stats_24h
+        
+        # Último pedido
+        cursor.execute("SELECT delivery_code, delivery_name_cliente, delivery_date_time FROM delivery ORDER BY delivery_date_time DESC LIMIT 1")
+        last = cursor.fetchone()
+        if last and last.get('delivery_date_time'):
+            last['delivery_date_time'] = last['delivery_date_time'].isoformat()
+        metrics["orders"]["latest"] = last
+        
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        metrics["orders"]["error"] = str(e)[:100]
+    
+    # Status do sync
+    sync_log = "/app/logs/ze-sync-out.log"
+    if os.path.exists(sync_log):
+        mtime = os.path.getmtime(sync_log)
+        metrics["sync"]["last_activity"] = datetime.fromtimestamp(mtime).isoformat()
+        metrics["sync"]["age_seconds"] = int(time.time() - mtime)
+    
+    return metrics
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
