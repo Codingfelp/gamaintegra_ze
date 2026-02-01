@@ -93,63 +93,76 @@ def setup_services():
     # Limpar locks do Chromium
     run_shell("rm -rf /app/zedelivery-clean/profile-ze-*/Singleton* 2>/dev/null", timeout=5)
     
-    # Instalar dependências ANTES de iniciar serviços
-    def install_deps():
-        """Instala dependências necessárias"""
-        print("📦 Verificando dependências...")
+    # HARDENING: Instalação DETERMINÍSTICA de dependências
+    def install_deps_hardened():
+        """Instala dependências com validação obrigatória"""
+        print("📦 [HARDENING] Verificando e instalando dependências...")
         
-        # 1. PHP e IMAP (usado via CLI pelos scrapers para 2FA e inserção)
+        # 1. PHP + IMAP + MySQL - OBRIGATÓRIO
         ok, _ = run_shell("php -m | grep -i imap", timeout=5)
         if not ok:
-            print("   📦 Instalando PHP + IMAP...")
+            print("   📦 Instalando PHP completo...")
             run_shell("apt-get update -qq", timeout=60)
-            ok, out = run_shell("apt-get install -y php php-imap php-mysql php-curl 2>&1", timeout=180)
-            if ok:
-                print("   ✅ PHP + IMAP instalado")
-            else:
-                print(f"   ⚠️ Erro instalando PHP: {out[:200]}")
-        else:
-            print("   ✅ PHP + IMAP já instalado")
+            ok, out = run_shell(
+                "apt-get install -y php php-cli php-imap php-mysql php-curl php-mbstring 2>&1", 
+                timeout=180
+            )
+            if not ok:
+                print(f"   ❌ ERRO CRÍTICO: Falha ao instalar PHP: {out[:200]}")
+                return False
+            
+            # Habilitar IMAP explicitamente
+            run_shell("phpenmod imap 2>/dev/null", timeout=10)
         
-        # 2. Chromium (CRÍTICO para scraping)
+        # 2. VALIDAÇÃO OBRIGATÓRIA: IMAP DEVE estar carregado
+        ok, out = run_shell("php -r \"echo extension_loaded('imap') ? 'IMAP_OK' : 'IMAP_FAIL';\"", timeout=10)
+        if not ok or 'IMAP_OK' not in out:
+            print("   ❌ ERRO CRÍTICO: IMAP não está carregado no PHP!")
+            print("   Tentando reconfigurar...")
+            run_shell("phpenmod imap", timeout=10)
+            # Verificar novamente
+            ok, out = run_shell("php -r \"echo extension_loaded('imap') ? 'IMAP_OK' : 'IMAP_FAIL';\"", timeout=10)
+            if not ok or 'IMAP_OK' not in out:
+                print("   ❌ FALHA FATAL: IMAP não pode ser carregado. Scrapers NÃO funcionarão!")
+                return False
+        
+        print("   ✅ PHP + IMAP validado e funcionando")
+        
+        # 3. Chromium
         ok, _ = run_shell("which chromium", timeout=5)
         if not ok:
             print("   📦 Instalando Chromium...")
             ok, out = run_shell("apt-get install -y chromium 2>&1", timeout=300)
-            if ok:
-                print("   ✅ Chromium instalado")
-            else:
+            if not ok:
                 print(f"   ⚠️ Erro instalando Chromium: {out[:200]}")
         else:
             print("   ✅ Chromium já instalado")
         
-        # 3. Node modules
+        # 4. Node modules
         if not os.path.exists("/app/zedelivery-clean/node_modules"):
             print("   📦 Instalando node_modules (zedelivery-clean)...")
             run_shell("cd /app/zedelivery-clean && npm install --silent 2>/dev/null", timeout=180)
         if not os.path.exists("/app/bridge/node_modules"):
             print("   📦 Instalando node_modules (bridge)...")
             run_shell("cd /app/bridge && npm install --silent 2>/dev/null", timeout=180)
+        
+        return True
+    
+    # Executar instalação
+    deps_ok = install_deps_hardened()
     
     if is_production:
-        # PRODUÇÃO: instalar dependências de forma SÍNCRONA antes de continuar
-        install_deps()
-        
         print("🚀 Iniciando serviços para PRODUÇÃO...")
-        # PHP NÃO é mais servidor HTTP - é chamado via CLI pelos scripts Node.js
-        # Isso elimina o gargalo do PHP built-in single-threaded
+        
+        if not deps_ok:
+            print("⚠️ AVISO: Dependências podem estar incompletas. Scrapers podem falhar.")
         
         # Iniciar scripts Node.js
         start_node_script("ze-v1", "puppeteer-wrapper.js v1.js", "/app/zedelivery-clean", "/app/logs/ze-v1-out.log")
         start_node_script("ze-v1-itens", "puppeteer-wrapper.js v1-itens.js", "/app/zedelivery-clean", "/app/logs/ze-v1-itens-out.log")
         start_node_script("ze-sync", "sync-cron.js", "/app/bridge", "/app/logs/ze-sync-out.log")
     else:
-        # PREVIEW: usar Supervisor (Apache opcional para debug)
         print("📋 Usando Supervisor para PREVIEW...")
-        
-        # Instalar dependências em background (não bloquear preview)
-        threading.Thread(target=install_deps, daemon=True).start()
-        time.sleep(3)
         
         # Configurar Supervisor para scripts Node.js
         run_shell("cp /app/ze-scripts.supervisor.conf /etc/supervisor/conf.d/ze-scripts.conf 2>/dev/null", timeout=5)
