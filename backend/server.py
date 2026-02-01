@@ -225,22 +225,27 @@ app.add_middleware(
 # Pool de conexões MySQL - FORÇANDO Railway Cloud
 # SEMPRE usar Railway MySQL, ignorar qualquer variável que aponte para MongoDB/zeconnect-base
 
-# Verificar se variáveis de ambiente apontam para lugar errado
-env_db_name = os.environ.get('DB_NAME', '')
-env_db_host = os.environ.get('DB_HOST', '')
-env_mongo = os.environ.get('MONGO_URL', '')
+# Verificar TODAS as possíveis variáveis de ambiente (produção usa MYSQL*, preview usa DB_*)
+env_db_name = os.environ.get('DB_NAME', '') or os.environ.get('MYSQL_DATABASE', '') or os.environ.get('MYSQLDATABASE', '')
+env_db_host = os.environ.get('DB_HOST', '') or os.environ.get('MYSQLHOST', '')
+env_db_port = os.environ.get('DB_PORT', '') or os.environ.get('MYSQLPORT', '')
+env_db_user = os.environ.get('DB_USER', '') or os.environ.get('MYSQLUSER', '')
+env_db_pass = os.environ.get('DB_PASSWORD', '') or os.environ.get('MYSQLPASSWORD', '') or os.environ.get('MYSQL_ROOT_PASSWORD', '')
+env_mongo = os.environ.get('MONGO_URL', '') or os.environ.get('MONGODB_URI', '')
 
-# Detectar configuração errada (MongoDB ou zeconnect-base)
+# Detectar configuração errada (MongoDB, zeconnect-base, internal)
+# IMPORTANTE: mysql.railway.internal NÃO funciona externamente, usar proxy público
 is_wrong_config = (
     'mongodb' in env_mongo.lower() or
     'zeconnect' in env_db_name.lower() or
     env_db_name == 'test_database' or
-    env_db_host == '' or  # Host vazio = usar fallback
-    'localhost' in env_db_host.lower()  # localhost = usar Railway
+    env_db_host == '' or
+    'localhost' in env_db_host.lower() or
+    'railway.internal' in env_db_host.lower()  # Internal não funciona externamente
 )
 
 if is_wrong_config:
-    print("⚠️ PRODUÇÃO: Detectada configuração errada, forçando Railway MySQL")
+    print("⚠️ PRODUÇÃO: Detectada configuração errada, forçando Railway MySQL PÚBLICO")
     DB_CONFIG = {
         'host': RAILWAY_MYSQL_CONFIG['host'],
         'port': RAILWAY_MYSQL_CONFIG['port'],
@@ -252,12 +257,13 @@ if is_wrong_config:
         'ssl_disabled': True
     }
 else:
+    # Usar variáveis de ambiente se disponíveis e válidas
     DB_CONFIG = {
-        'host': os.environ.get('DB_HOST', RAILWAY_MYSQL_CONFIG['host']),
-        'port': int(os.environ.get('DB_PORT', RAILWAY_MYSQL_CONFIG['port'])),
-        'user': os.environ.get('DB_USER', RAILWAY_MYSQL_CONFIG['user']),
-        'password': os.environ.get('DB_PASSWORD', RAILWAY_MYSQL_CONFIG['password']),
-        'database': os.environ.get('DB_NAME', RAILWAY_MYSQL_CONFIG['database']),
+        'host': env_db_host or RAILWAY_MYSQL_CONFIG['host'],
+        'port': int(env_db_port) if env_db_port else RAILWAY_MYSQL_CONFIG['port'],
+        'user': env_db_user or RAILWAY_MYSQL_CONFIG['user'],
+        'password': env_db_pass or RAILWAY_MYSQL_CONFIG['password'],
+        'database': env_db_name or RAILWAY_MYSQL_CONFIG['database'],
         'connection_timeout': 10,
         'autocommit': True,
         'ssl_disabled': True
