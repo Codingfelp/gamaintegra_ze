@@ -72,6 +72,13 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(false);
   const [novaLoja, setNovaLoja] = useState({ nome: '', email: '', senha: '' });
+  
+  // Estado para monitoramento em tempo real
+  const [healthData, setHealthData] = useState(null);
+  const [metricsData, setMetricsData] = useState(null);
+  const [sessionsData, setSessionsData] = useState(null);
+  const [errorLogs, setErrorLogs] = useState([]);
+  const [backupStatus, setBackupStatus] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
