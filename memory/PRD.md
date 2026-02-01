@@ -2,34 +2,46 @@
 
 ## Status: ✅ FUNCIONANDO - SISTEMA COMPLETO
 
-**Última atualização:** 01/02/2026 - Aceite automático melhorado + Email do Entregador
+**Última atualização:** 01/02/2026 - Sistema de Aceite Seguro Implementado
 
 ---
 
 ## 🎉 Implementações Recentes
 
-### 01/02/2026 - Aceite Automático Melhorado + Email do Entregador
-- **Aceite Automático (aceitaScript)**:
-  - Adicionado diagnóstico detalhado da página `poc-orders`
-  - Suporte completo a **Shadow DOM** para componentes `hexa-v2-button`
-  - Múltiplos seletores de fallback para botões de aceitar/confirmar
-  - Busca por texto "Aceitar" quando seletores falham
-  - Logs detalhados para debug
-  - **Status**: ✅ Funcionando - aguardando pedidos pendentes para aceitar
+### 01/02/2026 - SISTEMA DE ACEITE SEGURO (CRÍTICO)
+**Problema Resolvido:** Pedidos eram marcados como "Aceito" no Lovable Cloud sem confirmação real do aceite na interface do Zé Delivery.
 
-- **Email do Entregador (delivererEmail)**:
-  - Corrigido: `statusScript` agora passa `delivererEmail` para o PHP
-  - Campo é extraído do formato "thales.ferraz a caminho" ou "thales.ferraz retirou"
-  - Salvo em `delivery_email_entregador` no banco
-  - Enviado como `courier_email` para Lovable Cloud
-  - **Arquivos modificados**: `/app/zedelivery-clean/v1.js` linhas 673-688
+**Solução Implementada - Fluxo Seguro de 100%:**
+1. **Pedidos novos entram como "Pendente" (status 0)**
+   - `pedidoScript` e `serverScript` mudados para `status = 'Pendente'`
+   - Nunca mais hardcoded como "Aceito"
 
-- **Frontend - Abas Funcionando**:
-  - ✅ **Produtos**: 212 produtos com imagens (API `/api/produtos`)
-  - ✅ **Lojas**: CRUD completo (API `/api/lojas`)
-  - ✅ **Config**: Configurações do sistema (API `/api/config`)
+2. **Aceite SOMENTE via `aceitaScript` com confirmação**
+   - Script reescrito para capturar código do pedido
+   - Clica no botão → Confirma no modal → Valida resultado
+   - SÓ ENTÃO chama PHP com flag `aceiteConfirmado: true`
 
-### 01/02/2026 - Sistema Inteligente de Progressão de Status
+3. **PHP bloqueia aceite sem confirmação**
+   - Nova regra: Status "Aceito" (2) só é permitido se:
+     - `aceiteConfirmado = true` (vindo do `aceitaScript`)
+     - OU pedido já está "Aceito" no banco
+   - Tentativas de marcar "Aceito" sem flag são rejeitadas
+
+4. **Lovable Cloud recebe SOMENTE status confirmados**
+   - Pedidos só vão como "Aceito" após validação real
+
+**Arquivos Modificados:**
+- `/app/zedelivery-clean/v1.js` (linhas 289, 713-970, 1057)
+- `/app/integrador/zeduplo/ze_pedido.php` (linhas 218-280)
+
+**Logs de Monitoramento:**
+```bash
+tail -f /app/logs/ze-v1-out.log | grep "\[ACEITA\]"
+```
+
+---
+
+### 01/02/2026 - Email do Entregador (delivererEmail)
 - **UNIQUE Constraint**: Adicionada constraint `unique_delivery_code` para prevenir duplicatas
 - **Proteção de Regressão**: Status só pode AVANÇAR na progressão:
   - `Pendente (0)` → `Aceito (2)` → `A Caminho (3)` → `Entregue (1)`
