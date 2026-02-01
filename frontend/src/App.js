@@ -307,6 +307,7 @@ function App() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-white border border-gray-200 mb-6" data-testid="main-tabs">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900" data-testid="tab-dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="monitor" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900" data-testid="tab-monitor">Monitor 24/7</TabsTrigger>
             <TabsTrigger value="pedidos" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900" data-testid="tab-pedidos">Pedidos</TabsTrigger>
             <TabsTrigger value="lojas" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900" data-testid="tab-lojas">Lojas</TabsTrigger>
             <TabsTrigger value="produtos" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-gray-900" data-testid="tab-produtos">Produtos</TabsTrigger>
