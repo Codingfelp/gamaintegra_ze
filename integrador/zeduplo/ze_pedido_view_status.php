@@ -196,29 +196,39 @@ if (count($json) > 0) {
 
             foreach ($read_pedido as $read_pedido_view) {
 				$statusPedidoNovo = explode('-', $statusPedido);
-				$statusPed = trim($statusPedidoNovo['1']);
+				$statusPed = trim($statusPedidoNovo['1'] ?? $statusPedidoNovo['0'] ?? '');
+				
+				// Determinar novo status
+				$newStatus = null;
 				if (trim($statusPed) == 'Entregue') {
-					$upDev['delivery_status'] = '1';
+					$newStatus = '1';
 				}elseif (trim($statusPed) == 'Aceito') {
-					$upDev['delivery_status'] = '2';
+					$newStatus = '2';
 				}else if (trim($statusPed) == 'Retirou' || trim($statusPed) == 'A caminho') {
-					$upDev['delivery_status'] = '3';
+					$newStatus = '3';
 				}elseif (stripos($statusPed, "cancelado") !== false) {
-					$upDev['delivery_status'] = '4';
+					$newStatus = '4';
 				}elseif (stripos($statusPed, "expirado") !== false) {
-					$upDev['delivery_status'] = '4';
+					$newStatus = '4';
 				}elseif (trim($statusPed) == 'Desconsiderado') {
-					$upDev['delivery_status'] = '5';
+					$newStatus = '5';
 				}
 				
-				
-                
-                $DB->Update('delivery', $upDev, "WHERE delivery_code = '" . trim($json[$x]['id']) . "' AND delivery_id = '" . $read_pedido_view['pedido_id'] . "' LIMIT 1");
-				
-				$json = [
-					"pedido" => $upDev
-				];
-				echo json_encode($json);
+				// PROTEÇÃO: Verificar status atual antes de atualizar
+				if ($newStatus !== null) {
+				    $conn = $DB->Conn();
+				    $checkCurrent = mysqli_query($conn, "SELECT delivery_status FROM delivery WHERE delivery_code = '" . mysqli_real_escape_string($conn, trim($json[$x]['id'])) . "' LIMIT 1");
+				    $currentRow = mysqli_fetch_assoc($checkCurrent);
+				    $currentStatus = $currentRow ? strval($currentRow['delivery_status']) : '0';
+				    
+				    if (canUpdateStatusHere($currentStatus, $newStatus)) {
+				        $upDev['delivery_status'] = $newStatus;
+				        $DB->Update('delivery', $upDev, "WHERE delivery_code = '" . trim($json[$x]['id']) . "' LIMIT 1");
+				        echo json_encode(["pedido" => trim($json[$x]['id']), "updated" => true, "from" => $currentStatus, "to" => $newStatus]);
+				    } else {
+				        echo json_encode(["pedido" => trim($json[$x]['id']), "skipped" => true, "reason" => "protection", "current" => $currentStatus, "attempted" => $newStatus]);
+				    }
+				}
             }
         }
     }
