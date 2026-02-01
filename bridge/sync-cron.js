@@ -310,9 +310,16 @@ function getStatusText(status) {
 }
 
 // Executar imediatamente e depois a cada intervalo
-console.log('🚀 Sync Cron iniciado - sincronizando a cada 2 minutos');
-syncToLovable();
-setInterval(syncToLovable, SYNC_INTERVAL);
+console.log('🚀 Sync Cron iniciado - sincronizando a cada 10 segundos');
+
+// Função principal que sincroniza local + Lovable
+async function runSync() {
+  await syncLocalData();  // Sincroniza ze_pedido → delivery
+  await syncToLovable();  // Envia para Lovable Cloud
+}
+
+runSync();
+setInterval(runSync, SYNC_INTERVAL);
 
 // Manter processo vivo
 process.on('SIGINT', () => {
