@@ -1,10 +1,10 @@
-// Sync automático a cada 10 segundos para Lovable Cloud
+// Sync automático a cada 3 segundos para Lovable Cloud - TEMPO REAL
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const fetch = require('node-fetch');
 const fs = require('fs');
 
-const SYNC_INTERVAL = 10 * 1000; // 10 segundos
+const SYNC_INTERVAL = 3 * 1000; // 3 segundos - quase instantâneo
 
 // RAILWAY MYSQL - FALLBACK HARDCODED PARA PRODUÇÃO
 const RAILWAY_CONFIG = {
