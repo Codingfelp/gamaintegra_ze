@@ -175,6 +175,16 @@ if (is_array($json) && count($json) > 0) {
                     $upDev['delivery_cpf_cliente'] = $cpfCliente;
                 }
                 
+                // Telefone do cliente
+                if ($telefoneCliente != '' && $telefoneCliente != '0') {
+                    $upDev['delivery_telefone'] = $telefoneCliente;
+                }
+                
+                // Email do entregador
+                if ($emailEntregador != '' && $emailEntregador != '0') {
+                    $upDev['delivery_email_entregador'] = $emailEntregador;
+                }
+                
                 // Preservar endereço se já existir no banco
                 if ($enderecoRota != '' && $enderecoRota != '0') {
                     $upDev['delivery_endereco_rota'] = $enderecoRota;
