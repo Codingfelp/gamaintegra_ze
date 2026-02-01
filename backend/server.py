@@ -222,27 +222,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pool de conexões MySQL - FORÇANDO banco 'railway' (Railway Cloud)
-# IMPORTANTE: Ignorar DB_NAME se for 'zeconnect-base' (valor errado em produção)
-db_name_env = os.environ.get('DB_NAME', 'railway')
-if db_name_env == 'zeconnect-base' or db_name_env == 'test_database':
-    db_name_env = 'railway'  # Corrigir valor errado
+# Pool de conexões MySQL - FORÇANDO Railway Cloud
+# SEMPRE usar Railway MySQL, ignorar qualquer variável que aponte para MongoDB/zeconnect-base
 
-DB_CONFIG = {
-    'host': os.environ.get('DB_HOST', 'mainline.proxy.rlwy.net'),
-    'port': int(os.environ.get('DB_PORT', '52996')),
-    'user': os.environ.get('DB_USER', 'root'),
-    'password': os.environ.get('DB_PASSWORD', 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU'),
-    'database': db_name_env,  # Usar valor corrigido
-    'connection_timeout': 10,
-    'autocommit': True
-}
+# Verificar se variáveis de ambiente apontam para lugar errado
+env_db_name = os.environ.get('DB_NAME', '')
+env_db_host = os.environ.get('DB_HOST', '')
+env_mongo = os.environ.get('MONGO_URL', '')
 
-# Adicionar SSL se necessário (Railway pode requerer)
-if os.environ.get('DB_SSL', '').lower() == 'true':
-    DB_CONFIG['ssl_disabled'] = False
+# Detectar configuração errada (MongoDB ou zeconnect-base)
+is_wrong_config = (
+    'mongodb' in env_mongo.lower() or
+    'zeconnect' in env_db_name.lower() or
+    env_db_name == 'test_database' or
+    env_db_host == '' or  # Host vazio = usar fallback
+    'localhost' in env_db_host.lower()  # localhost = usar Railway
+)
+
+if is_wrong_config:
+    print("⚠️ PRODUÇÃO: Detectada configuração errada, forçando Railway MySQL")
+    DB_CONFIG = {
+        'host': RAILWAY_MYSQL_CONFIG['host'],
+        'port': RAILWAY_MYSQL_CONFIG['port'],
+        'user': RAILWAY_MYSQL_CONFIG['user'],
+        'password': RAILWAY_MYSQL_CONFIG['password'],
+        'database': RAILWAY_MYSQL_CONFIG['database'],
+        'connection_timeout': 10,
+        'autocommit': True,
+        'ssl_disabled': True
+    }
 else:
-    DB_CONFIG['ssl_disabled'] = True
+    DB_CONFIG = {
+        'host': os.environ.get('DB_HOST', RAILWAY_MYSQL_CONFIG['host']),
+        'port': int(os.environ.get('DB_PORT', RAILWAY_MYSQL_CONFIG['port'])),
+        'user': os.environ.get('DB_USER', RAILWAY_MYSQL_CONFIG['user']),
+        'password': os.environ.get('DB_PASSWORD', RAILWAY_MYSQL_CONFIG['password']),
+        'database': os.environ.get('DB_NAME', RAILWAY_MYSQL_CONFIG['database']),
+        'connection_timeout': 10,
+        'autocommit': True,
+        'ssl_disabled': True
+    }
+    # Corrigir DB_NAME se necessário
+    if DB_CONFIG['database'] in ['zeconnect-base', 'test_database', '']:
+        DB_CONFIG['database'] = 'railway'
 
 print(f"🔧 MySQL Config: {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
 
