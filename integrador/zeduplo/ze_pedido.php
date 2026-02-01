@@ -9,6 +9,71 @@ require_once '_class/AutoLoad.php';
 $DB = new Database();
 $FE = new Ferraments();
 
+/**
+ * SISTEMA INTELIGENTE DE PROGRESSÃO DE STATUS
+ * 
+ * Ordem de progressão: Pendente (0) → Aceito (2) → A Caminho (3) → Entregue (1)
+ * Status finais (não podem ser alterados): Entregue (1), Cancelado (4, 5)
+ * 
+ * REGRA: Status só pode AVANÇAR, nunca REGREDIR
+ */
+
+// Mapa de prioridade de status (maior = mais avançado)
+$STATUS_PRIORITY = [
+    '0' => 1,  // Pendente
+    '2' => 2,  // Aceito
+    '3' => 3,  // A Caminho
+    '1' => 4,  // Entregue (final)
+    '4' => 5,  // Cancelado Cliente (final)
+    '5' => 5,  // Cancelado Loja (final)
+];
+
+// Status finais que não podem ser alterados
+$FINAL_STATUS = ['1', '4', '5'];
+
+/**
+ * Verifica se uma atualização de status é permitida
+ * @param string $current_status Status atual no banco
+ * @param string $new_status Novo status a ser aplicado
+ * @return array ['allowed' => bool, 'reason' => string]
+ */
+function canUpdateStatus($current_status, $new_status) {
+    global $STATUS_PRIORITY, $FINAL_STATUS;
+    
+    $current = strval($current_status);
+    $new = strval($new_status);
+    
+    // Se o status atual é final, não pode mudar
+    if (in_array($current, $FINAL_STATUS)) {
+        return ['allowed' => false, 'reason' => 'current_is_final', 'current' => $current];
+    }
+    
+    // Se o novo status tem prioridade menor ou igual, não atualizar
+    $current_priority = $STATUS_PRIORITY[$current] ?? 0;
+    $new_priority = $STATUS_PRIORITY[$new] ?? 0;
+    
+    if ($new_priority <= $current_priority) {
+        return ['allowed' => false, 'reason' => 'would_regress', 'current' => $current, 'current_priority' => $current_priority, 'new_priority' => $new_priority];
+    }
+    
+    return ['allowed' => true, 'reason' => 'ok'];
+}
+
+/**
+ * Converte texto de status para código numérico
+ */
+function statusTextToCode($status_text) {
+    $status = strtolower(trim($status_text));
+    
+    if ($status === 'entregue') return '1';
+    if ($status === 'aceito') return '2';
+    if ($status === 'a caminho' || $status === 'retirou') return '3';
+    if (strpos($status, 'cancelado') !== false) return '4';
+    if ($status === 'desconsiderado' || $status === 'rejeitado' || strpos($status, 'expirado') !== false) return '5';
+    
+    return '0'; // Pendente como default
+}
+
 $pedido_code = addslashes($_POST['orderNumber'] ?? '');
 $pedido_data_hora = addslashes($_POST['orderDateTime'] ?? '');
 $pedido_nome_cliente = addslashes($_POST['customerName'] ?? '');
