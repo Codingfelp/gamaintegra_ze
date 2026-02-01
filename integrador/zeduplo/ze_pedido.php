@@ -9,19 +9,25 @@ require_once '_class/AutoLoad.php';
 $DB = new Database();
 $FE = new Ferraments();
 
-$pedido_code = addslashes($_POST['orderNumber']);
-$pedido_data_hora = addslashes($_POST['orderDateTime']);
-$pedido_nome_cliente = addslashes($_POST['customerName']);
-$pedido_status = addslashes($_POST['status']);
-$pedido_delivery_tipo = addslashes($_POST['deliveryType']);
-$pedido_payment = addslashes($_POST['paymentType']);
-$pedido_total = addslashes($_POST['totalPrice']);
+$pedido_code = addslashes($_POST['orderNumber'] ?? '');
+$pedido_data_hora = addslashes($_POST['orderDateTime'] ?? '');
+$pedido_nome_cliente = addslashes($_POST['customerName'] ?? '');
+$pedido_status = addslashes($_POST['status'] ?? '');
+$pedido_delivery_tipo = addslashes($_POST['deliveryType'] ?? '');
+$pedido_payment = addslashes($_POST['paymentType'] ?? '');
+$pedido_total = addslashes($_POST['totalPrice'] ?? '');
 
 $randPedido = md5(date('y-m-dH:i:s') . rand(100, 999));
 
+// Ler dados: priorizar php://input, fallback para $_POST
 $input = file_get_contents('php://input');
-parse_str($input, $orderData);
-$orderNumberIde = addslashes($_GET['ide']);
+if (!empty($input)) {
+    parse_str($input, $orderData);
+} else {
+    // CLI: dados vêm via $_POST (populado pelo php-bridge.js)
+    $orderData = $_POST;
+}
+$orderNumberIde = addslashes($_GET['ide'] ?? '');
 
 
 $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido INNER JOIN hub_delivery ON hub_delivery_ide = pedido_ide WHERE pedido_st = '0' ORDER BY pedido_id ASC LIMIT 10");
