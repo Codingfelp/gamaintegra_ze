@@ -161,6 +161,22 @@ GET  /api/logs/errors               # Apenas erros
 
 ## Tarefas Pendentes
 
+### ✅ RESOLVIDOS NESTA SESSÃO
+- ~~Aceite automático de pedidos não funcionando~~ → **CORRIGIDO**: Suporte a Shadow DOM
+- ~~Email do entregador não sincronizando~~ → **CORRIGIDO**: Campo passado para PHP
+- ~~Abas Produtos/Lojas/Config em branco~~ → **VERIFICADO**: Funcionando corretamente
+
+### P1: Verificar Aceite Automático em Produção
+- Aguardando pedidos pendentes para validar funcionamento
+- Monitorar logs: `tail -f /app/logs/ze-v1-out.log | grep ACEITA`
+- Status: EM MONITORAMENTO
+
+### P2: Verificar Email do Entregador no Lovable Cloud
+- Backend salva em `delivery_email_entregador`
+- Sync envia como `courier_email`
+- **Ação do usuário**: Atualizar Deno script no Lovable para receber este campo
+- Status: AGUARDANDO VERIFICAÇÃO
+
 ### P1: Lovable Cloud Sync Data Conformance
 - Alinhar payload de `sync-cron.js` com estrutura esperada pelo Supabase Edge Function
 - Status: NÃO INICIADO
