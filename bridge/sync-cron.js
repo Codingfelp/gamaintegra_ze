@@ -205,7 +205,7 @@ async function syncToLovable() {
         // Cliente
         customer_name: pedido.delivery_name_cliente,
         customer_cpf: pedido.delivery_cpf_cliente,
-        customer_phone: pedido.delivery_telefone || pedido.pedido_telefone || null,
+        customer_phone: pedido.delivery_telefone || null,
         
         // Endereço
         address: pedido.delivery_endereco_rota,
