@@ -167,6 +167,18 @@ if (!empty($orderData)) {
         $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
         if ($DB->NumQuery($read_pedido) > '0') {
             foreach ($read_pedido as $read_pedido_view) {
+                // IMPORTANTE: Não reverter status se já foi marcado como Entregue (1) ou Cancelado (4,5)
+                $check_status = $DB->ReadComposta("SELECT delivery_status FROM delivery WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
+                if ($DB->NumQuery($check_status) > 0) {
+                    $current_status = $check_status[0]['delivery_status'];
+                    if (in_array($current_status, ['1', '4', '5'])) {
+                        // Não atualizar - pedido já finalizado
+                        $json = ["id_pedido" => trim(str_replace(' ', '', $orderNumber)), "skipped" => true, "reason" => "already_final"];
+                        echo json_encode($json);
+                        continue;
+                    }
+                }
+                
                 $UpdateStatusPedido['delivery_status'] = '2';
                 $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
                 
