@@ -1,35 +1,42 @@
 # Gamatauri Zé Integrador - PRD
 
-## Status: ✅ FUNCIONANDO - SISTEMA COMPLETO
+## Status: ✅ FUNCIONANDO - SISTEMA EM PRODUÇÃO
 
-**Última atualização:** 01/02/2026 - Sistema de Aceite Corrigido
+**Última atualização:** 02/02/2026 - Sync otimizado + Correções de status
 
 ---
 
 ## 🎉 Implementações Recentes
 
-### 01/02/2026 - CORREÇÃO DO FLUXO DE ACEITE
-**Problema Original:** Pedidos eram marcados como "Aceito" ANTES de serem realmente aceitos (hardcoded nos scripts).
+### 02/02/2026 - OTIMIZAÇÃO COMPLETA DO SISTEMA
+**Correções Implementadas:**
 
-**Solução Implementada:**
-1. **Pedidos novos entram como "Pendente"** - `pedidoScript` e `serverScript` corrigidos
-2. **Status "Aceito" só é definido quando REALMENTE aparece no Zé:**
-   - Via `aceitaScript` (aceite automático com confirmação)
-   - Via `statusScript` (lê status real se alguém aceitou manualmente)
-3. **Lovable Cloud recebe status correto** de qualquer fonte
+1. **Sync para Lovable Cloud - TEMPO REAL (3 segundos)**
+   - Intervalo reduzido de 10s para 3s
+   - Enviando 200 pedidos por sync
+   - Campos adicionais: `order_datetime`, `delivery_date_time`, múltiplos campos de entregador
+   - **Status**: ✅ Funcionando - Syncs bem-sucedidos a cada 3s
 
-**Arquivos Modificados:**
-- `/app/zedelivery-clean/v1.js` (linhas 289, 713-970, 1057)
-- `/app/integrador/zeduplo/ze_pedido.php`
+2. **Status dos Pedidos**
+   - Pedidos novos entram como "Pendente" (não mais hardcoded "Aceito")
+   - `statusScript` lê status REAL da página
+   - Status corretos: Pendente(0), Aceito(2), A Caminho(3), Entregue(1), Cancelado(4)
+   - **Status**: ✅ Funcionando
 
-**Monitoramento:**
-```bash
-tail -f /app/logs/ze-v1-out.log | grep "\[ACEITA\]"
-```
+3. **Aceite Automático**
+   - Script `aceitaScript` rodando 24/7
+   - Aguardando pedidos pendentes (botão desabilitado = sem pedidos)
+   - Quando pedido novo chegar, tentará aceitar automaticamente
+   - **Status**: ✅ Funcionando - aguardando pedidos
+
+4. **Dados do Entregador**
+   - Extração configurada para formatos: "nome a caminho", "nome retirou"
+   - Campo `courier_email` sendo enviado para Lovable
+   - **Limitação**: Nome do entregador pode não aparecer no formato esperado na UI do Zé
 
 ---
 
-### 01/02/2026 - Email do Entregador (delivererEmail)
+### 01/02/2026 - CORREÇÃO DO FLUXO DE ACEITE
 - **UNIQUE Constraint**: Adicionada constraint `unique_delivery_code` para prevenir duplicatas
 - **Proteção de Regressão**: Status só pode AVANÇAR na progressão:
   - `Pendente (0)` → `Aceito (2)` → `A Caminho (3)` → `Entregue (1)`
