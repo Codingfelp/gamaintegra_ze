@@ -376,7 +376,9 @@ async def get_pedidos(limit: int = 50, status: Optional[int] = None):
         
         query = """
             SELECT delivery_id, delivery_code, delivery_name_cliente, delivery_status,
-                   delivery_total, delivery_date_time, delivery_tipo_pedido, delivery_forma_pagamento
+                   delivery_total, delivery_date_time, delivery_tipo_pedido, delivery_forma_pagamento,
+                   delivery_cpf_cliente, delivery_endereco_rota, delivery_endereco_bairro, 
+                   delivery_endereco_cep, delivery_endereco_cidade_uf, delivery_tem_itens
             FROM delivery WHERE delivery_trash = 0
         """
         if status is not None:
