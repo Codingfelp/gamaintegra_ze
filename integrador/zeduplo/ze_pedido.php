@@ -169,7 +169,10 @@ if (!empty($orderData)) {
             foreach ($read_pedido as $read_pedido_view) {
                 $UpdateStatusPedido['delivery_status'] = '2';
                 $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
-
+                
+                // Atualizar ze_pedido
+                $UpdateZePedido['pedido_status'] = 'Aceito';
+                $DB->Update('ze_pedido', $UpdateZePedido, "WHERE pedido_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
 
                 $UpdateDataPedido['delivery_data_hora_aceite'] = date('Y-m-d H:i:s', strtotime('-10 seconds'));
                 $DB->Update('delivery_data', $UpdateDataPedido, "WHERE delivery_data_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_data_hora_aceite IS NULL LIMIT 1");
