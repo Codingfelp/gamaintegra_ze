@@ -214,6 +214,7 @@ if (!empty($orderData)) {
     $deliveryType = urldecode($orderData['deliveryType'] ?? '');
     $paymentType = urldecode($orderData['paymentType'] ?? '');
     $totalPrice = str_replace('R$ ', '', urldecode($orderData['priceFormatted'] ?? ''));
+    $delivererEmail = urldecode($orderData['delivererEmail'] ?? '');
 
     // Converter status texto para código numérico
     $newStatusCode = statusTextToCode($status);
