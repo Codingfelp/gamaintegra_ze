@@ -97,11 +97,14 @@ $orderNumberIde = addslashes($_GET['ide'] ?? '');
 
 $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido INNER JOIN hub_delivery ON hub_delivery_ide = pedido_ide WHERE pedido_st = '0' ORDER BY pedido_id ASC LIMIT 10");
 if ($DB->NumQuery($read_pedido) > '0') {
+    $conn = $DB->Conn();
     foreach ($read_pedido as $read_pedido_view) {
         // Verificar se já existe na tabela delivery pelo código
-        $check_exists = $DB->ReadComposta("SELECT delivery_id FROM delivery WHERE delivery_code = '" . $read_pedido_view['pedido_code'] . "' LIMIT 1");
-        if ($DB->NumQuery($check_exists) > 0) {
-            // Já existe, apenas marcar como processado
+        $check_exists = mysqli_query($conn, "SELECT delivery_id, delivery_status FROM delivery WHERE delivery_code = '" . mysqli_real_escape_string($conn, $read_pedido_view['pedido_code']) . "' LIMIT 1");
+        $existing = mysqli_fetch_assoc($check_exists);
+        
+        if ($existing) {
+            // Já existe, apenas marcar como processado - NÃO ALTERAR STATUS
             $up['pedido_st'] = '1';
             $DB->Update('ze_pedido', $up, "WHERE pedido_id = '" . $read_pedido_view['pedido_id'] . "' LIMIT 1");
             continue;
@@ -117,6 +120,9 @@ if ($DB->NumQuery($read_pedido) > '0') {
         $valorFloat = (float) $valorFormatado;
         $read_pedido_view['pedido_valor'] = $valorFloat;
 
+        // Converter status do ze_pedido para código numérico
+        $initialStatus = statusTextToCode($read_pedido_view['pedido_status'] ?? 'Pendente');
+
         // delivery_id é auto-incremento, não definir!
         $dev_form['delivery_data_hora_captura'] = $read_pedido_view['pedido_data_hora_captura'];
         $dev_form['delivery_ide_hub_delivery']     = $read_pedido_view['pedido_ide'];
@@ -124,7 +130,7 @@ if ($DB->NumQuery($read_pedido) > '0') {
         $dev_form['delivery_code']                 = $read_pedido_view['pedido_code'];
         $dev_form['delivery_name_cliente']         = str_replace('ė', 'e', $read_pedido_view['pedido_nome']);
         $dev_form['delivery_date_time']         = $explode_data['2'] . '-' . $explode_data['1'] . '-' . $explode_data['0'] . ' ' . $read_pedido_view['pedido_hora'];
-        $dev_form['delivery_status']             = '0';
+        $dev_form['delivery_status']             = $initialStatus; // Usar status do ze_pedido, não hardcoded '0'
         $dev_form['delivery_subtotal']             = $read_pedido_view['pedido_valor'];
         $dev_form['delivery_forma_pagamento']     = $read_pedido_view['pedido_pagamento'];
         $dev_form['delivery_desconto']             = $read_pedido_view['pedido_desconto'];
@@ -139,7 +145,44 @@ if ($DB->NumQuery($read_pedido) > '0') {
         $dev_form['delivery_endereco_cidade_uf'] = $read_pedido_view['pedido_endereco_cidade_uf'];
         $dev_form['delivery_endereco_cep'] = $read_pedido_view['pedido_endereco_cep'];
         $dev_form['delivery_endereco_bairro'] = $read_pedido_view['pedido_endereco_bairro'];
-        if ($DB->Create('delivery', $dev_form)) {
+        
+        // Usar INSERT ... ON DUPLICATE KEY UPDATE com proteção de status
+        $sql = "INSERT INTO delivery (
+            delivery_data_hora_captura, delivery_ide_hub_delivery, delivery_ide,
+            delivery_code, delivery_name_cliente, delivery_date_time, delivery_status,
+            delivery_subtotal, delivery_forma_pagamento, delivery_desconto, delivery_frete,
+            delivery_total, delivery_trash, delivery_id_company,
+            delivery_cpf_cliente, delivery_endereco_rota, delivery_endereco_complemento,
+            delivery_endereco_cidade_uf, delivery_endereco_cep, delivery_endereco_bairro
+        ) VALUES (
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_data_hora_captura']) . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_ide_hub_delivery']) . "',
+            '" . $dev_form['delivery_ide'] . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_code']) . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_name_cliente']) . "',
+            '" . $dev_form['delivery_date_time'] . "',
+            '" . $dev_form['delivery_status'] . "',
+            '" . $dev_form['delivery_subtotal'] . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_forma_pagamento']) . "',
+            '" . $dev_form['delivery_desconto'] . "',
+            '" . $dev_form['delivery_frete'] . "',
+            '" . $dev_form['delivery_total'] . "',
+            '0',
+            '" . $dev_form['delivery_id_company'] . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_cpf_cliente'] ?? '') . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_endereco_rota'] ?? '') . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_endereco_complemento'] ?? '') . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_endereco_cidade_uf'] ?? '') . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_endereco_cep'] ?? '') . "',
+            '" . mysqli_real_escape_string($conn, $dev_form['delivery_endereco_bairro'] ?? '') . "'
+        ) ON DUPLICATE KEY UPDATE 
+            delivery_status = CASE 
+                WHEN delivery_status IN ('1', '4', '5') THEN delivery_status
+                WHEN '" . $dev_form['delivery_status'] . "' > delivery_status THEN '" . $dev_form['delivery_status'] . "'
+                ELSE delivery_status
+            END";
+        
+        if (mysqli_query($conn, $sql)) {
             $up['pedido_st'] = '1';
             $DB->Update('ze_pedido', $up, "WHERE pedido_id = '" . $read_pedido_view['pedido_id'] . "' LIMIT 1");
         }
