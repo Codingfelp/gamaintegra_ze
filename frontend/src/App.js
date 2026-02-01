@@ -413,6 +413,188 @@ function App() {
             </div>
           </TabsContent>
 
+          {/* Monitor 24/7 */}
+          <TabsContent value="monitor" data-testid="monitor-content">
+            {/* Status Geral */}
+            <div className="mb-6">
+              <Card className={`border-2 ${healthData?.overall_status === 'healthy' ? 'border-green-500 bg-green-50' : healthData?.overall_status === 'degraded' ? 'border-yellow-500 bg-yellow-50' : 'border-red-500 bg-red-50'}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded-full ${healthData?.overall_status === 'healthy' ? 'bg-green-500' : healthData?.overall_status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                      <div>
+                        <h3 className="font-semibold text-lg">
+                          {healthData?.overall_status === 'healthy' ? '✅ Sistema Operacional' : 
+                           healthData?.overall_status === 'degraded' ? '⚠️ Sistema com Alertas' : 
+                           '❌ Sistema com Problemas'}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Última verificação: {healthData?.timestamp ? new Date(healthData.timestamp).toLocaleString() : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    <Button onClick={fetchMonitorData} variant="outline" size="sm">Atualizar</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Alertas */}
+            {healthData?.alerts?.length > 0 && (
+              <Card className="bg-red-50 border-red-200 mb-6">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium text-red-700">⚠️ Alertas Ativos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {healthData.alerts.map((alert, idx) => (
+                      <div key={idx} className={`p-2 rounded ${alert.level === 'critical' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        <span className="font-medium">[{alert.component}]</span> {alert.message}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Métricas e Componentes */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {/* Métricas */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium text-gray-900">📊 Métricas</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Pedidos (24h)</span>
+                    <span className="font-semibold">{metricsData?.orders?.last_24h?.total_24h || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Entregues (24h)</span>
+                    <span className="font-semibold text-green-600">{metricsData?.orders?.last_24h?.entregues_24h || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Faturamento (24h)</span>
+                    <span className="font-semibold text-yellow-600">R$ {(metricsData?.orders?.last_24h?.faturamento_24h || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="border-t pt-2 mt-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Disco</span>
+                      <span className={`font-semibold ${(healthData?.metrics?.disk_usage_percent || 0) > 80 ? 'text-red-600' : 'text-gray-900'}`}>
+                        {healthData?.metrics?.disk_usage_percent || 0}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Memória</span>
+                      <span className={`font-semibold ${(healthData?.metrics?.memory_usage_percent || 0) > 80 ? 'text-red-600' : 'text-gray-900'}`}>
+                        {healthData?.metrics?.memory_usage_percent || 0}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">DB Latência</span>
+                      <span className="font-semibold">{healthData?.metrics?.db_latency_ms || 0}ms</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Componentes */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium text-gray-900">🔧 Componentes</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {healthData?.components && Object.entries(healthData.components).map(([name, comp]) => (
+                    <div key={name} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">{name}</span>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        comp.status === 'healthy' ? 'bg-green-100 text-green-700' : 
+                        comp.status === 'degraded' ? 'bg-yellow-100 text-yellow-700' : 
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {comp.status === 'healthy' ? '✓' : comp.status === 'degraded' ? '!' : '✗'} {comp.status}
+                      </span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Sessões Zé */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium text-gray-900">🔐 Sessões Zé Delivery</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {sessionsData?.sessions?.map((session, idx) => (
+                    <div key={idx} className="flex items-center justify-between py-2 border-b last:border-0">
+                      <div>
+                        <p className="text-sm font-medium">{session.profile}</p>
+                        <p className="text-xs text-gray-500">
+                          {session.age_hours !== null ? `${session.age_hours.toFixed(1)}h atrás` : 'N/A'}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${session.cookies_valid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {session.cookies_valid ? 'Válida' : 'Expirada'}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="mt-3 pt-3 border-t">
+                    <Button onClick={createBackup} className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 text-sm" disabled={loading}>
+                      {loading ? 'Criando...' : '💾 Criar Backup de Sessões'}
+                    </Button>
+                    {backupStatus && (
+                      <p className={`text-xs mt-2 ${backupStatus.success ? 'text-green-600' : 'text-red-600'}`}>
+                        {backupStatus.success ? `✅ Backup criado: ${backupStatus.profiles_backed_up?.join(', ')}` : '❌ Erro ao criar backup'}
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Último Pedido */}
+            {metricsData?.orders?.latest && (
+              <Card className="bg-white border-gray-200 mb-6">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium text-gray-900">📦 Último Pedido Capturado</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{metricsData.orders.latest.delivery_name_cliente}</p>
+                      <p className="text-sm text-gray-500">Código: {metricsData.orders.latest.delivery_code}</p>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {metricsData.orders.latest.delivery_date_time ? new Date(metricsData.orders.latest.delivery_date_time).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Logs de Erro */}
+            <Card className="bg-white border-gray-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-gray-900">🚨 Últimos Erros</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {errorLogs.length === 0 ? (
+                  <p className="text-sm text-gray-500 text-center py-4">Nenhum erro recente encontrado ✓</p>
+                ) : (
+                  <ScrollArea className="h-48">
+                    <div className="space-y-1 font-mono text-xs">
+                      {errorLogs.map((log, idx) => (
+                        <div key={idx} className="py-1 px-2 rounded bg-red-50 text-red-800">
+                          <span className="font-semibold">[{log.service}]</span> {log.message}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Pedidos */}
           <TabsContent value="pedidos" data-testid="pedidos-content">
             <div className="flex flex-wrap gap-3 mb-4">
