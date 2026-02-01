@@ -2,39 +2,27 @@
 
 ## Status: ✅ FUNCIONANDO - SISTEMA COMPLETO
 
-**Última atualização:** 01/02/2026 - Sistema de Aceite Seguro Implementado
+**Última atualização:** 01/02/2026 - Sistema de Aceite Corrigido
 
 ---
 
 ## 🎉 Implementações Recentes
 
-### 01/02/2026 - SISTEMA DE ACEITE SEGURO (CRÍTICO)
-**Problema Resolvido:** Pedidos eram marcados como "Aceito" no Lovable Cloud sem confirmação real do aceite na interface do Zé Delivery.
+### 01/02/2026 - CORREÇÃO DO FLUXO DE ACEITE
+**Problema Original:** Pedidos eram marcados como "Aceito" ANTES de serem realmente aceitos (hardcoded nos scripts).
 
-**Solução Implementada - Fluxo Seguro de 100%:**
-1. **Pedidos novos entram como "Pendente" (status 0)**
-   - `pedidoScript` e `serverScript` mudados para `status = 'Pendente'`
-   - Nunca mais hardcoded como "Aceito"
-
-2. **Aceite SOMENTE via `aceitaScript` com confirmação**
-   - Script reescrito para capturar código do pedido
-   - Clica no botão → Confirma no modal → Valida resultado
-   - SÓ ENTÃO chama PHP com flag `aceiteConfirmado: true`
-
-3. **PHP bloqueia aceite sem confirmação**
-   - Nova regra: Status "Aceito" (2) só é permitido se:
-     - `aceiteConfirmado = true` (vindo do `aceitaScript`)
-     - OU pedido já está "Aceito" no banco
-   - Tentativas de marcar "Aceito" sem flag são rejeitadas
-
-4. **Lovable Cloud recebe SOMENTE status confirmados**
-   - Pedidos só vão como "Aceito" após validação real
+**Solução Implementada:**
+1. **Pedidos novos entram como "Pendente"** - `pedidoScript` e `serverScript` corrigidos
+2. **Status "Aceito" só é definido quando REALMENTE aparece no Zé:**
+   - Via `aceitaScript` (aceite automático com confirmação)
+   - Via `statusScript` (lê status real se alguém aceitou manualmente)
+3. **Lovable Cloud recebe status correto** de qualquer fonte
 
 **Arquivos Modificados:**
 - `/app/zedelivery-clean/v1.js` (linhas 289, 713-970, 1057)
-- `/app/integrador/zeduplo/ze_pedido.php` (linhas 218-280)
+- `/app/integrador/zeduplo/ze_pedido.php`
 
-**Logs de Monitoramento:**
+**Monitoramento:**
 ```bash
 tail -f /app/logs/ze-v1-out.log | grep "\[ACEITA\]"
 ```
