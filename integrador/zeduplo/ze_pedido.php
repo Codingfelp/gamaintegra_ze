@@ -122,8 +122,14 @@ if (!empty($orderData)) {
         $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($orderNumber) . "' ORDER BY pedido_id DESC LIMIT 1");
         if ($DB->NumQuery($read_pedido) > '0') {
             foreach ($read_pedido as $read_pedido_view) {
+                // Atualizar status na tabela delivery
                 $UpdateStatusPedido['delivery_status'] = '1';
                 $updateResult = $DB->Update('delivery', $UpdateStatusPedido, "WHERE delivery_code = '" . trim($read_pedido_view['pedido_code']) . "' AND delivery_ide_hub_delivery = '" . $read_pedido_view['pedido_ide'] . "' LIMIT 1");
+                
+                // IMPORTANTE: Também atualizar status na tabela ze_pedido
+                $UpdateZePedido['pedido_status'] = 'Entregue';
+                $DB->Update('ze_pedido', $UpdateZePedido, "WHERE pedido_code = '" . trim($read_pedido_view['pedido_code']) . "' LIMIT 1");
+                
                 // Log para debug
                 error_log("[ZE_PEDIDO] UPDATE Entregue: pedido=" . $read_pedido_view['pedido_code'] . " result=" . ($updateResult ? 'true' : 'false'));
                 $json = [
