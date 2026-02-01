@@ -1,12 +1,33 @@
 # Gamatauri Zé Integrador - PRD
 
-## Status: ✅ FUNCIONANDO - SISTEMA INTELIGENTE DE STATUS
+## Status: ✅ FUNCIONANDO - SISTEMA COMPLETO
 
-**Última atualização:** 01/02/2026 - Sistema de Proteção de Status implementado
+**Última atualização:** 01/02/2026 - Aceite automático melhorado + Email do Entregador
 
 ---
 
 ## 🎉 Implementações Recentes
+
+### 01/02/2026 - Aceite Automático Melhorado + Email do Entregador
+- **Aceite Automático (aceitaScript)**:
+  - Adicionado diagnóstico detalhado da página `poc-orders`
+  - Suporte completo a **Shadow DOM** para componentes `hexa-v2-button`
+  - Múltiplos seletores de fallback para botões de aceitar/confirmar
+  - Busca por texto "Aceitar" quando seletores falham
+  - Logs detalhados para debug
+  - **Status**: ✅ Funcionando - aguardando pedidos pendentes para aceitar
+
+- **Email do Entregador (delivererEmail)**:
+  - Corrigido: `statusScript` agora passa `delivererEmail` para o PHP
+  - Campo é extraído do formato "thales.ferraz a caminho" ou "thales.ferraz retirou"
+  - Salvo em `delivery_email_entregador` no banco
+  - Enviado como `courier_email` para Lovable Cloud
+  - **Arquivos modificados**: `/app/zedelivery-clean/v1.js` linhas 673-688
+
+- **Frontend - Abas Funcionando**:
+  - ✅ **Produtos**: 212 produtos com imagens (API `/api/produtos`)
+  - ✅ **Lojas**: CRUD completo (API `/api/lojas`)
+  - ✅ **Config**: Configurações do sistema (API `/api/config`)
 
 ### 01/02/2026 - Sistema Inteligente de Progressão de Status
 - **UNIQUE Constraint**: Adicionada constraint `unique_delivery_code` para prevenir duplicatas
