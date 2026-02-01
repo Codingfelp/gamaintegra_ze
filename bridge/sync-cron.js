@@ -6,12 +6,42 @@ const fs = require('fs');
 
 const SYNC_INTERVAL = 10 * 1000; // 10 segundos
 
+// RAILWAY MYSQL - FALLBACK HARDCODED PARA PRODUÇÃO
+const RAILWAY_CONFIG = {
+  host: 'mainline.proxy.rlwy.net',
+  port: 52996,
+  user: 'root',
+  password: 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU',
+  database: 'railway'
+};
+
+// Detectar configuração errada (MongoDB, zeconnect-base, localhost)
+const envHost = process.env.DB_HOST || '';
+const envDb = process.env.DB_NAME || '';
+const isWrongConfig = (
+  envHost === '' ||
+  envHost === 'localhost' ||
+  envDb.includes('zeconnect') ||
+  envDb === 'test_database'
+);
+
+const dbConfig = isWrongConfig ? RAILWAY_CONFIG : {
+  host: process.env.DB_HOST || RAILWAY_CONFIG.host,
+  port: parseInt(process.env.DB_PORT) || RAILWAY_CONFIG.port,
+  user: process.env.DB_USER || RAILWAY_CONFIG.user,
+  password: process.env.DB_PASS || RAILWAY_CONFIG.password,
+  database: process.env.DB_NAME || RAILWAY_CONFIG.database,
+};
+
+// Forçar database railway se vier errado
+if (dbConfig.database === 'zeconnect-base' || dbConfig.database === 'test_database') {
+  dbConfig.database = 'railway';
+}
+
+console.log(`🔧 MySQL Config: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 3309,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'railway',
+  ...dbConfig,
   waitForConnections: true,
   connectionLimit: 5,
 });
