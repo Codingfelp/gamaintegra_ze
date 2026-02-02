@@ -197,9 +197,13 @@ async function syncToLovable() {
       
       // Formatar pedido para Lovable
       pedidosFormatados.push({
-        // Identificadores
+        // Identificadores - ENVIANDO AMBOS: número do pedido (9 dígitos) E código de entrega
         id_local: pedido.delivery_id,
-        external_id: pedido.delivery_code,
+        external_id: pedido.delivery_code,           // Número do pedido (9 dígitos): "228147196"
+        order_number: pedido.delivery_code,          // Número do pedido (9 dígitos): "228147196"  
+        delivery_code: pedido.delivery_codigo_entrega, // Código de entrega: "CRK 7WZ 1DJ W"
+        pickup_code: pedido.delivery_codigo_entrega,   // Código de entrega: "CRK 7WZ 1DJ W"
+        delivery_codigo_entrega: pedido.delivery_codigo_entrega,
         ide: pedido.delivery_ide,
         delivery_id: pedido.delivery_id,
         
