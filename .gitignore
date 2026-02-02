@@ -69,6 +69,9 @@ memory/
 
 # Emergent
 .emergent/
+
+# Submodule/External repos
+zedelivery-clean/
 logs/ze-v1-itens-out.log.8
 node_modules/chromium/lib/chromium/chrome-linux/chrome
 zedelivery-clean/node_modules/electron/dist/electron
