@@ -6,6 +6,23 @@ const fs = require('fs');
 
 const SYNC_INTERVAL = 3 * 1000; // 3 segundos - quase instantâneo
 
+// Função para formatar horário local (Brasil/BRT) sem sufixo Z
+function formatLocalTime(dateValue) {
+  if (!dateValue) return null;
+  
+  // Se já é string, remover o sufixo Z e .000Z
+  if (typeof dateValue === 'string') {
+    return dateValue.replace(/\.000Z$/, '').replace(/Z$/, '');
+  }
+  
+  // Se é Date, formatar como ISO sem Z
+  if (dateValue instanceof Date) {
+    return dateValue.toISOString().replace(/\.000Z$/, '').replace(/Z$/, '');
+  }
+  
+  return String(dateValue);
+}
+
 // RAILWAY MYSQL - FALLBACK HARDCODED PARA PRODUÇÃO
 const RAILWAY_CONFIG = {
   host: 'mainline.proxy.rlwy.net',
