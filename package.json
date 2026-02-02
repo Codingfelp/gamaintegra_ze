@@ -1,0 +1,24 @@
+{
+  "name": "ze-delivery-integrador",
+  "version": "1.0.0",
+  "description": "Integrador Zé Delivery - Scraper e Sync com Lovable Cloud",
+  "main": "zedelivery-clean/v1.js",
+  "scripts": {
+    "start": "node zedelivery-clean/v1.js",
+    "sync": "node bridge/sync-cron.js",
+    "itens": "node zedelivery-clean/v1-itens.js"
+  },
+  "dependencies": {
+    "chromium": "^3.0.3",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "googleapis": "^131.0.0",
+    "mysql2": "^3.7.0",
+    "node-fetch": "^2.7.0",
+    "puppeteer": "^21.11.0",
+    "request": "^2.88.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
