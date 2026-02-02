@@ -66,3 +66,7 @@ node_modules/chromium/lib/chromium/chrome-linux/chrome
 zedelivery-clean/node_modules/electron/dist/electron
 zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
 zedelivery-clean/.git/objects/pack/pack-9b701eb68ac0cd045e65592a24151e95d9879a75.pack
+-e 
+# Environment files
+*.env
+*.env.*
