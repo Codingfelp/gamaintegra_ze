@@ -215,6 +215,7 @@ if (!empty($orderData)) {
     $paymentType = urldecode($orderData['paymentType'] ?? '');
     $totalPrice = str_replace('R$ ', '', urldecode($orderData['priceFormatted'] ?? ''));
     $delivererEmail = urldecode($orderData['delivererEmail'] ?? '');
+    $customerPhone = urldecode($orderData['customerPhone'] ?? ''); // NOVO: Telefone do cliente
     
     // Flag especial: aceite confirmado pelo aceitaScript (para logs)
     $aceiteConfirmado = isset($orderData['aceiteConfirmado']) && $orderData['aceiteConfirmado'];
@@ -224,7 +225,7 @@ if (!empty($orderData)) {
     
     // Verificar se o pedido já existe na tabela delivery
     $conn = $DB->Conn();
-    $checkDelivery = mysqli_query($conn, "SELECT delivery_id, delivery_status FROM delivery WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "' LIMIT 1");
+    $checkDelivery = mysqli_query($conn, "SELECT delivery_id, delivery_status, delivery_telefone FROM delivery WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "' LIMIT 1");
     $existingDelivery = mysqli_fetch_assoc($checkDelivery);
     
     // Log especial se veio do aceitaScript
