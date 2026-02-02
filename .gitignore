@@ -1,107 +1,68 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# IDE and editors
-.idea/
-.vscode/
+# Logs
+logs/
+*.log
+*.log.*
 
 # Dependencies
 node_modules/
-/node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+zedelivery-clean/node_modules/
+bridge/node_modules/
 
-# Testing
-/coverage
+# Environment files
+.env
+.env.*
+!.env.example
 
-# Next.js
-/.next/
-/out/
-next-env.d.ts
-*.tsbuildinfo
+# Chromium/Electron binaries
+**/chromium/lib/
+**/electron/dist/
+*.pack
 
-# Production builds
-/build
-dist/
-dist
-
-# Environment files (comprehensive coverage)
-
+# Credentials
+token.json
+credentials.json
 *token.json*
 *credentials.json*
 
-# Logs and debug files
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-dump.rdb
+# Git submodule
+zedelivery-clean/.git/
 
-# System files
+# IDE
+.idea/
+.vscode/
+
+# Build
+dist/
+build/
+.next/
+
+# Cache
+.cache/
+__pycache__/
+*.pyc
+
+# System
 .DS_Store
 *.pem
 
-# Python
-__pycache__/
-*pyc*
-venv/
-.venv/
-
-# Development tools
-chainlit.md
-.chainlit
-.ipynb_checkpoints/
-.ac
-
-# Deployment
-.vercel
-
-# Data and databases
-agenthub/agents/youtube/db
-
-# Archive files and large assets
-**/*.zip
-**/*.tar.gz
-**/*.tar
-**/*.tgz
-*.pack
+# Archive
+*.zip
+*.tar.gz
+*.tar
+*.tgz
 *.deb
 *.dylib
 
-# Build caches
-.cache/
+# Test reports
+test_reports/
 
-# Mobile development
-android-sdk/ zedelivery-clean/.git/objects/pack/pack-9b701eb68ac0cd045e65592a24151e95d9879a75.pack
-zedelivery-clean/.git/objects/pack/pack-9b701eb68ac0cd045e65592a24151e95d9879a75.pack
+# Memory/PRD
+memory/
+
+# Emergent
+.emergent/
+logs/ze-v1-itens-out.log.8
+node_modules/chromium/lib/chromium/chrome-linux/chrome
 zedelivery-clean/node_modules/electron/dist/electron
 zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
--e 
-# Environment files
-*.env
-*.env.*
-logs/ze-v1-itens-out.log
-logs/ze-v1-itens-out.log.1
-logs/ze-v1-itens-out.log.8
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
-node_modules/chromium/lib/chromium/chrome-linux/chrome
+zedelivery-clean/.git/objects/pack/pack-9b701eb68ac0cd045e65592a24151e95d9879a75.pack
