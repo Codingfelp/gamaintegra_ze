@@ -223,10 +223,10 @@ async function syncToLovable() {
         status: pedido.delivery_status,
         delivery_status: pedido.delivery_status,
         status_text: getStatusText(pedido.delivery_status),
-        created_at: pedido.delivery_date_time,  // Horário local sem Z
-        delivery_date_time: pedido.delivery_date_time,
-        order_datetime: pedido.delivery_date_time,
-        captured_at: pedido.delivery_data_hora_captura,
+        created_at: formatLocalTime(pedido.delivery_date_time),
+        delivery_date_time: formatLocalTime(pedido.delivery_date_time),
+        order_datetime: formatLocalTime(pedido.delivery_date_time),
+        captured_at: formatLocalTime(pedido.delivery_data_hora_captura),
         
         // Valores
         subtotal: parseFloat(pedido.delivery_subtotal) || 0,
