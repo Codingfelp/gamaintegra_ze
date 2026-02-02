@@ -158,7 +158,7 @@ async function syncToLovable() {
       ) best ON d.delivery_id = best.max_id
       WHERE DATE(d.delivery_date_time) >= CURDATE() - INTERVAL 7 DAY
       ORDER BY d.delivery_date_time DESC
-      LIMIT 200
+      LIMIT 50
     `);
 
     console.log(`📦 ${pedidos.length} pedidos encontrados`);
