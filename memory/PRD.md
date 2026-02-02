@@ -2,41 +2,68 @@
 
 ## Status: ✅ FUNCIONANDO - SISTEMA EM PRODUÇÃO
 
-**Última atualização:** 02/02/2026 - Sync otimizado + Correções de status
+**Última atualização:** 02/02/2026 - Otimizações de performance e sync
 
 ---
 
-## 🎉 Implementações Recentes
+## 🎉 Estado Atual do Sistema
 
-### 02/02/2026 - OTIMIZAÇÃO COMPLETA DO SISTEMA
-**Correções Implementadas:**
+### ✅ FUNCIONANDO:
+1. **Sync Lovable Cloud** - 200 pedidos sincronizados a cada ~50 segundos
+2. **Campos Enviados**:
+   - `order_number`: Número do pedido (9 dígitos)
+   - `pickup_code` / `delivery_code`: Código de entrega (alfanumérico)
+   - `order_datetime` / `delivery_date_time`: Horário do pedido
+   - `status`: Status numérico (0=Pendente, 1=Entregue, 2=Aceito, 3=A Caminho, 4=Cancelado)
+   - `courier_email`: Nome do entregador (quando disponível)
+3. **Status dos Pedidos** - Leitura correta da página /history
+4. **Aceite Automático** - Rodando 24/7 (aguardando pedidos)
+5. **Itens dos Pedidos** - Sincronizados corretamente
 
-1. **Sync para Lovable Cloud - TEMPO REAL (3 segundos)**
-   - Intervalo reduzido de 10s para 3s
-   - Enviando 200 pedidos por sync
-   - Campos adicionais: `order_datetime`, `delivery_date_time`, múltiplos campos de entregador
-   - **Status**: ✅ Funcionando - Syncs bem-sucedidos a cada 3s
+### ⚠️ LIMITAÇÃO CONHECIDA:
+- **Nome do Entregador**: O nome só aparece na página `/poc-orders` em formato específico
+  - A página `/history` mostra apenas "A caminho" ou "Retirou" sem o nome
+  - Verificação de `/poc-orders` implementada mas pode não capturar todos os casos
 
-2. **Status dos Pedidos**
-   - Pedidos novos entram como "Pendente" (não mais hardcoded "Aceito")
-   - `statusScript` lê status REAL da página
-   - Status corretos: Pendente(0), Aceito(2), A Caminho(3), Entregue(1), Cancelado(4)
-   - **Status**: ✅ Funcionando
-
-3. **Aceite Automático**
-   - Script `aceitaScript` rodando 24/7
-   - Aguardando pedidos pendentes (botão desabilitado = sem pedidos)
-   - Quando pedido novo chegar, tentará aceitar automaticamente
-   - **Status**: ✅ Funcionando - aguardando pedidos
-
-4. **Dados do Entregador**
-   - Extração configurada para formatos: "nome a caminho", "nome retirou"
-   - Campo `courier_email` sendo enviado para Lovable
-   - **Limitação**: Nome do entregador pode não aparecer no formato esperado na UI do Zé
+### 📊 Performance:
+- **Sync**: ~50 segundos para 200 pedidos
+- **Status Update**: 30 pedidos em ~40 segundos
+- **Ciclo Completo**: ~2 minutos
 
 ---
 
-### 01/02/2026 - CORREÇÃO DO FLUXO DE ACEITE
+## Arquivos Principais Modificados
+
+### `/app/zedelivery-clean/v1.js`
+- `pedidoScript`: Pedidos novos entram como "Pendente"
+- `serverScript`: Pedidos novos entram como "Pendente"
+- `statusScript`: Otimizado para processar 30 pedidos, verificar poc-orders
+- `aceitaScript`: Aceite automático com suporte Shadow DOM
+
+### `/app/bridge/sync-cron.js`
+- Intervalo: 3 segundos
+- Campos adicionados: `order_number`, `order_datetime`, múltiplos campos de entregador
+
+### `/app/integrador/zeduplo/ze_pedido.php`
+- Proteção de status: Não permite regressão
+- Flag `aceiteConfirmado` para aceite automático
+
+---
+
+## Monitoramento
+
+```bash
+# Sync Lovable
+tail -f /app/logs/ze-sync-out.log | grep "Sincronização"
+
+# Status Script
+tail -f /app/logs/ze-v1-out.log | grep -E "Processados|ENTREGAS"
+
+# Aceite Automático
+strings /app/logs/ze-v1-out.log | grep "ACEITA" | tail -10
+```
+
+---
 - **UNIQUE Constraint**: Adicionada constraint `unique_delivery_code` para prevenir duplicatas
 - **Proteção de Regressão**: Status só pode AVANÇAR na progressão:
   - `Pendente (0)` → `Aceito (2)` → `A Caminho (3)` → `Entregue (1)`
