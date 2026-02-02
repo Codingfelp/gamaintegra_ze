@@ -263,12 +263,19 @@ if (!empty($orderData)) {
         
         if (!$canUpdate['allowed']) {
             // NÃO PODE ATUALIZAR - Status iria regredir ou já é final
+            // MAS: Se tiver telefone novo e o atual está vazio, atualizar
+            if (!empty($customerPhone) && empty($existingDelivery['delivery_telefone'])) {
+                $updatePhoneSql = "UPDATE delivery SET delivery_telefone = '" . mysqli_real_escape_string($conn, $customerPhone) . "' WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'";
+                mysqli_query($conn, $updatePhoneSql);
+            }
+            
             $json = [
                 "id_pedido" => $orderNumber,
                 "skipped" => true,
                 "reason" => $canUpdate['reason'],
                 "current_status" => $currentStatus,
-                "attempted_status" => $newStatusCode
+                "attempted_status" => $newStatusCode,
+                "phone_updated" => !empty($customerPhone)
             ];
             echo json_encode($json);
         } else {
@@ -280,6 +287,11 @@ if (!empty($orderData)) {
                 $updateSql .= ", delivery_email_entregador = '" . mysqli_real_escape_string($conn, $delivererEmail) . "'";
             }
             
+            // Se tiver telefone do cliente, atualizar também
+            if (!empty($customerPhone)) {
+                $updateSql .= ", delivery_telefone = '" . mysqli_real_escape_string($conn, $customerPhone) . "'";
+            }
+            
             $updateSql .= " WHERE delivery_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'";
             mysqli_query($conn, $updateSql);
             mysqli_query($conn, "UPDATE ze_pedido SET pedido_status = '" . mysqli_real_escape_string($conn, trim($status)) . "' WHERE pedido_code = '" . mysqli_real_escape_string($conn, $orderNumber) . "'");
@@ -289,7 +301,8 @@ if (!empty($orderData)) {
                 "updated" => true,
                 "from_status" => $currentStatus,
                 "to_status" => $newStatusCode,
-                "deliverer" => $delivererEmail ?: null
+                "deliverer" => $delivererEmail ?: null,
+                "phone" => $customerPhone ?: null
             ];
             echo json_encode($json);
         }
