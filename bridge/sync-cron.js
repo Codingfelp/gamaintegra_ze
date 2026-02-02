@@ -219,13 +219,13 @@ async function syncToLovable() {
         address_city: pedido.delivery_endereco_cidade_uf,
         address_zip: pedido.delivery_endereco_cep,
         
-        // Status e datas - ENVIANDO MÚLTIPLOS FORMATOS
+        // Status e datas - HORÁRIO LOCAL (Brasil/BRT) sem sufixo Z
         status: pedido.delivery_status,
         delivery_status: pedido.delivery_status,
         status_text: getStatusText(pedido.delivery_status),
-        created_at: pedido.delivery_date_time,
-        delivery_date_time: pedido.delivery_date_time, // Horário original do pedido
-        order_datetime: pedido.delivery_date_time, // Campo adicional para Lovable
+        created_at: pedido.delivery_date_time,  // Horário local sem Z
+        delivery_date_time: pedido.delivery_date_time,
+        order_datetime: pedido.delivery_date_time,
         captured_at: pedido.delivery_data_hora_captura,
         
         // Valores
