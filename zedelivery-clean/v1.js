@@ -332,6 +332,7 @@ async function pedidoScript(page) {
                         deliveryType,
                         paymentType,
                         priceFormatted,
+                        entregador: entregador || '',
                     });
                 });
 
@@ -886,6 +887,7 @@ async function serverScript(page) {
                         deliveryType,
                         paymentType,
                         priceFormatted,
+                        entregador: entregador || '',
                     });
                 });
 
