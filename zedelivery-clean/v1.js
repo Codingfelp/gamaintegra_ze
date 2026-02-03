@@ -311,6 +311,15 @@ async function pedidoScript(page) {
                         status = statusElement.textContent.trim();
                     }*/
                     const status = 'Pendente'; // Pedidos novos entram como Pendente
+                    
+                    // 🔹 Capturar nome do entregador (aparece como "username retirou" ou "username a caminho")
+                    let entregador = '';
+                    const allTextContent = row.innerText || '';
+                    const entregadorPattern = allTextContent.match(/([a-zA-Z0-9._-]+)\s+(retirou|a caminho|está a caminho)/i);
+                    if (entregadorPattern) {
+                        entregador = entregadorPattern[1].trim();
+                    }
+                    
                     const deliveryType = row
                         .querySelector('[id^="delivery-type"]')
                         ?.innerText.trim();
@@ -866,6 +875,15 @@ async function serverScript(page) {
                         status = statusElement.textContent.trim();
                     }*/
                     const status = 'Pendente'; // Pedidos novos entram como Pendente
+                    
+                    // 🔹 Capturar nome do entregador (aparece como "username retirou" ou "username a caminho")
+                    let entregador = '';
+                    const allTextContent = row.innerText || '';
+                    const entregadorPattern = allTextContent.match(/([a-zA-Z0-9._-]+)\s+(retirou|a caminho|está a caminho)/i);
+                    if (entregadorPattern) {
+                        entregador = entregadorPattern[1].trim();
+                    }
+                    
                     const deliveryType = row
                         .querySelector('[id^="delivery-type"]')
                         ?.innerText.trim();
