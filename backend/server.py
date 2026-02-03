@@ -1096,8 +1096,8 @@ async def get_realtime_metrics():
 # Caminhos possíveis para o build do frontend
 FRONTEND_BUILD_PATHS = [
     "/app/frontend/build",
+    "../frontend/build",
     os.path.join(os.path.dirname(__file__), "..", "frontend", "build"),
-    "./frontend/build"
 ]
 
 # Encontrar o caminho correto do build
