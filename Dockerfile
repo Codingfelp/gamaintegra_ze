@@ -59,17 +59,17 @@ COPY backend/requirements.txt /app/backend/
 RUN pip3 install --no-cache-dir --break-system-packages -r /app/backend/requirements.txt
 COPY backend/ /app/backend/
 
-# Scrapers Node.js
-COPY zedelivery-clean/package.json zedelivery-clean/yarn.lock /app/zedelivery-clean/
+# Scrapers Node.js (usa npm, não yarn)
+COPY zedelivery-clean/package.json zedelivery-clean/package-lock.json /app/zedelivery-clean/
 WORKDIR /app/zedelivery-clean
-RUN yarn install --production --frozen-lockfile
+RUN npm ci --production
 WORKDIR /app
 COPY zedelivery-clean/ /app/zedelivery-clean/
 
 # Bridge/Sync
 COPY bridge/package.json /app/bridge/
 WORKDIR /app/bridge
-RUN yarn install --production --frozen-lockfile || npm install --production
+RUN npm install --production
 WORKDIR /app
 COPY bridge/ /app/bridge/
 
