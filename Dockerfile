@@ -1,5 +1,5 @@
-# Dockerfile para Zé Delivery Integrador - COMPLETO
-# Frontend React + Backend FastAPI + Scrapers Node.js
+# Dockerfile para Zé Delivery Integrador
+# Frontend React + Backend FastAPI + Sync
 
 # ============================================
 # STAGE 1: Build do Frontend React
@@ -8,115 +8,59 @@ FROM node:18-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copiar arquivos de dependências
 COPY frontend/package.json frontend/yarn.lock ./
-
-# Instalar dependências
 RUN yarn install --frozen-lockfile
 
-# Copiar código fonte do frontend
 COPY frontend/ .
 
-# Build do frontend (gera pasta /app/frontend/build)
 ENV REACT_APP_BACKEND_URL=""
 RUN yarn build
 
 # ============================================
-# STAGE 2: Runtime Final
+# STAGE 2: Runtime
 # ============================================
-FROM node:18-slim
+FROM python:3.11-slim
 
-# Instalar Python, PHP e dependências do sistema
+# Instalar Node.js e dependências
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-venv \
+    curl \
+    supervisor \
     php-cli \
     php-mysql \
     php-curl \
     php-mbstring \
-    chromium \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    xdg-utils \
-    supervisor \
-    ca-certificates \
     --no-install-recommends \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
-
-# Configurar Puppeteer
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-ENV NODE_ENV=production
 
 WORKDIR /app
 
-# ============================================
-# Backend Python (FastAPI)
-# ============================================
+# Backend Python
 COPY backend/requirements.txt /app/backend/
-RUN pip3 install --no-cache-dir --break-system-packages -r /app/backend/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 COPY backend/ /app/backend/
 
-# ============================================
-# Scrapers Node.js - RAIZ (para puppeteer compartilhado)
-# ============================================
-COPY package.json yarn.lock ./
-RUN yarn install --production --frozen-lockfile
-
-# ============================================
-# Zedelivery-clean - COM SUAS DEPENDÊNCIAS
-# ============================================
-COPY zedelivery-clean/ /app/zedelivery-clean/
-WORKDIR /app/zedelivery-clean
-RUN yarn install --production --frozen-lockfile
-WORKDIR /app
-
-# ============================================
-# Bridge - COM SUAS DEPENDÊNCIAS
-# ============================================
-COPY bridge/ /app/bridge/
+# Bridge/Sync Node.js
+COPY bridge/package.json /app/bridge/
 WORKDIR /app/bridge
-RUN yarn install --production --frozen-lockfile
+RUN npm install --production
 WORKDIR /app
+COPY bridge/ /app/bridge/
 
-# ============================================
 # Integrador PHP
-# ============================================
 COPY integrador/ /app/integrador/
 
-# ============================================
-# Frontend Build (do stage anterior)
-# ============================================
+# Frontend (build do stage 1)
 COPY --from=frontend-builder /app/frontend/build /app/frontend/build
 
-# ============================================
-# Configuração do Supervisor
-# ============================================
+# Supervisor
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Criar diretórios necessários
+# Diretórios
 RUN mkdir -p /app/logs /var/log/supervisor
 
-# Permissões
-RUN chmod -R 755 /app
-
-# Railway usa PORT dinamicamente
 EXPOSE 8080
 
-# Iniciar supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
