@@ -607,6 +607,22 @@ async function statusScript(page) {
                     } else if (statusElement) {
                         status = statusElement.textContent.trim();
                     }
+                    
+                    // 🔹 Capturar nome do entregador
+                    // O entregador aparece como "username retirou" ou "username a caminho"
+                    // Procurar em todos os spans/textos do card pelo padrão
+                    let entregador = '';
+                    const allText = row.innerText || '';
+                    const entregadorMatch = allText.match(/([a-zA-Z0-9._-]+)\s+(retirou|a caminho|está a caminho)/i);
+                    if (entregadorMatch) {
+                        entregador = entregadorMatch[1].trim();
+                    }
+                    // Também tentar buscar em elemento específico de courier/entregador
+                    const courierEl = row.querySelector('[data-testid*="courier"], [id*="courier"], [id*="driver"], [class*="courier"]');
+                    if (courierEl && !entregador) {
+                        entregador = courierEl.innerText.replace(/retirou|a caminho|está a caminho/gi, '').trim();
+                    }
+                    
                     const deliveryType = row
                         .querySelector('[id^="delivery-type"]')
                         ?.innerText.trim();
@@ -628,6 +644,7 @@ async function statusScript(page) {
                         deliveryType,
                         paymentType,
                         priceFormatted,
+                        entregador,
                     });
                 });
 
