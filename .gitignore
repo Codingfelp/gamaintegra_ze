@@ -86,3 +86,7 @@ zedelivery-clean/.git/objects/pack/pack-9b701eb68ac0cd045e65592a24151e95d9879a75
 # Environment files
 *.env
 *.env.*
+-e 
+# Environment files
+*.env
+*.env.*
