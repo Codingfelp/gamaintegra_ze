@@ -1,0 +1,33 @@
+{
+  "name": "ze",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chromium": "^3.0.3",
+    "express": "^4.18.2",
+    "puppeteer": "^21.11.0",
+    "request": "^2.88.2",
+    "yum": "^0.1.1"
+  },
+  "build": {
+    "electronVersion": "28.2.1",
+    "appId": "com.example.myapp",
+    "productName": "Integração Ze Delivery",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable"
+    }
+  },
+  "devDependencies": {
+    "electron": "^28.2.1",
+    "electron-builder": "^24.9.1"
+  }
+}

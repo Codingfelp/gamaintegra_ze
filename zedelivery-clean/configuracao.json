@@ -1,0 +1,11 @@
+{
+    "login": "gamataurize@gmail.com",
+    "senha": "GamaZed01***",
+    "token":"e8194a871a0e6d26fe620d13f7baad86",
+    "url_pedido":"http://localhost/zeduplo/ze_pedido.php?ide=e8194a871a0e6d26fe620d13f7baad86",
+    "url_pega":"http://localhost/zeduplo/ze_pedido_id.php?ide=e8194a871a0e6d26fe620d13f7baad86",
+    "url_view":"http://localhost/zeduplo/ze_pedido_view.php?ide=e8194a871a0e6d26fe620d13f7baad86",
+    "url_duplo":"http://localhost/zeduplo/ze_pedido_mail.php",
+    "url_view_status":"http://localhost/zeduplo/ze_pedido_view_status.php?ide=e8194a871a0e6d26fe620d13f7baad86",
+    "url_pega_status":"http://localhost/zeduplo/ze_pedido_status.php?ide=e8194a871a0e6d26fe620d13f7baad86"
+}
