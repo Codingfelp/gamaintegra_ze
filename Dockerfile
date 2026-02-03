@@ -73,14 +73,31 @@ RUN pip3 install --no-cache-dir --break-system-packages -r /app/backend/requirem
 COPY backend/ /app/backend/
 
 # ============================================
-# Scrapers Node.js
+# Scrapers Node.js - RAIZ (para puppeteer compartilhado)
 # ============================================
-COPY package*.json yarn.lock ./
+COPY package.json yarn.lock ./
 RUN yarn install --production --frozen-lockfile
 
+# ============================================
+# Zedelivery-clean - COM SUAS DEPENDÊNCIAS
+# ============================================
 COPY zedelivery-clean/ /app/zedelivery-clean/
-COPY integrador/ /app/integrador/
+WORKDIR /app/zedelivery-clean
+RUN yarn install --production --frozen-lockfile
+WORKDIR /app
+
+# ============================================
+# Bridge - COM SUAS DEPENDÊNCIAS
+# ============================================
 COPY bridge/ /app/bridge/
+WORKDIR /app/bridge
+RUN yarn install --production --frozen-lockfile
+WORKDIR /app
+
+# ============================================
+# Integrador PHP
+# ============================================
+COPY integrador/ /app/integrador/
 
 # ============================================
 # Frontend Build (do stage anterior)
@@ -88,7 +105,7 @@ COPY bridge/ /app/bridge/
 COPY --from=frontend-builder /app/frontend/build /app/frontend/build
 
 # ============================================
-# Configurações
+# Configuração do Supervisor
 # ============================================
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
@@ -98,7 +115,7 @@ RUN mkdir -p /app/logs /var/log/supervisor
 # Permissões
 RUN chmod -R 755 /app
 
-# Porta dinâmica do Railway
+# Railway usa PORT dinamicamente
 EXPOSE 8080
 
 # Iniciar supervisor
