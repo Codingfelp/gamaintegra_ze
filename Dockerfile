@@ -1,17 +1,15 @@
 # Dockerfile para Zé Delivery Integrador
-# Suporta: Node.js, PHP, Puppeteer (headless Chrome)
+# Suporta: Node.js, PHP CLI, Puppeteer (headless Chrome)
 
 FROM node:18-slim
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
-    php-fpm \
+    php-cli \
     php-mysql \
     php-curl \
-    php-json \
     php-mbstring \
     chromium \
-    chromium-sandbox \
     fonts-liberation \
     libasound2 \
     libatk-bridge2.0-0 \
@@ -29,8 +27,6 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     xdg-utils \
     supervisor \
-    curl \
-    wget \
     ca-certificates \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
@@ -38,6 +34,7 @@ RUN apt-get update && apt-get install -y \
 # Configurar Puppeteer para usar o Chromium instalado
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+ENV NODE_ENV=production
 
 # Criar diretório da aplicação
 WORKDIR /app
@@ -61,7 +58,8 @@ RUN mkdir -p /app/logs /var/log/supervisor
 # Dar permissões
 RUN chmod -R 755 /app
 
-# Expor porta (se necessário para health check)
+# Railway usa a variável PORT dinamicamente
+# O healthcheck-server.js escuta nessa porta
 EXPOSE 8080
 
 # Iniciar supervisor (gerencia todos os processos)
