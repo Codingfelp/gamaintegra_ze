@@ -1092,6 +1092,73 @@ async def get_realtime_metrics():
     return metrics
 
 
+# ============= SERVIR FRONTEND REACT =============
+# Caminhos possíveis para o build do frontend
+FRONTEND_BUILD_PATHS = [
+    "/app/frontend/build",
+    os.path.join(os.path.dirname(__file__), "..", "frontend", "build"),
+    "./frontend/build"
+]
+
+# Encontrar o caminho correto do build
+FRONTEND_BUILD_DIR = None
+for path in FRONTEND_BUILD_PATHS:
+    if os.path.exists(path) and os.path.isfile(os.path.join(path, "index.html")):
+        FRONTEND_BUILD_DIR = os.path.abspath(path)
+        break
+
+if FRONTEND_BUILD_DIR:
+    print(f"📂 Frontend encontrado em: {FRONTEND_BUILD_DIR}")
+    
+    # Servir arquivos estáticos (JS, CSS, imagens)
+    app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_BUILD_DIR, "static")), name="static")
+    
+    # Servir outros arquivos na raiz do build (favicon, manifest, etc)
+    @app.get("/favicon.ico")
+    async def favicon():
+        favicon_path = os.path.join(FRONTEND_BUILD_DIR, "favicon.ico")
+        if os.path.exists(favicon_path):
+            return FileResponse(favicon_path)
+        raise HTTPException(status_code=404)
+    
+    @app.get("/manifest.json")
+    async def manifest():
+        manifest_path = os.path.join(FRONTEND_BUILD_DIR, "manifest.json")
+        if os.path.exists(manifest_path):
+            return FileResponse(manifest_path)
+        raise HTTPException(status_code=404)
+    
+    @app.get("/robots.txt")
+    async def robots():
+        robots_path = os.path.join(FRONTEND_BUILD_DIR, "robots.txt")
+        if os.path.exists(robots_path):
+            return FileResponse(robots_path)
+        raise HTTPException(status_code=404)
+    
+    # Catch-all: Qualquer rota não-API serve o index.html (SPA routing)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Se é uma rota de API, deixar o 404 padrão
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        
+        # Para qualquer outra rota, servir o index.html (SPA)
+        index_path = os.path.join(FRONTEND_BUILD_DIR, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="Frontend not found")
+else:
+    print("⚠️ Frontend build não encontrado - apenas API disponível")
+    
+    @app.get("/")
+    async def root():
+        return {
+            "status": "ok",
+            "service": "ze-delivery-integrador",
+            "message": "Frontend não disponível - use /api/health para verificar a API"
+        }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8001)
