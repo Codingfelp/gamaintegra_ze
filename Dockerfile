@@ -4,7 +4,7 @@
 # ============================================
 # STAGE 1: Build do Frontend React
 # ============================================
-FROM node:18-slim AS frontend-builder
+FROM node:20-slim AS frontend-builder
 
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/yarn.lock ./
@@ -16,7 +16,7 @@ RUN yarn build
 # ============================================
 # STAGE 2: Runtime
 # ============================================
-FROM node:18-bookworm-slim
+FROM node:20-bookworm-slim
 
 # Instalar dependências
 RUN apt-get update && apt-get install -y \
@@ -59,7 +59,7 @@ COPY backend/requirements.txt /app/backend/
 RUN pip3 install --no-cache-dir --break-system-packages -r /app/backend/requirements.txt
 COPY backend/ /app/backend/
 
-# Scrapers Node.js (usa npm, não yarn)
+# Scrapers Node.js
 COPY zedelivery-clean/package.json zedelivery-clean/package-lock.json /app/zedelivery-clean/
 WORKDIR /app/zedelivery-clean
 RUN npm ci --production
