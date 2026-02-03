@@ -685,14 +685,15 @@ async function statusScript(page) {
                     statusCode = '5';
                 }
 
-                console.log("Atualizando pedido:", orderNumberWithoutSpaces, "Status:", statusPed, "Código:", statusCode, "Token:", configRobo.token);
+                console.log("Atualizando pedido:", orderNumberWithoutSpaces, "Status:", statusPed, "Código:", statusCode, "Token:", configRobo.token, "Entregador:", order.entregador || '(não encontrado)');
 
                 // Usar PHP Bridge via CLI em vez de HTTP
                 try {
                     const result = await phpBridge.atualizarStatusDireto(
                         orderNumberWithoutSpaces,
                         statusCode,
-                        configRobo.token
+                        configRobo.token,
+                        order.entregador || ''
                     );
                     console.log("Resultado da atualização:", result ? result.substring(0, 100) : 'OK');
                 } catch (error) {
