@@ -106,6 +106,12 @@ if (is_array($json) && count($json) > 0) {
             } else {
                 $emailEntregador = trim($json[$x]['emailEntregador']);
             }
+            // Nome do entregador
+            if (empty(trim($json[$x]['entregador'] ?? ''))) {
+                $nomeEntregador = '';
+            } else {
+                $nomeEntregador = trim($json[$x]['entregador']);
+            }
             if (trim($json[$x]['enderecoRota']) == '') {
                 $enderecoRota = 0;
             } else {
