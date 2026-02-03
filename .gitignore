@@ -7,15 +7,15 @@ logs/
 node_modules/
 **/node_modules/
 
-# Environment files
+# Environment files (apenas .env local, permitir .env.production e .env.example)
 .env
-.env.*
+!.env.production
 !.env.example
+backend/.env
 
 # Chromium/Electron binaries
-**/chromium/
+**/chromium/lib/
 **/electron/dist/
-*.pack
 
 # Browser profiles (large cache files)
 **/profile-ze-*/
@@ -33,10 +33,8 @@ credentials.json
 .idea/
 .vscode/
 
-# Build
-dist/
-build/
-.next/
+# Build do frontend (permitir para produção)
+# build/
 
 # Cache
 .cache/
@@ -48,13 +46,14 @@ __pycache__/
 .DS_Store
 *.pem
 
-# Archive
+# Archive (arquivos grandes)
 *.zip
 *.tar.gz
 *.tar
 *.tgz
 *.deb
 *.dylib
+*.pack
 
 # Test reports
 test_reports/
@@ -65,17 +64,9 @@ memory/
 # Emergent
 .emergent/
 
-# External repos with their own git
-zedelivery-clean/
+# Git objects grandes
+*.pack
 node_modules/chromium/lib/chromium/chrome-linux/chrome
 zedelivery-clean/node_modules/electron/dist/electron
 zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
 zedelivery-clean/.git/objects/pack/pack-9b701eb68ac0cd045e65592a24151e95d9879a75.pack
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
