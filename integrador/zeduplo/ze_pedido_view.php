@@ -208,6 +208,15 @@ if (is_array($json) && count($json) > 0) {
                 if ($emailEntregador != '' && $emailEntregador != '0') {
                     $upDev['delivery_email_entregador'] = $emailEntregador;
                 }
+                // Nome do entregador (salvo no campo email temporariamente até criar campo próprio)
+                if ($nomeEntregador != '' && $nomeEntregador != '0') {
+                    // Se já tem email, concatena. Se não, salva só o nome
+                    if ($emailEntregador != '' && $emailEntregador != '0') {
+                        $upDev['delivery_email_entregador'] = $nomeEntregador . ' | ' . $emailEntregador;
+                    } else {
+                        $upDev['delivery_email_entregador'] = $nomeEntregador;
+                    }
+                }
                 
                 // Preservar endereço se já existir no banco
                 if ($enderecoRota != '' && $enderecoRota != '0') {
