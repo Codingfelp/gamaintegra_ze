@@ -306,8 +306,17 @@ async function executarSQL(sql) {
  * @param {string} token - Token do hub
  * @returns {Promise<string>}
  */
-async function atualizarStatusDireto(deliveryCode, statusCode, token) {
-    const sql = `UPDATE delivery SET delivery_status = '${statusCode}' WHERE delivery_code = '${deliveryCode}' AND delivery_ide_hub_delivery = '${token}' LIMIT 1`;
+async function atualizarStatusDireto(deliveryCode, statusCode, token, entregador = '') {
+    let sql = `UPDATE delivery SET delivery_status = '${statusCode}'`;
+    
+    // Se tiver entregador, atualizar também
+    if (entregador && entregador.trim() !== '') {
+        // Escapar aspas simples para evitar SQL injection
+        const entregadorEscaped = entregador.replace(/'/g, "''");
+        sql += `, delivery_email_entregador = '${entregadorEscaped}'`;
+    }
+    
+    sql += ` WHERE delivery_code = '${deliveryCode}' AND delivery_ide_hub_delivery = '${token}' LIMIT 1`;
     return await executarSQL(sql);
 }
 
