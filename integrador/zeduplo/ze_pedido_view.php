@@ -20,11 +20,29 @@ if ($desconto == '') {
     $desconto = str_replace(',', '.', $strreplacedesconto);
 }
 
-// Ler dados: priorizar php://input, fallback para $_POST['pedidosData']
-$input = file_get_contents('php://input');
+// Ler dados: priorizar stdin (para CLI), fallback para php://input, depois $_POST
+$input = '';
+
+// 1. Tentar ler de stdin (CLI)
+if (defined('STDIN') && !stream_isatty(STDIN)) {
+    $input = stream_get_contents(STDIN);
+}
+
+// 2. Se vazio, tentar php://input (HTTP)
+if (empty($input)) {
+    $input = file_get_contents('php://input');
+}
+
+// 3. Se ainda vazio, tentar $_POST['pedidosData']
 if (empty($input) && !empty($_POST['pedidosData'])) {
     $input = $_POST['pedidosData'];
 }
+
+// 4. Se ainda vazio, tentar argumentos de linha de comando
+if (empty($input) && isset($argv[1]) && $argv[1] !== 'ide=' . ($ide ?? '')) {
+    $input = $argv[1];
+}
+
 $json = json_decode($input, true);
 
 if (is_array($json) && count($json) > 0) {
