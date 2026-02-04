@@ -66,6 +66,14 @@ RUN npm ci --production
 WORKDIR /app
 COPY zedelivery-clean/ /app/zedelivery-clean/
 
+# ============================================
+# PROFILES DO CHROMIUM COM SESSÃO ATIVA
+# Isso permite que o Railway tenha os mesmos
+# cookies de sessão que funcionam aqui
+# ============================================
+COPY zedelivery-clean/profile-ze-v1/ /app/zedelivery-clean/profile-ze-v1/
+COPY zedelivery-clean/profile-ze-v1-itens/ /app/zedelivery-clean/profile-ze-v1-itens/
+
 # Bridge/Sync
 COPY bridge/package.json /app/bridge/
 WORKDIR /app/bridge
