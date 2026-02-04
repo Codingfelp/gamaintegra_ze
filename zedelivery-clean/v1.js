@@ -1204,8 +1204,8 @@ async function criarJanelaStatus(cookies) {
     
     // AGORA, CADA ABA EXECUTA UM DOS SEUS SCRIPTS
     setTimeout(() => pedidoScript(page1), 3000);
-    //itensScript(page2);  // aba 2
-    //aceitaScript(browser, cookies); // aba 3
+    //itensScript(page2);  // aba 2 - rodado no v1-itens.js separado
+    setTimeout(() => aceitaScript(browser, cookies), 5000); // aba 3 - ACEITAR PEDIDOS AUTOMATICAMENTE
     setTimeout(() => serverScript(page4), 8000);
     setTimeout(() => statusScript(page5), 15000);
 })().catch(err => {
