@@ -1222,7 +1222,13 @@ async function criarJanelaStatus(cookies) {
 (async () => {
     console.log('🚀 [v1-itens] Iniciando script de itens...');
     const isProduction = process.env.NODE_ENV === 'production';
+    const PROFILE_NAME = sessionManager.PROFILE_NAME_V1_ITENS;
+    
     console.log(`📍 [v1-itens] Ambiente: ${isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
+    
+    // Inicializar tabela de sessão no banco
+    console.log('🔧 [v1-itens] Inicializando sistema de sessão...');
+    await sessionManager.initSessionTable();
     
     // Em produção (Railway), usar Chromium do sistema
     const executablePath = isProduction ? '/usr/bin/chromium' : undefined;
@@ -1233,7 +1239,7 @@ async function criarJanelaStatus(cookies) {
     const browser = await puppeteer.launch({ 
         headless: 'new', 
         executablePath: executablePath,
-        userDataDir: './profile-ze-v1-itens', 
+        userDataDir: './' + PROFILE_NAME, 
         args: [
             '--start-maximized',
             '--no-sandbox',
@@ -1266,23 +1272,39 @@ async function criarJanelaStatus(cookies) {
     
     await page1.setViewport({ width, height });
     
-    console.log('🌐 [v1-itens] Navegando para https://seu.ze.delivery/home...');
-    await page1.goto("https://seu.ze.delivery/home", { waitUntil: 'networkidle2', timeout: 60000 });
-    console.log('📍 [v1-itens] URL atual:', page1.url());
+    // ESTRATÉGIA DE SESSÃO:
+    // 1. Tentar restaurar sessão do banco de dados
+    // 2. Se falhar, tentar usar perfil local do Chromium
+    // 3. Se ainda falhar, fazer login com 2FA
+    
+    console.log('🔄 [v1-itens] Tentando restaurar sessão do banco...');
+    let sessionRestored = await sessionManager.restoreSession(page1, PROFILE_NAME);
+    
+    if (!sessionRestored) {
+        console.log('🌐 [v1-itens] Sessão não restaurada do banco, verificando perfil local...');
+        await page1.goto("https://seu.ze.delivery/home", { waitUntil: 'networkidle2', timeout: 60000 });
+        console.log('📍 [v1-itens] URL atual:', page1.url());
 
-    if (page1.url().includes("login")) {
-        console.log("🔑 [v1-itens] Sessão expirada, fazendo login novamente...");
-        try {
-            await fazerLogin(page1);
-            console.log("✅ [v1-itens] Login concluído!");
-        } catch (loginError) {
-            console.error("❌ [v1-itens] Erro no login:", loginError.message);
-            console.log("🔄 [v1-itens] Reiniciando em 30s...");
-            await sleep(30);
-            process.exit(1);
+        if (page1.url().includes("login")) {
+            console.log("🔑 [v1-itens] Sessão expirada, fazendo login novamente...");
+            try {
+                await fazerLogin(page1);
+                console.log("✅ [v1-itens] Login concluído!");
+                
+                // Salvar nova sessão no banco
+                console.log('💾 [v1-itens] Salvando nova sessão no banco...');
+                await sessionManager.saveSession(page1, PROFILE_NAME);
+            } catch (loginError) {
+                console.error("❌ [v1-itens] Erro no login:", loginError.message);
+                console.log("🔄 [v1-itens] Reiniciando em 30s...");
+                await sleep(30);
+                process.exit(1);
+            }
+        } else {
+            console.log('✅ [v1-itens] Sessão ativa via perfil local');
+            // Salvar sessão válida no banco para próximas vezes
+            await sessionManager.saveSession(page1, PROFILE_NAME);
         }
-    } else {
-        console.log('✅ [v1-itens] Sessão ativa');
     }
 
     // PEGA COOKIES DE AUTENTICAÇÃO
@@ -1294,6 +1316,17 @@ async function criarJanelaStatus(cookies) {
     await page2.setViewport({ width, height });
 
     await page2.setCookie(...cookies);
+    
+    // INICIAR SALVAMENTO PERIÓDICO DE SESSÃO
+    console.log(`🔄 [v1-itens] Iniciando salvamento periódico de sessão a cada ${SESSION_SAVE_INTERVAL/1000}s`);
+    setInterval(async () => {
+        try {
+            console.log('💾 [v1-itens] Salvando sessão periodicamente...');
+            await sessionManager.saveSession(page1, PROFILE_NAME);
+        } catch (error) {
+            console.error('❌ [v1-itens] Erro ao salvar sessão:', error.message);
+        }
+    }, SESSION_SAVE_INTERVAL);
 
     console.log('🚀 [v1-itens] Iniciando script de itens...');
     
