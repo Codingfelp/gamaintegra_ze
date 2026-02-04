@@ -76,23 +76,15 @@ async function execSessionPHP(action, profile = '', cookies = '') {
  * Inicializa a tabela de sessão no banco se não existir
  */
 async function initSessionTable() {
-    const sql = `
-        CREATE TABLE IF NOT EXISTS ${SESSION_TABLE} (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            profile_name VARCHAR(100) NOT NULL UNIQUE,
-            cookies_json LONGTEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            is_valid TINYINT(1) DEFAULT 1,
-            last_check DATETIME DEFAULT NULL,
-            INDEX idx_profile (profile_name)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    `;
-    
     try {
-        await phpBridge.executarSQL(sql);
-        console.log('✅ [SESSION] Tabela de sessão verificada/criada');
-        return true;
+        const result = await execSessionPHP('init');
+        if (result.success) {
+            console.log('✅ [SESSION] Tabela de sessão verificada/criada');
+            return true;
+        } else {
+            console.error('❌ [SESSION] Erro ao criar tabela:', result.message);
+            return false;
+        }
     } catch (error) {
         console.error('❌ [SESSION] Erro ao criar tabela:', error.message);
         return false;
@@ -112,22 +104,15 @@ async function saveCookiesToDB(profileName, cookies) {
     
     try {
         const cookiesJson = JSON.stringify(cookies);
-        // Escapar aspas para SQL
-        const escapedJson = cookiesJson.replace(/'/g, "''").replace(/\\/g, "\\\\");
+        const result = await execSessionPHP('save', profileName, cookiesJson);
         
-        const sql = `
-            INSERT INTO ${SESSION_TABLE} (profile_name, cookies_json, is_valid, last_check)
-            VALUES ('${profileName}', '${escapedJson}', 1, NOW())
-            ON DUPLICATE KEY UPDATE 
-                cookies_json = '${escapedJson}',
-                is_valid = 1,
-                last_check = NOW(),
-                updated_at = NOW()
-        `;
-        
-        await phpBridge.executarSQL(sql);
-        console.log(`✅ [SESSION] ${cookies.length} cookies salvos para ${profileName}`);
-        return true;
+        if (result.success) {
+            console.log(`✅ [SESSION] ${cookies.length} cookies salvos para ${profileName}`);
+            return true;
+        } else {
+            console.error('❌ [SESSION] Erro ao salvar cookies:', result.message);
+            return false;
+        }
     } catch (error) {
         console.error('❌ [SESSION] Erro ao salvar cookies:', error.message);
         return false;
@@ -141,35 +126,21 @@ async function saveCookiesToDB(profileName, cookies) {
  */
 async function loadCookiesFromDB(profileName) {
     try {
-        const sql = `
-            SELECT cookies_json, is_valid, updated_at 
-            FROM ${SESSION_TABLE} 
-            WHERE profile_name = '${profileName}' 
-            AND is_valid = 1
-            LIMIT 1
-        `;
+        const result = await execSessionPHP('load', profileName);
         
-        const result = await phpBridge.executarSQL(sql);
-        
-        if (!result || result.trim() === '' || result.includes('0 results')) {
+        if (result.success && result.data && result.data.cookies_json) {
+            try {
+                const cookies = JSON.parse(result.data.cookies_json);
+                console.log(`✅ [SESSION] ${cookies.length} cookies carregados para ${profileName}`);
+                return cookies;
+            } catch (parseError) {
+                console.error('❌ [SESSION] Erro ao parsear cookies:', parseError.message);
+                return null;
+            }
+        } else {
             console.log(`⚠️ [SESSION] Nenhum cookie encontrado para ${profileName}`);
             return null;
         }
-        
-        // Parse do resultado (pode vir em diferentes formatos)
-        try {
-            // Tentar extrair o JSON dos cookies
-            const jsonMatch = result.match(/\[\{.*\}\]/s);
-            if (jsonMatch) {
-                const cookies = JSON.parse(jsonMatch[0]);
-                console.log(`✅ [SESSION] ${cookies.length} cookies carregados para ${profileName}`);
-                return cookies;
-            }
-        } catch (parseError) {
-            console.error('❌ [SESSION] Erro ao parsear cookies:', parseError.message);
-        }
-        
-        return null;
     } catch (error) {
         console.error('❌ [SESSION] Erro ao carregar cookies:', error.message);
         return null;
@@ -182,14 +153,14 @@ async function loadCookiesFromDB(profileName) {
  */
 async function invalidateSession(profileName) {
     try {
-        const sql = `
-            UPDATE ${SESSION_TABLE} 
-            SET is_valid = 0, updated_at = NOW() 
-            WHERE profile_name = '${profileName}'
-        `;
-        await phpBridge.executarSQL(sql);
-        console.log(`⚠️ [SESSION] Sessão invalidada para ${profileName}`);
-        return true;
+        const result = await execSessionPHP('invalidate', profileName);
+        if (result.success) {
+            console.log(`⚠️ [SESSION] Sessão invalidada para ${profileName}`);
+            return true;
+        } else {
+            console.error('❌ [SESSION] Erro ao invalidar sessão:', result.message);
+            return false;
+        }
     } catch (error) {
         console.error('❌ [SESSION] Erro ao invalidar sessão:', error.message);
         return false;
