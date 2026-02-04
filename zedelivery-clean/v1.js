@@ -65,22 +65,27 @@ async function insert_pedido(idOrder) {
 }
 
 async function pegarDupla() {
-    while (true) {
+    // Usar PHP Bridge para chamar Gmail API diretamente
+    const maxTentativas = 10;
+    
+    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
         try {
-            let unparsed_captcha_id = await curl({
-                method: "GET",
-                url: configRobo.url_duplo,
-            });
-            let parsed_captcha_id = JSON.parse(unparsed_captcha_id.replace(/^\uFEFF/, ""));
-            if (parsed_captcha_id.codigo) {
-                console.log(parsed_captcha_id);
-                return parsed_captcha_id.codigo;
+            console.log(`📧 Tentativa ${tentativa}/${maxTentativas} - Buscando código 2FA...`);
+            const codigo = await phpBridge.pegarCodigo2FA(30000);
+            
+            if (codigo && codigo.length === 6) {
+                console.log(`✅ Código 2FA encontrado: ${codigo}`);
+                return codigo;
             }
+            
+            console.log('⏳ Código não encontrado ainda, aguardando 5s...');
         } catch (error) {
-            console.error("Erro ao pegar chave, tentando novamente...", error);
+            console.error("Erro ao pegar código 2FA:", error.message);
         }
         await sleep(5);
     }
+    
+    throw new Error("Não foi possível obter código 2FA após múltiplas tentativas");
 }
 
 async function removerBOM(str) {
