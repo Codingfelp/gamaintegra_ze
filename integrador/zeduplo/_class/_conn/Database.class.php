@@ -9,19 +9,19 @@ class Database {
 
     //FAZ A CONEXAO COM O BANCO DE DADOS (Railway Cloud mainline)
     public function Conn() {
-        // Usar variaveis de ambiente se disponiveis, senao usar valores padrao
-        $Host = getenv('MYSQL_HOST') ?: 'mainline.proxy.rlwy.net';
-        $User = getenv('MYSQL_USER') ?: 'root';
-        $Pass = getenv('MYSQL_PASSWORD') ?: 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU';
-        $Dbsa = getenv('MYSQL_DATABASE') ?: 'railway';
-        $Port = getenv('MYSQL_PORT') ?: '52996';
+        // Railway pode usar diferentes nomes de variáveis
+        // Verificar todas as possibilidades
+        $Host = getenv('MYSQLHOST') ?: getenv('MYSQL_HOST') ?: 'mainline.proxy.rlwy.net';
+        $User = getenv('MYSQLUSER') ?: getenv('MYSQL_USER') ?: 'root';
+        $Pass = getenv('MYSQLPASSWORD') ?: getenv('MYSQL_PASSWORD') ?: 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU';
+        $Dbsa = getenv('MYSQLDATABASE') ?: getenv('MYSQL_DATABASE') ?: 'railway';
+        $Port = getenv('MYSQLPORT') ?: getenv('MYSQL_PORT') ?: '52996';
         
-        $MyConn = "";
         $MyConn = mysqli_connect($Host, $User, $Pass, $Dbsa, $Port);
         
         // Log de erro de conexao
         if (!$MyConn) {
-            error_log("MySQL Connection Error: " . mysqli_connect_error());
+            error_log("MySQL Connection Error to {$Host}:{$Port}/{$Dbsa}: " . mysqli_connect_error());
         }
         
         return $MyConn;
