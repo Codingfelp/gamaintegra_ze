@@ -1231,6 +1231,8 @@ async function criarJanelaStatus(cookies) {
 
     await page2.setCookie(...cookies);
 
+    console.log('🚀 [v1-itens] Iniciando script de itens...');
+    
     // AGORA, CADA ABA EXECUTA UM DOS SEUS SCRIPTS
     await Promise.allSettled([
         //pedidoScript(page1),    // aba 1
@@ -1239,4 +1241,7 @@ async function criarJanelaStatus(cookies) {
         //serverScript(page4),    // aba 4
         //statusScript(page5)     // aba 5
     ]);
-})();
+})().catch(err => {
+    console.error('❌ [v1-itens] Erro fatal:', err.message);
+    process.exit(1);
+});
