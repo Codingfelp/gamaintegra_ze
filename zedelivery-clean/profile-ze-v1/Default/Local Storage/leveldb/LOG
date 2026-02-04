@@ -1,3 +1,2 @@
-2026/02/04-22:45:46.281 4cf1 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/MANIFEST-000001
-2026/02/04-22:45:46.284 4cf1 Recovering log #457
-2026/02/04-22:45:46.285 4cf1 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/000457.log 
+2026/02/04-23:14:08.070 2a51 Creating DB /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb since it was missing.
+2026/02/04-23:14:08.123 2a51 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/MANIFEST-000001

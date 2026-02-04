@@ -1,2 +1,3 @@
-2026/02/04-22:45:55.349 4de1 Creating DB /app/zedelivery-clean/profile-ze-v1-itens/Default/Site Characteristics Database since it was missing.
-2026/02/04-22:45:55.376 4de1 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Site Characteristics Database/MANIFEST-000001
+2026/02/04-23:14:08.021 2a0c Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Site Characteristics Database/MANIFEST-000001
+2026/02/04-23:14:08.022 2a0c Recovering log #3
+2026/02/04-23:14:08.022 2a0c Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Site Characteristics Database/000003.log 
