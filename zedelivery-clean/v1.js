@@ -1030,17 +1030,29 @@ async function criarJanelaStatus(cookies) {
     }
     
     await page1.setViewport({ width, height });
-    await page1.goto("https://seu.ze.delivery/home");
+    
+    console.log('🌐 Navegando para https://seu.ze.delivery/home...');
+    await page1.goto("https://seu.ze.delivery/home", { waitUntil: 'networkidle2', timeout: 60000 });
+    console.log('📍 URL atual:', page1.url());
 
     if (page1.url().includes("login")) {
         console.log("🔑 Sessão expirada, fazendo login novamente...");
-        await fazerLogin(page1);
+        try {
+            await fazerLogin(page1);
+            console.log("✅ Login concluído com sucesso!");
+        } catch (loginError) {
+            console.error("❌ Erro no login:", loginError.message);
+            console.log("🔄 Reiniciando script em 30 segundos...");
+            await sleep(30);
+            process.exit(1); // Supervisor vai reiniciar
+        }
     } else {
-        console.log('sem login');
+        console.log('✅ Sessão ativa, não precisa de login');
     }
 
     // PEGA COOKIES DE AUTENTICAÇÃO
     const cookies = await page1.cookies();
+    console.log(`🍪 ${cookies.length} cookies capturados`);
 
     // ABRE AS OUTRAS ABAS E SETA OS COOKIES DE SESSÃO
     const page2 = await browser.newPage();
@@ -1055,6 +1067,8 @@ async function criarJanelaStatus(cookies) {
     await page4.setCookie(...cookies);
     await page5.setCookie(...cookies);
 
+    console.log('🚀 Iniciando scripts de monitoramento...');
+    
     // AGORA, CADA ABA EXECUTA UM DOS SEUS SCRIPTS
     setTimeout(() => pedidoScript(page1), 3000);
     //itensScript(page2);  // aba 2
