@@ -3,6 +3,7 @@ const fs = require('fs');
 const request = require('request');
 const { performance } = require('perf_hooks');
 const phpBridge = require('./php-bridge');
+const sessionManager = require('./session-manager');
 
 // Funções utilitárias compartilhadas
 function readConfig() {
@@ -10,6 +11,11 @@ function readConfig() {
     return JSON.parse(data);
 }
 const configRobo = readConfig();
+
+// Configuração de renovação de sessão
+const SESSION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
+const SESSION_SAVE_INTERVAL = 10 * 60 * 1000; // 10 minutos
+let mainPage = null; // Referência global para a página principal
 
 async function sleep(sec) {
     return new Promise(resolve => setTimeout(resolve, sec * 1000));
