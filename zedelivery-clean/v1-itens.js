@@ -1163,7 +1163,9 @@ async function criarJanelaStatus(cookies) {
 }
 
 (async () => {
+    console.log('🚀 [v1-itens] Iniciando script de itens...');
     const isProduction = process.env.NODE_ENV === 'production';
+    console.log(`📍 [v1-itens] Ambiente: ${isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
     
     const browser = await puppeteer.launch({ 
         headless: 'new', 
@@ -1177,6 +1179,8 @@ async function criarJanelaStatus(cookies) {
             '--disable-software-rasterizer',
         ] 
     });
+    console.log('✅ [v1-itens] Browser iniciado');
+    
     const page1 = await browser.newPage();
     const { width, height } = await page1.evaluate(() => {
         return {
@@ -1197,17 +1201,29 @@ async function criarJanelaStatus(cookies) {
     }
     
     await page1.setViewport({ width, height });
-    await page1.goto("https://seu.ze.delivery/home");
+    
+    console.log('🌐 [v1-itens] Navegando para https://seu.ze.delivery/home...');
+    await page1.goto("https://seu.ze.delivery/home", { waitUntil: 'networkidle2', timeout: 60000 });
+    console.log('📍 [v1-itens] URL atual:', page1.url());
 
     if (page1.url().includes("login")) {
-        console.log("🔑 Sessão expirada, fazendo login novamente...");
-        await fazerLogin(page1);
+        console.log("🔑 [v1-itens] Sessão expirada, fazendo login novamente...");
+        try {
+            await fazerLogin(page1);
+            console.log("✅ [v1-itens] Login concluído!");
+        } catch (loginError) {
+            console.error("❌ [v1-itens] Erro no login:", loginError.message);
+            console.log("🔄 [v1-itens] Reiniciando em 30s...");
+            await sleep(30);
+            process.exit(1);
+        }
     } else {
-        console.log('sem login');
+        console.log('✅ [v1-itens] Sessão ativa');
     }
 
     // PEGA COOKIES DE AUTENTICAÇÃO
     const cookies = await page1.cookies();
+    console.log(`🍪 [v1-itens] ${cookies.length} cookies capturados`);
 
     // ABRE AS OUTRAS ABAS E SETA OS COOKIES DE SESSÃO
     const page2 = await browser.newPage();
