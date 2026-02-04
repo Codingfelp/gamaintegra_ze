@@ -863,59 +863,111 @@ async function statusScript(page) {
     }
 }
 async function aceitaScript(browser, cookies) {
+    console.log('🤖 [ACEITA] Iniciando script de aceite automático de pedidos...');
+    
     while (true) {
         let page = null;
         try {
             page = await browser.newPage();
             await page.setCookie(...cookies);
-            console.log('[ACEITA] Nova aba aberta para aceitar pedidos.');
+            console.log('🆕 [ACEITA] Nova aba aberta para aceitar pedidos.');
 
             await page.goto("https://seu.ze.delivery/poc-orders", {
                 waitUntil: "networkidle2",
+                timeout: 60000
             });
+            
+            console.log('📍 [ACEITA] Navegou para página de pedidos:', page.url());
+            
+            // Se redirecionou para login, sessão expirou
+            if (page.url().includes('login')) {
+                console.log('🔑 [ACEITA] Sessão expirou, reiniciando...');
+                process.exit(1);
+            }
 
-            for (let i = 0; i < 500; i++) {
+            // Loop contínuo para verificar e aceitar pedidos
+            while (true) {
                 try {
+                    // Fechar modais de alerta se existirem
                     const closeButton = await page.$('#close-alert-modal');
                     if (closeButton) {
                         await closeButton.click();
+                        console.log('🔔 [ACEITA] Modal de alerta fechado');
+                        await sleep(0.5);
                     }
 
-                    await page.waitForSelector('#accept-button', { visible: true, timeout: 100000 });
+                    // Aguardar botão de aceite aparecer (com timeout menor para não travar)
+                    const buttonExists = await waitForSafe(page, '#accept-button', 10000);
+                    
+                    if (!buttonExists) {
+                        // Sem pedidos pendentes, aguardar e recarregar
+                        console.log('⏳ [ACEITA] Sem pedidos pendentes, aguardando...');
+                        await sleep(5);
+                        await page.reload({ waitUntil: "networkidle2", timeout: 30000 });
+                        continue;
+                    }
 
                     const button = await page.$('#accept-button');
                     if (button) {
-                        const isDisabled = await page.evaluate(el => el.disabled, button);
+                        // Verificar se o botão está habilitado
+                        const isDisabled = await page.evaluate(el => {
+                            // Verificar disabled direto ou via classe/atributo
+                            return el.disabled || el.classList.contains('disabled') || el.getAttribute('aria-disabled') === 'true';
+                        }, button);
 
                         if (!isDisabled) {
+                            console.log('🔘 [ACEITA] Botão de aceite encontrado e habilitado, clicando...');
                             await button.click();
-                            console.log('Botão clicado!');
+                            await sleep(2);
 
-                            const aceitarPedidoButton = await page.$('#orders-details-modal-button-accept');
-                            if (aceitarPedidoButton) {
-                                await aceitarPedidoButton.click();
-                                console.log('Pedido Aceito!');
-                                await sleep(10);
+                            // Aguardar modal de confirmação
+                            const modalButtonExists = await waitForSafe(page, '#orders-details-modal-button-accept', 5000);
+                            
+                            if (modalButtonExists) {
+                                const aceitarPedidoButton = await page.$('#orders-details-modal-button-accept');
+                                if (aceitarPedidoButton) {
+                                    console.log('✅ [ACEITA] Confirmando aceite do pedido...');
+                                    await aceitarPedidoButton.click();
+                                    console.log('🎉 [ACEITA] PEDIDO ACEITO COM SUCESSO!');
+                                    await sleep(3);
+                                }
+                            } else {
+                                console.log('⚠️ [ACEITA] Modal de confirmação não apareceu');
                             }
 
+                            // Voltar para página de pedidos
                             await page.goto("https://seu.ze.delivery/poc-orders", {
                                 waitUntil: "networkidle2",
+                                timeout: 30000
                             });
+                        } else {
+                            console.log('⏸️ [ACEITA] Botão desabilitado, aguardando...');
+                            await sleep(3);
                         }
                     }
-                } catch (err) {
-                    console.error("Erro dentro do loop de aceite:", err.message);
-                    try { await page.reload({ waitUntil: "networkidle2" }); } catch (e) { }
+                    
+                    await sleep(2);
+                    
+                } catch (innerErr) {
+                    console.error("❌ [ACEITA] Erro no loop interno:", innerErr.message);
+                    try { 
+                        await page.reload({ waitUntil: "networkidle2", timeout: 30000 }); 
+                    } catch (reloadErr) {
+                        console.error("❌ [ACEITA] Erro ao recarregar:", reloadErr.message);
+                        break; // Sair do loop interno para recriar a aba
+                    }
+                    await sleep(3);
                 }
             }
 
         } catch (error) {
-            console.error("[ACEITA] Erro crítico, fechando/reabrindo aba:", error.message);
+            console.error("❌ [ACEITA] Erro crítico:", error.message);
         } finally {
             if (page) {
                 try { await page.close(); } catch (e) { }
-                console.log("[ACEITA] Aba fechada, será reaberta...");
+                console.log("🔄 [ACEITA] Aba fechada, reabrindo em 5s...");
             }
+            await sleep(5);
         }
     }
 }
