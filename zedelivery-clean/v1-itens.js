@@ -65,7 +65,11 @@ async function insert_pedido(idOrder) {
 }
 
 async function pegarDupla() {
-    const maxTentativas = 10;
+    const maxTentativas = 20; // Aumentado de 10 para 20
+    
+    console.log('📧 Iniciando busca por código 2FA...');
+    console.log('⏳ Aguardando 15 segundos para email chegar...');
+    await sleep(15); // Aguardar email chegar antes de começar a buscar
     
     for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
         try {
@@ -77,11 +81,17 @@ async function pegarDupla() {
                 return codigo;
             }
             
-            console.log('⏳ Código não encontrado ainda, aguardando 5s...');
+            if (codigo === null || codigo === 0 || codigo === '0') {
+                console.log('⏳ Nenhum email de 2FA encontrado ainda...');
+            } else {
+                console.log(`⚠️ Resposta inesperada do Gmail: ${JSON.stringify(codigo)}`);
+            }
         } catch (error) {
-            console.error("Erro ao pegar código 2FA:", error.message);
+            console.error("❌ Erro ao buscar código 2FA:", error.message);
         }
-        await sleep(5);
+        
+        console.log(`⏳ Aguardando 8 segundos antes da próxima tentativa...`);
+        await sleep(8);
     }
     
     throw new Error("Não foi possível obter código 2FA após múltiplas tentativas");
