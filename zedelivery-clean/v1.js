@@ -182,31 +182,37 @@ async function typeInShadowInput(page, selector, value, delay = 100) {
 
 // Função de login
 async function fazerLogin(page) {
-    await page.goto("https://seu.ze.delivery/login");
+    console.log('🔐 [fazerLogin] Iniciando processo de login...');
+    await page.goto("https://seu.ze.delivery/login", { waitUntil: 'networkidle2', timeout: 60000 });
     await sleep(3);
 
+    console.log('📧 [fazerLogin] Preenchendo credenciais...');
     await typeInShadowInput(page, 'hexa-v2-input-text[name="email"]', configRobo.login, 100);
     await typeInShadowInput(page, 'hexa-v2-input-text[name="password"]', configRobo.senha, 100);
 
     await marcarCheckbox(page);
 
-
     const shadowHost = await page.$('hexa-v2-button');
     const shadowRoot = await shadowHost.evaluateHandle(el => el.shadowRoot);
     const buttonInsideShadow = await shadowRoot.$('button');
+    
+    console.log('🖱️ [fazerLogin] Clicando em login...');
     await buttonInsideShadow.click();
 
-    await sleep(8);
+    // Aguardar resposta do servidor
+    await sleep(10);
 
     const btnSendEmail = await page.$("#send-email-button");
     if (btnSendEmail) {
+        console.log('📧 [fazerLogin] 2FA necessário, solicitando código por email...');
         await page.click("#send-email-button");
         await sleep(8);
 
-        const TIMEOUT_VERIFICACAO = 30000;
+        const TIMEOUT_VERIFICACAO = 60000; // 60 segundos
 
         let verificationCode;
         try {
+            console.log('📧 [fazerLogin] Aguardando código 2FA do Gmail...');
             verificationCode = await Promise.race([
                 pegarDupla(),
                 new Promise((_, reject) =>
@@ -214,15 +220,17 @@ async function fazerLogin(page) {
                 )
             ]);
         } catch (err) {
-            console.error("❌ Erro ao obter código de verificação:", err.message);
-            process.exit(1); // Encerra o processo completamente
+            console.error("❌ [fazerLogin] Erro ao obter código de verificação:", err.message);
+            throw err;
         }
 
         if (!verificationCode || verificationCode.length !== 6) {
-            console.error("❌ Código de verificação inválido ou não recebido.");
-            process.exit(1); // Encerra o processo completamente
+            console.error("❌ [fazerLogin] Código de verificação inválido ou não recebido.");
+            throw new Error("Código 2FA inválido");
         }
 
+        console.log(`✅ [fazerLogin] Código 2FA recebido: ${verificationCode}`);
+        
         for (let index = 0; index < verificationCode.length; index++) {
             const inputSelector = `#verification-code-input-${index}`;
             await page.type(inputSelector, verificationCode[index], { delay: 250 });
@@ -233,16 +241,67 @@ async function fazerLogin(page) {
         await page.click("#send-code-verification");
 
         try {
-            await page.waitForNavigation({ timeout: 15000 });
+            console.log('⏳ [fazerLogin] Aguardando navegação após 2FA...');
+            await page.waitForNavigation({ timeout: 30000, waitUntil: 'networkidle2' });
         } catch (e) {
-            console.error("❌ Falha ao navegar após envio do código.");
-            process.exit(1); // Encerra a aplicação também nesse caso
+            console.error("❌ [fazerLogin] Falha ao navegar após envio do código.");
+            throw e;
         }
 
         await sleep(5);
     } else {
-        console.log("✅ Já autenticado, sem necessidade de dupla autenticação.");
+        console.log("⏳ [fazerLogin] Verificando se login foi bem sucedido...");
+        
+        // Aguardar possível redirecionamento
+        await sleep(5);
+        
+        // Verificar se saiu da página de login
+        const currentUrl = page.url();
+        console.log(`📍 [fazerLogin] URL atual: ${currentUrl}`);
+        
+        if (currentUrl.includes('login')) {
+            // Ainda na página de login - pode precisar de 2FA ou credenciais erradas
+            console.log('⚠️ [fazerLogin] Ainda na página de login, verificando novamente...');
+            
+            // Tentar aguardar mais
+            await sleep(10);
+            
+            const newUrl = page.url();
+            if (newUrl.includes('login')) {
+                // Verificar se há mensagem de erro
+                const errorMsg = await page.evaluate(() => {
+                    const error = document.querySelector('.error-message, [class*="error"], [class*="alert"]');
+                    return error ? error.textContent : null;
+                });
+                
+                if (errorMsg) {
+                    console.error(`❌ [fazerLogin] Erro de login: ${errorMsg}`);
+                }
+                
+                // Verificar se apareceu botão de 2FA tardiamente
+                const late2FA = await page.$("#send-email-button");
+                if (late2FA) {
+                    console.log('📧 [fazerLogin] Botão 2FA apareceu, reiniciando login...');
+                    throw new Error("2FA necessário - reiniciando");
+                }
+                
+                console.error('❌ [fazerLogin] Login falhou - credenciais podem estar incorretas ou há bloqueio');
+                throw new Error("Login falhou");
+            }
+        }
+        
+        console.log("✅ [fazerLogin] Login concluído sem necessidade de 2FA!");
     }
+    
+    // Verificação final
+    const finalUrl = page.url();
+    console.log(`📍 [fazerLogin] URL final: ${finalUrl}`);
+    
+    if (finalUrl.includes('login')) {
+        throw new Error("Login não completou - ainda na página de login");
+    }
+    
+    console.log('✅ [fazerLogin] Login verificado com sucesso!');
 }
 
 // Funções principais de cada script. Você pode expandir conforme queira mais detalhes de cada um.
