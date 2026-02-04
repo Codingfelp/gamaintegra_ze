@@ -1220,8 +1220,15 @@ async function criarJanelaStatus(cookies) {
     const isProduction = process.env.NODE_ENV === 'production';
     console.log(`📍 [v1-itens] Ambiente: ${isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
     
+    // Em produção (Railway), usar Chromium do sistema
+    const executablePath = isProduction ? '/usr/bin/chromium' : undefined;
+    if (executablePath) {
+        console.log(`📍 [v1-itens] Usando Chromium: ${executablePath}`);
+    }
+    
     const browser = await puppeteer.launch({ 
         headless: 'new', 
+        executablePath: executablePath,
         userDataDir: './profile-ze-v1-itens', 
         args: [
             '--start-maximized',
