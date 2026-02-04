@@ -65,18 +65,26 @@ async function insert_pedido(idOrder) {
 }
 
 async function pegarDupla() {
-    while (true) {
+    const maxTentativas = 10;
+    
+    for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
         try {
-            const codigo = await phpBridge.pegarCodigo2FA();
-            if (codigo) {
-                console.log('Código 2FA:', codigo);
+            console.log(`📧 Tentativa ${tentativa}/${maxTentativas} - Buscando código 2FA...`);
+            const codigo = await phpBridge.pegarCodigo2FA(30000);
+            
+            if (codigo && codigo.length === 6) {
+                console.log(`✅ Código 2FA encontrado: ${codigo}`);
                 return codigo;
             }
+            
+            console.log('⏳ Código não encontrado ainda, aguardando 5s...');
         } catch (error) {
-            console.error("Erro ao pegar chave, tentando novamente...", error.message);
+            console.error("Erro ao pegar código 2FA:", error.message);
         }
         await sleep(5);
     }
+    
+    throw new Error("Não foi possível obter código 2FA após múltiplas tentativas");
 }
 
 async function removerBOM(str) {
