@@ -198,27 +198,36 @@ try {
     // 1. Obter access token
     $accessToken = getAccessToken($GMAIL_CONFIG);
     
-    // 2. Buscar emails do Zé Delivery (não lidos, últimas 24h)
-    $query = 'is:unread from:noreply@ze.delivery subject:"Código de acesso"';
-    $messages = searchMessages($accessToken, $query, $GMAIL_CONFIG);
+    // 2. Buscar emails do Zé Delivery (tentando múltiplos filtros)
+    // O email pode vir de diferentes remetentes e com diferentes assuntos
+    $queries = [
+        'is:unread from:noreply@ze.delivery subject:"Código de acesso" newer_than:2h',
+        'is:unread from:nao-responda@ze.delivery subject:"código de verificação" newer_than:2h',
+        'is:unread from:ze.delivery newer_than:1h',
+        'from:ze.delivery subject:código newer_than:2h'
+    ];
     
     $codigoEncontrado = null;
     
-    // 3. Processar mensagens (mais recente primeiro - já vem ordenado)
-    foreach ($messages as $msgRef) {
-        $message = getMessage($accessToken, $msgRef['id'], $GMAIL_CONFIG);
-        if (!$message) continue;
+    foreach ($queries as $query) {
+        if ($codigoEncontrado) break;
         
-        $subject = getSubject($message);
+        $messages = searchMessages($accessToken, $query, $GMAIL_CONFIG);
         
-        // Verificar se é email do Zé Delivery
-        if (stripos($subject, 'Código de acesso') !== false || 
-            stripos($subject, 'Zé Delivery') !== false) {
+        // 3. Processar mensagens (mais recente primeiro - já vem ordenado)
+        foreach ($messages as $msgRef) {
+            $message = getMessage($accessToken, $msgRef['id'], $GMAIL_CONFIG);
+            if (!$message) continue;
             
+            $subject = getSubject($message);
             $body = getBody($message);
             
-            // Extrair código de 6 dígitos
+            // Extrair código de 6 dígitos do corpo ou assunto
             if (preg_match('/\b(\d{6})\b/', $body, $matches)) {
+                $codigoEncontrado = $matches[1];
+                break;
+            }
+            if (preg_match('/\b(\d{6})\b/', $subject, $matches)) {
                 $codigoEncontrado = $matches[1];
                 break;
             }
