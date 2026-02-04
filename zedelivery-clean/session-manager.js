@@ -12,11 +12,65 @@
 const phpBridge = require('./php-bridge');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 
 // Configuração
 const SESSION_TABLE = 'ze_session_cookies';
 const PROFILE_NAME_V1 = 'profile-ze-v1';
 const PROFILE_NAME_V1_ITENS = 'profile-ze-v1-itens';
+const PHP_DIR = '/app/integrador/zeduplo';
+
+/**
+ * Executa script PHP de sessão
+ * @param {string} action - Ação a executar (init, save, load, invalidate, check, update_check)
+ * @param {string} profile - Nome do perfil
+ * @param {string} cookies - JSON de cookies (para save)
+ * @returns {Promise<object>}
+ */
+async function execSessionPHP(action, profile = '', cookies = '') {
+    return new Promise((resolve, reject) => {
+        let cmd = `cd ${PHP_DIR} && php ze_session.php`;
+        
+        // Adicionar parâmetros GET via query string simulada
+        const queryParams = [`action=${action}`];
+        if (profile) {
+            queryParams.push(`profile=${profile}`);
+        }
+        
+        // Para save, precisamos passar cookies via stdin
+        if (action === 'save' && cookies) {
+            const escapedCookies = cookies.replace(/'/g, "'\\''");
+            cmd = `cd ${PHP_DIR} && php -r "
+                \\$_GET['action'] = '${action}';
+                \\$_GET['profile'] = '${profile}';
+                \\$_POST['cookies'] = '${escapedCookies}';
+                include 'ze_session.php';
+            "`;
+        } else {
+            cmd = `cd ${PHP_DIR} && php -r "
+                \\$_GET['action'] = '${action}';
+                \\$_GET['profile'] = '${profile}';
+                include 'ze_session.php';
+            "`;
+        }
+        
+        exec(cmd, { timeout: 30000, maxBuffer: 5 * 1024 * 1024 }, (error, stdout, stderr) => {
+            if (error && !stdout) {
+                console.error('❌ [SESSION-PHP] Erro:', stderr || error.message);
+                reject(error);
+                return;
+            }
+            
+            try {
+                const result = JSON.parse(stdout.trim());
+                resolve(result);
+            } catch (parseError) {
+                console.error('❌ [SESSION-PHP] Erro ao parsear resposta:', stdout);
+                resolve({ success: false, message: 'Parse error', raw: stdout });
+            }
+        });
+    });
+}
 
 /**
  * Inicializa a tabela de sessão no banco se não existir
