@@ -1179,19 +1179,24 @@ async function criarJanelaStatus(cookies) {
 
 (async () => {
     const isProduction = process.env.NODE_ENV === 'production';
+    const PROFILE_NAME = sessionManager.PROFILE_NAME_V1;
     
     // Em produção (Railway), usar Chromium do sistema
     const executablePath = isProduction ? '/usr/bin/chromium' : undefined;
     
-    console.log(`🚀 Iniciando browser... (produção: ${isProduction})`);
+    console.log(`🚀 [v1] Iniciando browser... (produção: ${isProduction})`);
     if (executablePath) {
-        console.log(`📍 Usando Chromium: ${executablePath}`);
+        console.log(`📍 [v1] Usando Chromium: ${executablePath}`);
     }
+    
+    // Inicializar tabela de sessão no banco
+    console.log('🔧 [v1] Inicializando sistema de sessão...');
+    await sessionManager.initSessionTable();
     
     const browser = await puppeteer.launch({
         headless: 'new',
         executablePath: executablePath,
-        userDataDir: './profile-ze-v1',
+        userDataDir: './' + PROFILE_NAME,
         args: [
             '--start-maximized',
             '--no-sandbox',
@@ -1201,7 +1206,10 @@ async function criarJanelaStatus(cookies) {
             '--disable-software-rasterizer',
         ]
     });
+    
     const page1 = await browser.newPage();
+    mainPage = page1; // Referência global
+    
     const { width, height } = await page1.evaluate(() => {
         return {
             width: window.screen.availWidth || 1920,
@@ -1222,28 +1230,44 @@ async function criarJanelaStatus(cookies) {
     
     await page1.setViewport({ width, height });
     
-    console.log('🌐 Navegando para https://seu.ze.delivery/home...');
-    await page1.goto("https://seu.ze.delivery/home", { waitUntil: 'networkidle2', timeout: 60000 });
-    console.log('📍 URL atual:', page1.url());
-
-    if (page1.url().includes("login")) {
-        console.log("🔑 Sessão expirada, fazendo login novamente...");
-        try {
-            await fazerLogin(page1);
-            console.log("✅ Login concluído com sucesso!");
-        } catch (loginError) {
-            console.error("❌ Erro no login:", loginError.message);
-            console.log("🔄 Reiniciando script em 30 segundos...");
-            await sleep(30);
-            process.exit(1); // Supervisor vai reiniciar
+    // ESTRATÉGIA DE SESSÃO:
+    // 1. Tentar restaurar sessão do banco de dados
+    // 2. Se falhar, tentar usar perfil local do Chromium
+    // 3. Se ainda falhar, fazer login com 2FA
+    
+    console.log('🔄 [v1] Tentando restaurar sessão do banco...');
+    let sessionRestored = await sessionManager.restoreSession(page1, PROFILE_NAME);
+    
+    if (!sessionRestored) {
+        console.log('🌐 [v1] Sessão não restaurada do banco, verificando perfil local...');
+        await page1.goto("https://seu.ze.delivery/home", { waitUntil: 'networkidle2', timeout: 60000 });
+        console.log('📍 [v1] URL atual:', page1.url());
+        
+        if (page1.url().includes("login")) {
+            console.log("🔑 [v1] Sessão expirada, fazendo login novamente...");
+            try {
+                await fazerLogin(page1);
+                console.log("✅ [v1] Login concluído com sucesso!");
+                
+                // Salvar nova sessão no banco
+                console.log('💾 [v1] Salvando nova sessão no banco...');
+                await sessionManager.saveSession(page1, PROFILE_NAME);
+            } catch (loginError) {
+                console.error("❌ [v1] Erro no login:", loginError.message);
+                console.log("🔄 [v1] Reiniciando script em 30 segundos...");
+                await sleep(30);
+                process.exit(1); // Supervisor vai reiniciar
+            }
+        } else {
+            console.log('✅ [v1] Sessão ativa via perfil local');
+            // Salvar sessão válida no banco para próximas vezes
+            await sessionManager.saveSession(page1, PROFILE_NAME);
         }
-    } else {
-        console.log('✅ Sessão ativa, não precisa de login');
     }
 
     // PEGA COOKIES DE AUTENTICAÇÃO
     const cookies = await page1.cookies();
-    console.log(`🍪 ${cookies.length} cookies capturados`);
+    console.log(`🍪 [v1] ${cookies.length} cookies capturados`);
 
     // ABRE AS OUTRAS ABAS E SETA OS COOKIES DE SESSÃO
     const page2 = await browser.newPage();
@@ -1257,8 +1281,29 @@ async function criarJanelaStatus(cookies) {
     await page3.setCookie(...cookies);
     await page4.setCookie(...cookies);
     await page5.setCookie(...cookies);
+    
+    // INICIAR SALVAMENTO PERIÓDICO DE SESSÃO
+    console.log(`🔄 [v1] Iniciando salvamento periódico de sessão a cada ${SESSION_SAVE_INTERVAL/1000}s`);
+    setInterval(async () => {
+        try {
+            console.log('💾 [v1] Salvando sessão periodicamente...');
+            await sessionManager.saveSession(page1, PROFILE_NAME);
+        } catch (error) {
+            console.error('❌ [v1] Erro ao salvar sessão:', error.message);
+        }
+    }, SESSION_SAVE_INTERVAL);
+    
+    // CALLBACK PARA QUANDO SESSÃO EXPIRAR
+    const onSessionExpired = () => {
+        console.log('🚨 [v1] SESSÃO EXPIROU! Reiniciando processo...');
+        // Forçar reinício do script - supervisor vai reiniciar
+        process.exit(1);
+    };
+    
+    // INICIAR HEALTH CHECK PERIÓDICO
+    sessionManager.startHealthCheck(page1, PROFILE_NAME, onSessionExpired, SESSION_CHECK_INTERVAL);
 
-    console.log('🚀 Iniciando scripts de monitoramento...');
+    console.log('🚀 [v1] Iniciando scripts de monitoramento...');
     
     // AGORA, CADA ABA EXECUTA UM DOS SEUS SCRIPTS
     setTimeout(() => pedidoScript(page1), 3000);
