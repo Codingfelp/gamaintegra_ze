@@ -558,21 +558,48 @@ async function itensScript(page) {
 }
 
 async function statusScript(page) {
-    await page.goto("https://seu.ze.delivery/history", {
-        waitUntil: "networkidle2",
-    });
+    console.log('📊 [statusScript] Iniciando monitoramento de status...');
+    
+    try {
+        await page.goto("https://seu.ze.delivery/history", {
+            waitUntil: "networkidle2",
+            timeout: 60000
+        });
+    } catch (navError) {
+        console.error('❌ [statusScript] Erro ao navegar:', navError.message);
+        return;
+    }
+    
+    console.log('📍 [statusScript] URL:', page.url());
+    
+    // Se redirecionou para login, sessão expirou
+    if (page.url().includes('login')) {
+        console.log('🔑 [statusScript] Sessão expirou, reiniciando processo...');
+        process.exit(1); // Supervisor vai reiniciar
+    }
 
-
+    let consecutiveErrors = 0;
+    const maxConsecutiveErrors = 5;
 
     while (true) {
         try {
-            // 🔹 Aguarda até 10 segundos pelo seletor da tabela
-            const ready = await waitForSafe(page, "#order-history-table-body", 10000);
+            // 🔹 Aguarda até 15 segundos pelo seletor da tabela
+            const ready = await waitForSafe(page, "#order-history-table-body", 15000);
             if (!ready) {
-                console.log("❌ Timeout esperando a tabela, recarregando...");
-                await page.reload({ waitUntil: "networkidle2" });
+                consecutiveErrors++;
+                console.log(`❌ [statusScript] Timeout esperando tabela (${consecutiveErrors}/${maxConsecutiveErrors})`);
+                
+                if (consecutiveErrors >= maxConsecutiveErrors) {
+                    console.log('🔄 [statusScript] Muitos erros consecutivos, reiniciando...');
+                    process.exit(1);
+                }
+                
+                await page.reload({ waitUntil: "networkidle2", timeout: 30000 });
                 continue;
             }
+            
+            // Reset contador de erros quando sucesso
+            consecutiveErrors = 0;
 
             const tableData = await page.evaluate(() => {
                 const rows = document.querySelectorAll(
