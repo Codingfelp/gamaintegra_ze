@@ -1,20 +1,29 @@
 <?php
 
 /**
- * Classe responsável pelo gerenciamento dos bancos de dados
+ * Classe responsavel pelo gerenciamento dos bancos de dados
  *
  * @author Marques Junior
  */
 class Database {
 
-    //FAZ A CONEXÃO COM O BANCO DE DADOS (Railway Cloud mainline)
+    //FAZ A CONEXAO COM O BANCO DE DADOS (Railway Cloud mainline)
     public function Conn() {
-        $Host = 'mainline.proxy.rlwy.net';
-        $User = 'root';
-        $Pass = 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU';
-        $Dbsa = 'railway';
+        // Usar variaveis de ambiente se disponiveis, senao usar valores padrao
+        $Host = getenv('MYSQL_HOST') ?: 'mainline.proxy.rlwy.net';
+        $User = getenv('MYSQL_USER') ?: 'root';
+        $Pass = getenv('MYSQL_PASSWORD') ?: 'eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU';
+        $Dbsa = getenv('MYSQL_DATABASE') ?: 'railway';
+        $Port = getenv('MYSQL_PORT') ?: '52996';
+        
         $MyConn = "";
-        $MyConn = mysqli_connect($Host, $User, $Pass, $Dbsa, '52996');
+        $MyConn = mysqli_connect($Host, $User, $Pass, $Dbsa, $Port);
+        
+        // Log de erro de conexao
+        if (!$MyConn) {
+            error_log("MySQL Connection Error: " . mysqli_connect_error());
+        }
+        
         return $MyConn;
     }
 
@@ -63,7 +72,7 @@ class Database {
     }
 
     public function QueryInfo($Query) {
-        $conn = $this->Conn(); // pega a conexão
+        $conn = $this->Conn(); // pega a conexao
 
         $result = mysqli_query($conn, $Query);
 
@@ -73,7 +82,7 @@ class Database {
                 return $result;
             }
 
-            // Para INSERT, UPDATE, DELETE: retorna número de linhas afetadas
+            // Para INSERT, UPDATE, DELETE: retorna numero de linhas afetadas
             return [
                 'success' => true,
                 'affected_rows' => mysqli_affected_rows($conn),
@@ -89,7 +98,7 @@ class Database {
         }
     }
 
-    //FAZ EDIÇÃO
+    //FAZ EDICAO
     public function Update($Tabela, array $Dados, $Condicao = NULL) {
         foreach ($Dados as $Keys => $ValuesKeys) {
             $ValuesKeys = addslashes($this->tirarAcentos($ValuesKeys));
