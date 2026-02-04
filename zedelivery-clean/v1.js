@@ -991,6 +991,8 @@ async function criarJanelaStatus(cookies) {
 }
 
 (async () => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     const browser = await puppeteer.launch({
         headless: 'new',
         userDataDir: './profile-ze-v1',
@@ -999,20 +1001,29 @@ async function criarJanelaStatus(cookies) {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-software-rasterizer',
         ]
     });
     const page1 = await browser.newPage();
     const { width, height } = await page1.evaluate(() => {
         return {
-            width: window.screen.availWidth,
-            height: window.screen.availHeight
+            width: window.screen.availWidth || 1920,
+            height: window.screen.availHeight || 1080
         };
     });
-    setTimeout(async () => {
-        console.log('⏰ Fechando aplicação após 10 minutos...');
-        await browser.close();
-        process.exit(0);
-    }, 600000);
+    
+    // Em produção, rodar indefinidamente. Em dev, timeout de 10 minutos.
+    if (!isProduction) {
+        setTimeout(async () => {
+            console.log('⏰ [DEV] Fechando aplicação após 10 minutos...');
+            await browser.close();
+            process.exit(0);
+        }, 600000);
+    } else {
+        console.log('🏭 [PRODUÇÃO] Script rodando indefinidamente...');
+    }
+    
     await page1.setViewport({ width, height });
     await page1.goto("https://seu.ze.delivery/home");
 
