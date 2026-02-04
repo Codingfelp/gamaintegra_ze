@@ -1129,4 +1129,7 @@ async function criarJanelaStatus(cookies) {
     //aceitaScript(browser, cookies); // aba 3
     setTimeout(() => serverScript(page4), 8000);
     setTimeout(() => statusScript(page5), 15000);
-})();
+})().catch(err => {
+    console.error('❌ [v1] Erro fatal:', err.message);
+    process.exit(1);
+});
