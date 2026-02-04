@@ -389,8 +389,11 @@ function startHealthCheck(page, profileName, onSessionExpired, intervalMs = 3000
                 }
             } else {
                 // Atualizar last_check no banco
-                const sql = `UPDATE ${SESSION_TABLE} SET last_check = NOW() WHERE profile_name = '${profileName}'`;
-                await phpBridge.executarSQL(sql);
+                try {
+                    await execSessionPHP('update_check', profileName);
+                } catch (e) {
+                    console.log('⚠️ [SESSION] Erro ao atualizar last_check:', e.message);
+                }
             }
         } catch (error) {
             console.error('❌ [SESSION] Erro no health check:', error.message);
