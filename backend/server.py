@@ -220,6 +220,22 @@ async def debug_db_config():
         "env_db_host": os.environ.get('DB_HOST', 'NÃO DEFINIDO'),
     }
 
+# DEBUG - Testa conexão PHP com o banco
+@app.get("/api/debug/php-db-test")
+async def debug_php_db_test():
+    """Testa conexão do PHP com o banco MySQL"""
+    try:
+        ok, output = run_shell("php /app/integrador/db-test.php", timeout=15)
+        if ok and output:
+            try:
+                return {"success": True, "php_output": json.loads(output)}
+            except:
+                return {"success": True, "php_output": output}
+        else:
+            return {"success": False, "error": output or "PHP execution failed"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
