@@ -524,9 +524,13 @@ serve(async (req) => {
         const discount = sanitizeNumber(pedido.discount ?? pedido.delivery_desconto);
         const total = sanitizeNumber(pedido.total ?? pedido.delivery_total ?? subtotal);
         const changeFor = sanitizeNumber(pedido.change_for ?? pedido.delivery_troco_para);
+        // ✅ CORREÇÃO: Taxa de conveniência
+        const convenienceFee = sanitizeNumber(pedido.convenience_fee ?? pedido.delivery_taxa_conveniencia);
         
-        // Código de entrega
-        const orderNumber = sanitizeText(pedido.delivery_code, 50) || String(rawId);
+        // ✅ CORREÇÃO: Número do pedido vs Código de entrega
+        // order_number = número do pedido (ex: "228147196") - vem de external_id ou order_number
+        // pickup_code = código de entrega (ex: "CRK 7WZ 1DJ W") - vem de delivery_code ou delivery_codigo_entrega
+        const orderNumber = sanitizeText(pedido.order_number || pedido.external_id || pedido.delivery_code, 50) || String(rawId);
         const newPickupCode = pedido.pickup_code || pedido.delivery_codigo_entrega;
         const newValidPickupCode = newPickupCode && newPickupCode !== '0' && newPickupCode !== 'N/A' ? sanitizeText(newPickupCode, 10) : null;
         
