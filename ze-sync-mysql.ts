@@ -171,7 +171,7 @@ const convertItems = (zeItems: any[], orderId: string): any[] => {
   });
 };
 
-// ✅ Construir endereço completo
+// ✅ Construir endereço completo - CORRIGIDO para evitar "0" e valores inválidos
 const buildFullAddress = (pedido: any): string | null => {
   // Se é retirada, não tem endereço
   const deliveryType = pedido.delivery_type || pedido.delivery_tipo_pedido || '';
@@ -179,21 +179,49 @@ const buildFullAddress = (pedido: any): string | null => {
     return null;
   }
   
-  // Se já tem endereço completo
-  if (pedido.address && pedido.address !== '0') {
+  // Função auxiliar para validar valor (não null, não "0", não vazio, não "N/A")
+  const isValidValue = (val: any): boolean => {
+    if (!val) return false;
+    const str = String(val).trim();
+    return str !== '' && str !== '0' && str !== 'N/A' && str !== 'null' && str !== 'undefined';
+  };
+  
+  // Se já tem endereço completo válido
+  if (isValidValue(pedido.address)) {
     return pedido.address;
   }
   
   // Construir de campos separados
-  const parts = [
-    pedido.delivery_endereco_rota !== '0' ? pedido.delivery_endereco_rota : null,
-    pedido.address_complement && pedido.address_complement !== '0' ? pedido.address_complement :
-      pedido.delivery_endereco_complemento && pedido.delivery_endereco_complemento !== '0' ? pedido.delivery_endereco_complemento : null,
-    pedido.address_neighborhood && pedido.address_neighborhood !== '0' ? pedido.address_neighborhood : pedido.delivery_endereco_bairro,
-    pedido.address_city && pedido.address_city !== '0' ? pedido.address_city : pedido.delivery_endereco_cidade_uf,
-    pedido.address_zip && pedido.address_zip !== '0' ? `CEP: ${pedido.address_zip}` : 
-      pedido.delivery_endereco_cep && pedido.delivery_endereco_cep !== '0' ? `CEP: ${pedido.delivery_endereco_cep}` : null,
-  ].filter(Boolean);
+  const parts: string[] = [];
+  
+  // Rua e número
+  if (isValidValue(pedido.delivery_endereco_rota)) {
+    parts.push(pedido.delivery_endereco_rota);
+  }
+  
+  // Complemento
+  const complement = pedido.address_complement || pedido.delivery_endereco_complemento;
+  if (isValidValue(complement)) {
+    parts.push(complement);
+  }
+  
+  // Bairro
+  const neighborhood = pedido.address_neighborhood || pedido.delivery_endereco_bairro;
+  if (isValidValue(neighborhood)) {
+    parts.push(neighborhood);
+  }
+  
+  // Cidade/UF
+  const city = pedido.address_city || pedido.delivery_endereco_cidade_uf;
+  if (isValidValue(city)) {
+    parts.push(city);
+  }
+  
+  // CEP
+  const zip = pedido.address_zip || pedido.delivery_endereco_cep;
+  if (isValidValue(zip)) {
+    parts.push(`CEP: ${zip}`);
+  }
   
   return parts.length > 0 ? parts.join(', ') : null;
 };
