@@ -270,10 +270,12 @@ async function syncToLovable() {
         pickup_code: pedido.delivery_codigo_entrega, // Campo esperado pelo Lovable
         
         // ENTREGADOR - Múltiplos campos para garantir
+        // ✅ CORREÇÃO: NÃO usar email como deliverer_name
         courier_email: pedido.delivery_email_entregador || null,
         delivery_email_entregador: pedido.delivery_email_entregador || null,
         delivery_entregador_email: pedido.delivery_email_entregador || null,
-        deliverer_name: pedido.delivery_email_entregador || null,
+        // deliverer_name será preenchido pelo ze-sync-mysql via vinculação com tabela deliverers
+        deliverer_name: null,
         
         notes: pedido.delivery_obs,
         
