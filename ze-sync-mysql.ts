@@ -631,6 +631,8 @@ serve(async (req) => {
           delivery_fee: deliveryFee,
           total: total,
           discount: discount,
+          // ✅ CORREÇÃO: Adicionar taxa de conveniência
+          convenience_fee: convenienceFee,
           source: "ze-delivery",
           external_order_id: externalOrderId,
           status: newDbStatus,
@@ -643,7 +645,7 @@ serve(async (req) => {
           // ✅ CORREÇÃO: Só usar deliverer_name se não for email e não for exceção thales.ferraz
           deliverer_name: (() => {
             if (matchedDeliverer) return matchedDeliverer.name;
-            const rawName = (pedido.delivery_entregador || pedido.deliverer_name || '').trim();
+            const rawName = (pedido.delivery_entregador || pedido.deliverer_name || pedido.courier_name || '').trim();
             // Se for email ou contiver thales.ferraz, deixar null
             if (rawName.includes('@') || rawName.toLowerCase().includes('thales.ferraz')) return null;
             return sanitizeText(rawName, 100);
