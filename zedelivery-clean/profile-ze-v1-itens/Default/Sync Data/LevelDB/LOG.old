@@ -1,2 +1,3 @@
-2026/02/04-22:45:55.343 4db9 Creating DB /app/zedelivery-clean/profile-ze-v1-itens/Default/Sync Data/LevelDB since it was missing.
-2026/02/04-22:45:55.353 4db9 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Sync Data/LevelDB/MANIFEST-000001
+2026/02/05-00:17:43.402 29ad Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Sync Data/LevelDB/MANIFEST-000001
+2026/02/05-00:17:43.403 29ad Recovering log #3
+2026/02/05-00:17:43.404 29ad Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Sync Data/LevelDB/000003.log 

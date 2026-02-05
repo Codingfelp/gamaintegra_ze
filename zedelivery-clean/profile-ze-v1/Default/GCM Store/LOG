@@ -1,2 +1,3 @@
-2026/02/04-23:14:21.397 2a26 Creating DB /app/zedelivery-clean/profile-ze-v1/Default/GCM Store since it was missing.
-2026/02/04-23:14:21.410 2a26 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/GCM Store/MANIFEST-000001
+2026/02/05-00:34:40.492 2a90 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/GCM Store/MANIFEST-000001
+2026/02/05-00:34:40.492 2a90 Recovering log #3
+2026/02/05-00:34:40.493 2a90 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/GCM Store/000003.log 
