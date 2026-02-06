@@ -922,15 +922,37 @@ async function aceitaScript(browser, cookies) {
 
                     const button = await page.$('#accept-button');
                     if (button) {
-                        // Verificar se o botão está habilitado
+                        // Verificar se o botão está habilitado (considerando Shadow DOM)
                         const isDisabled = await page.evaluate(el => {
                             // Verificar disabled direto ou via classe/atributo
-                            return el.disabled || el.classList.contains('disabled') || el.getAttribute('aria-disabled') === 'true';
+                            if (el.disabled || el.classList.contains('disabled') || el.getAttribute('aria-disabled') === 'true') {
+                                return true;
+                            }
+                            // Verificar dentro do Shadow DOM
+                            if (el.shadowRoot) {
+                                const innerBtn = el.shadowRoot.querySelector('button');
+                                if (innerBtn && (innerBtn.disabled || innerBtn.classList.contains('disabled'))) {
+                                    return true;
+                                }
+                            }
+                            return false;
                         }, button);
 
                         if (!isDisabled) {
                             console.log('🔘 [ACEITA] Botão de aceite encontrado e habilitado, clicando...');
-                            await button.click();
+                            
+                            // Tentar clicar considerando Shadow DOM
+                            await page.evaluate(el => {
+                                if (el.shadowRoot) {
+                                    const innerBtn = el.shadowRoot.querySelector('button');
+                                    if (innerBtn) {
+                                        innerBtn.click();
+                                        return;
+                                    }
+                                }
+                                el.click();
+                            }, button);
+                            
                             await sleep(2);
 
                             // Aguardar modal de confirmação
@@ -940,12 +962,50 @@ async function aceitaScript(browser, cookies) {
                                 const aceitarPedidoButton = await page.$('#orders-details-modal-button-accept');
                                 if (aceitarPedidoButton) {
                                     console.log('✅ [ACEITA] Confirmando aceite do pedido...');
-                                    await aceitarPedidoButton.click();
+                                    
+                                    // Clicar considerando Shadow DOM
+                                    await page.evaluate(el => {
+                                        if (el.shadowRoot) {
+                                            const innerBtn = el.shadowRoot.querySelector('button');
+                                            if (innerBtn) {
+                                                innerBtn.click();
+                                                return;
+                                            }
+                                        }
+                                        el.click();
+                                    }, aceitarPedidoButton);
+                                    
                                     console.log('🎉 [ACEITA] PEDIDO ACEITO COM SUCESSO!');
                                     await sleep(3);
                                 }
                             } else {
-                                console.log('⚠️ [ACEITA] Modal de confirmação não apareceu');
+                                console.log('⚠️ [ACEITA] Modal de confirmação não apareceu, tentando forçar clique...');
+                                
+                                // Tentar encontrar qualquer botão de aceitar no modal
+                                const anyAcceptButton = await page.evaluate(() => {
+                                    const buttons = document.querySelectorAll('hexa-v2-button, button');
+                                    for (const btn of buttons) {
+                                        const text = btn.innerText || btn.textContent || '';
+                                        if (text.toLowerCase().includes('aceitar') || text.toLowerCase().includes('confirmar')) {
+                                            btn.click();
+                                            return true;
+                                        }
+                                        if (btn.shadowRoot) {
+                                            const innerBtn = btn.shadowRoot.querySelector('button');
+                                            const innerText = innerBtn ? (innerBtn.innerText || innerBtn.textContent) : '';
+                                            if (innerText.toLowerCase().includes('aceitar') || innerText.toLowerCase().includes('confirmar')) {
+                                                innerBtn.click();
+                                                return true;
+                                            }
+                                        }
+                                    }
+                                    return false;
+                                });
+                                
+                                if (anyAcceptButton) {
+                                    console.log('✅ [ACEITA] Botão de aceite encontrado via fallback');
+                                    await sleep(3);
+                                }
                             }
 
                             // Voltar para página de pedidos
