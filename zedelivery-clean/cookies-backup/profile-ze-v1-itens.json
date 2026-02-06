@@ -29,34 +29,6 @@
     "sourcePort": 443
   },
   {
-    "name": "is_authenticated",
-    "value": "true",
-    "domain": "seu.ze.delivery",
-    "path": "/",
-    "expires": 1770948594,
-    "size": 20,
-    "httpOnly": false,
-    "secure": true,
-    "session": false,
-    "sameParty": false,
-    "sourceScheme": "Secure",
-    "sourcePort": 443
-  },
-  {
-    "name": "WZRK_S_4WZ-Z76-W66Z",
-    "value": "%7B%22p%22%3A9%7D",
-    "domain": ".ze.delivery",
-    "path": "/",
-    "expires": 1770345089,
-    "size": 36,
-    "httpOnly": false,
-    "secure": false,
-    "session": false,
-    "sameParty": false,
-    "sourceScheme": "Secure",
-    "sourcePort": 443
-  },
-  {
     "name": "incap_ses_1321_2624854",
     "value": "3X7EFlSpbTn+HUoJBSNVEtcwhWkAAAAAJbqHGdI3MWWk2N4L2UkYqA==",
     "domain": ".ze.delivery",
@@ -309,6 +281,20 @@
     "sourcePort": 443
   },
   {
+    "name": "is_authenticated",
+    "value": "true",
+    "domain": "seu.ze.delivery",
+    "path": "/",
+    "expires": 1770948594,
+    "size": 20,
+    "httpOnly": false,
+    "secure": true,
+    "session": false,
+    "sameParty": false,
+    "sourceScheme": "Secure",
+    "sourcePort": 443
+  },
+  {
     "name": "ab.storage.userId.6d35279c-1c9d-4bac-98a6-ffcece24f70a",
     "value": "g%3A108165%7Ce%3Aundefined%7Cc%3A1769896277747%7Cl%3A1770343796993",
     "domain": ".ze.delivery",
@@ -352,10 +338,10 @@
   },
   {
     "name": "_dd_s",
-    "value": "aid=dcf67df9-aff7-4efe-a4e7-a7f968604284&rum=2&id=3b8e07b0-6301-421c-8497-509d4ed20ac2&created=1770343781215&expire=1770345268960&logs=1",
+    "value": "aid=dcf67df9-aff7-4efe-a4e7-a7f968604284&rum=2&id=3b8e07b0-6301-421c-8497-509d4ed20ac2&created=1770343781215&expire=1770346468960&logs=1",
     "domain": "seu.ze.delivery",
     "path": "/",
-    "expires": 1770345307,
+    "expires": 1770346507,
     "size": 141,
     "httpOnly": false,
     "secure": false,
