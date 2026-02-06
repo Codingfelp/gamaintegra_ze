@@ -862,15 +862,71 @@ async function itensScript(page) {
                 if (!customerPhone) {
                     customerPhone = await getTextFromShadowOrNormal(page, '[data-testid="customer-phone"]');
                 }
+                
+                // ✅ NOVO: Tentar capturar telefone diretamente da seção de cliente
+                // O telefone pode estar visível como texto após o CPF (ex: +5531984544790)
+                if (!customerPhone) {
+                    customerPhone = await page.evaluate(() => {
+                        // Procurar na seção #user-info que contém cliente, CPF e telefone
+                        const userInfo = document.querySelector('#user-info');
+                        if (userInfo) {
+                            const text = userInfo.innerText || '';
+                            // Procurar padrão de telefone brasileiro: +55XXXXXXXXXXX ou (XX) XXXXX-XXXX
+                            const phoneMatch = text.match(/\+55\d{10,11}|\(\d{2}\)\s*\d{4,5}[-\s]?\d{4}|\d{11}/);
+                            if (phoneMatch) {
+                                return phoneMatch[0].replace(/\D/g, '');
+                            }
+                        }
+                        
+                        // Procurar em hexa-v2-text que pode ter o telefone
+                        const hexaTexts = document.querySelectorAll('hexa-v2-text');
+                        for (const el of hexaTexts) {
+                            let text = '';
+                            if (el.shadowRoot) {
+                                const span = el.shadowRoot.querySelector('span, p');
+                                text = span ? span.textContent : '';
+                            } else {
+                                text = el.textContent;
+                            }
+                            
+                            // Verificar se parece com telefone
+                            const cleanText = text.replace(/\D/g, '');
+                            if (cleanText.length >= 10 && cleanText.length <= 13 && cleanText.startsWith('55')) {
+                                return cleanText;
+                            }
+                            // Telefone sem o +55
+                            if (cleanText.length >= 10 && cleanText.length <= 11 && /^[1-9]/.test(cleanText)) {
+                                return cleanText;
+                            }
+                        }
+                        
+                        // Procurar links tel:
+                        const telLink = document.querySelector('a[href^="tel:"]');
+                        if (telLink) {
+                            return telLink.href.replace('tel:', '').replace(/\D/g, '');
+                        }
+                        
+                        return '';
+                    });
+                }
+                
                 // Tentar extrair de links tel:
                 if (!customerPhone) {
                     customerPhone = await page.$eval('a[href^="tel:"]', el => el.href.replace('tel:', '')).catch(() => '');
                 }
-                // Se ainda não tem telefone, usar o fluxo de "Ver telefone"
+                
+                // Se ainda não tem telefone, usar o fluxo de "Ver telefone" (clicando no botão)
                 if (!customerPhone) {
                     customerPhone = await capturarTelefoneViaFluxo(page);
                 }
                 customerPhone = customerPhone.replace(/\D/g, "").trim(); // Só números
+                
+                // Remover o 55 se começar com ele e tiver mais de 11 dígitos
+                if (customerPhone.startsWith('55') && customerPhone.length > 11) {
+                    customerPhone = customerPhone.substring(2);
+                }
+                
+                console.log(`📞 Telefone capturado: ${customerPhone || '(vazio)'}`);
 
                 // Capturar nome do entregador
                 let entregador = await capturarEntregador(page);
