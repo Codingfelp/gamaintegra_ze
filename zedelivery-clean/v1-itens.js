@@ -182,8 +182,13 @@ async function capturarTelefoneViaFluxo(page) {
     try {
         console.log('📞 [TELEFONE] Iniciando captura de telefone via fluxo...');
         
-        // Procurar botão "Ver telefone" - pode estar em hexa-v2-button ou button normal
-        let verTelefoneBtn = await page.$('#view-phone');
+        // ✅ CORREÇÃO: O botão "Ver telefone" tem ID #phone-unavailable
+        let verTelefoneBtn = await page.$('#phone-unavailable');
+        
+        // Tentar também o ID antigo
+        if (!verTelefoneBtn) {
+            verTelefoneBtn = await page.$('#view-phone');
+        }
         
         // Se não encontrou por ID, procurar por texto
         if (!verTelefoneBtn) {
@@ -212,11 +217,13 @@ async function capturarTelefoneViaFluxo(page) {
         // Verificar se já é um telefone exibido (não é mais um botão)
         const textoAtual = await page.evaluate(el => {
             if (el.shadowRoot) {
-                const span = el.shadowRoot.querySelector('span');
+                const span = el.shadowRoot.querySelector('span, p, button');
                 return span ? span.textContent.trim() : el.textContent.trim();
             }
             return el.textContent.trim();
         }, verTelefoneBtn);
+        
+        console.log('📞 [TELEFONE] Texto do elemento:', textoAtual);
 
         // Se já tem um número de telefone, retorna direto
         const cleanPhone = textoAtual.replace(/\D/g, '');
