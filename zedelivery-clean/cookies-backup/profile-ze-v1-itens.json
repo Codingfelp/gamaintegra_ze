@@ -162,10 +162,10 @@
   },
   {
     "name": "_dd_s",
-    "value": "aid=9c292af3-3f2b-4062-b984-a2c6012bd784&rum=1&id=67385664-1675-4243-8ba6-36d38ac95988&created=1770405177841&expire=1770406625408&logs=1",
+    "value": "aid=9c292af3-3f2b-4062-b984-a2c6012bd784&rum=1&id=67385664-1675-4243-8ba6-36d38ac95988&created=1770405177841&expire=1770407225408&logs=1",
     "domain": "seu.ze.delivery",
     "path": "/",
-    "expires": 1770406683,
+    "expires": 1770407283,
     "size": 141,
     "httpOnly": false,
     "secure": false,
