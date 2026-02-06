@@ -855,68 +855,60 @@ async function itensScript(page) {
                 let frete = await getTextFromShadowOrNormal(page, "#freight");
                 frete = frete.replace("R$", "").replace(",", ".").trim();
 
-                // Capturar telefone do cliente - primeiro tentar seletores diretos
-                let customerPhone = await getTextFromShadowOrNormal(page, "#customer-phone");
-                if (!customerPhone) {
-                    customerPhone = await getTextFromShadowOrNormal(page, '[data-testid="customer-phone"]');
-                }
+                // =====================================================
+                // CAPTURA DE TELEFONE DO CLIENTE
+                // O telefone só aparece após seguir o fluxo do modal
+                // =====================================================
+                console.log('📞 [TELEFONE] Iniciando captura de telefone...');
                 
-                // ✅ NOVO: Tentar capturar telefone diretamente da seção de cliente
-                // O telefone pode estar visível como texto após o CPF (ex: +5531984544790)
-                if (!customerPhone) {
-                    customerPhone = await page.evaluate(() => {
-                        // Procurar na seção #user-info que contém cliente, CPF e telefone
-                        const userInfo = document.querySelector('#user-info');
-                        if (userInfo) {
-                            const text = userInfo.innerText || '';
-                            // Procurar padrão de telefone brasileiro: +55XXXXXXXXXXX ou (XX) XXXXX-XXXX
-                            const phoneMatch = text.match(/\+55\d{10,11}|\(\d{2}\)\s*\d{4,5}[-\s]?\d{4}|\d{11}/);
-                            if (phoneMatch) {
-                                return phoneMatch[0].replace(/\D/g, '');
-                            }
+                let customerPhone = '';
+                
+                // Primeiro, verificar se o telefone já está visível (raro, mas possível)
+                customerPhone = await page.evaluate(() => {
+                    // Verificar se existe um link tel: (indicaria telefone já revelado)
+                    const telLink = document.querySelector('a[href^="tel:"]');
+                    if (telLink) {
+                        return telLink.href.replace('tel:', '').replace(/\D/g, '');
+                    }
+                    
+                    // Verificar na seção #user-info se há um número de telefone
+                    const userInfo = document.querySelector('#user-info');
+                    if (userInfo) {
+                        const text = userInfo.innerText || '';
+                        const phoneMatch = text.match(/\+55\d{10,11}|\(\d{2}\)\s*\d{4,5}[-\s]?\d{4}/);
+                        if (phoneMatch) {
+                            return phoneMatch[0].replace(/\D/g, '');
+                        }
+                    }
+                    
+                    // Verificar se #phone-unavailable já mostra um telefone
+                    const phoneBtn = document.querySelector('#phone-unavailable');
+                    if (phoneBtn) {
+                        let texto = '';
+                        if (phoneBtn.shadowRoot) {
+                            const btn = phoneBtn.shadowRoot.querySelector('button, span');
+                            texto = btn ? btn.textContent.trim() : '';
+                        } else {
+                            texto = phoneBtn.textContent.trim();
                         }
                         
-                        // Procurar em hexa-v2-text que pode ter o telefone
-                        const hexaTexts = document.querySelectorAll('hexa-v2-text');
-                        for (const el of hexaTexts) {
-                            let text = '';
-                            if (el.shadowRoot) {
-                                const span = el.shadowRoot.querySelector('span, p');
-                                text = span ? span.textContent : '';
-                            } else {
-                                text = el.textContent;
-                            }
-                            
-                            // Verificar se parece com telefone
-                            const cleanText = text.replace(/\D/g, '');
-                            if (cleanText.length >= 10 && cleanText.length <= 13 && cleanText.startsWith('55')) {
-                                return cleanText;
-                            }
-                            // Telefone sem o +55
-                            if (cleanText.length >= 10 && cleanText.length <= 11 && /^[1-9]/.test(cleanText)) {
-                                return cleanText;
-                            }
+                        const nums = texto.replace(/\D/g, '');
+                        if (nums.length >= 10 && nums.length <= 13) {
+                            return nums;
                         }
-                        
-                        // Procurar links tel:
-                        const telLink = document.querySelector('a[href^="tel:"]');
-                        if (telLink) {
-                            return telLink.href.replace('tel:', '').replace(/\D/g, '');
-                        }
-                        
-                        return '';
-                    });
-                }
+                    }
+                    
+                    return '';
+                });
                 
-                // Tentar extrair de links tel:
-                if (!customerPhone) {
-                    customerPhone = await page.$eval('a[href^="tel:"]', el => el.href.replace('tel:', '')).catch(() => '');
-                }
-                
-                // Se ainda não tem telefone, usar o fluxo de "Ver telefone" (clicando no botão)
-                if (!customerPhone) {
+                // Se não encontrou telefone visível, usar o fluxo do modal
+                if (!customerPhone || customerPhone.length < 10) {
+                    console.log('📞 [TELEFONE] Telefone não visível, executando fluxo do modal...');
                     customerPhone = await capturarTelefoneViaFluxo(page);
+                } else {
+                    console.log('📞 [TELEFONE] Telefone já visível:', customerPhone);
                 }
+                
                 customerPhone = customerPhone.replace(/\D/g, "").trim(); // Só números
                 
                 // Remover o 55 se começar com ele e tiver mais de 11 dígitos
