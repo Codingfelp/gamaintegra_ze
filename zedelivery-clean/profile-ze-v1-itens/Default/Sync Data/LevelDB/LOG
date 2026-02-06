@@ -1,3 +1,3 @@
-2026/02/06-02:50:30.543 2983 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Sync Data/LevelDB/MANIFEST-000001
-2026/02/06-02:50:30.545 2983 Recovering log #3
-2026/02/06-02:50:30.547 2983 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Sync Data/LevelDB/000003.log 
+2026/02/06-19:12:55.183 3d6f Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Sync Data/LevelDB/MANIFEST-000001
+2026/02/06-19:12:55.184 3d6f Recovering log #3
+2026/02/06-19:12:55.184 3d6f Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Sync Data/LevelDB/000003.log 
