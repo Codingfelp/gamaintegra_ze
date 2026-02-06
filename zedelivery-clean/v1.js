@@ -546,6 +546,20 @@ async function itensScript(page) {
                 let cpfCliente = await getTextFromShadowOrNormal(page, "#customer-document", "p[data-testid='hexa-v2-text']");
                 cpfCliente = cpfCliente.replace(/\./g, "").replace(/-/g, "").trim();
 
+                // ✅ NOVO: Capturar telefone do cliente via modal "Ver telefone"
+                let customerPhone = await capturarTelefoneCliente(page);
+                
+                // Se não conseguiu pelo modal, tentar captura direta (fallback)
+                if (!customerPhone) {
+                    customerPhone = await getTextFromShadowOrNormal(page, "#customer-phone", "p[data-testid='hexa-v2-text']");
+                    if (!customerPhone) {
+                        customerPhone = await getTextFromShadowOrNormal(page, '[data-testid="customer-phone"]');
+                    }
+                    customerPhone = customerPhone.replace(/\D/g, "").trim();
+                }
+                
+                console.log(`📞 [itensScript] Telefone do cliente: ${customerPhone || '(não encontrado)'}`);
+
                 let enderecoRota = await getTextFromShadowOrNormal(page, "#route");
                 enderecoRota = enderecoRota.replace(/-+/g, "").trim();
 
