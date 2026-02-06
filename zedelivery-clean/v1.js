@@ -581,13 +581,6 @@ async function itensScript(page) {
                 let frete = await getTextFromShadowOrNormal(page, "#freight");
                 frete = frete.replace("R$", "").replace(",", ".").trim();
 
-                // Capturar telefone do cliente
-                let customerPhone = await getTextFromShadowOrNormal(page, "#customer-phone");
-                if (!customerPhone) {
-                    customerPhone = await getTextFromShadowOrNormal(page, '[data-testid="customer-phone"]');
-                }
-                customerPhone = customerPhone.replace(/\D/g, "").trim(); // Só números
-
                 let troco = await getTextFromShadowOrNormal(page, "#change-value");
                 troco = troco.replace("R$", "").replace(",", ".").trim();
 
