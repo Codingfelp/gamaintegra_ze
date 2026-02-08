@@ -254,8 +254,10 @@ if (is_array($json) && count($json) > 0) {
                     $upDev['delivery_obs'] = $obsPedido;
                 }
                 
-                // Tipo de pedido
-                if ($statusPed != '' && $statusPed != '0') {
+                // Tipo de pedido (priorizar tipoDelivery se disponível)
+                if ($tipoDelivery != '' && $tipoDelivery != '0') {
+                    $upDev['delivery_tipo_pedido'] = $tipoDelivery;
+                } elseif ($statusPed != '' && $statusPed != '0') {
                     $upDev['delivery_tipo_pedido'] = $statusPed;
                 }
                 
