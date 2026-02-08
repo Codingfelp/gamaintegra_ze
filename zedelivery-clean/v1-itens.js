@@ -1267,8 +1267,7 @@ async function itensScript(page) {
                 let taxaConveniencia = await getTextFromShadowOrNormal(page, "#serviceFee");
                 taxaConveniencia = taxaConveniencia.replace("R$", "").replace(",", ".").trim();
 
-                let subTotal = await getTextFromShadowOrNormal(page, "#subtotal");
-                subTotal = subTotal.replace("R$", "").replace(",", ".").trim();
+                // subTotal já foi capturado anteriormente na seção de valores
 
                 //let codigoEntrega = await getTextFromShadowOrNormal(page, '[data-testid="accept-order-actions-container"] p');
                 const elements = await page.$$('hexa-v2-text');
