@@ -800,13 +800,35 @@ async function itensScript(page) {
                 console.log('🚚 [DELIVERY] Capturando tipo de delivery...');
                 
                 let tipoDelivery = await page.evaluate(() => {
-                    // Estratégia 1: Procurar no elemento #delivery-type
+                    // Estratégia 1: Procurar no data-testid="delivery-type-label" (NOVA - principal)
+                    const deliveryLabel = document.querySelector('[data-testid="delivery-type-label"]');
+                    if (deliveryLabel) {
+                        const texto = deliveryLabel.textContent.trim().toLowerCase();
+                        if (texto.includes('turbo')) return 'Pedido Turbo';
+                        if (texto.includes('retirada') || texto.includes('pickup')) return 'Pedido Retirada';
+                        if (texto.includes('comum') || texto.includes('delivery') || texto.includes('entrega')) return 'Pedido Comum';
+                        if (texto) return texto; // Retorna o que encontrar
+                    }
+                    
+                    // Estratégia 2: Procurar no #order-delivery-info
+                    const orderDeliveryInfo = document.querySelector('#order-delivery-info');
+                    if (orderDeliveryInfo) {
+                        const texto = orderDeliveryInfo.textContent.trim().toLowerCase();
+                        if (texto.includes('turbo')) return 'Pedido Turbo';
+                        if (texto.includes('retirada') || texto.includes('pickup')) return 'Pedido Retirada';
+                        if (texto.includes('comum') || texto.includes('entrega')) return 'Pedido Comum';
+                    }
+                    
+                    // Estratégia 3: Procurar no elemento #delivery-type
                     const deliveryTypeEl = document.querySelector('#delivery-type');
                     if (deliveryTypeEl) {
                         // Tentar shadow DOM
                         if (deliveryTypeEl.shadowRoot) {
                             const span = deliveryTypeEl.shadowRoot.querySelector('span');
                             if (span && span.textContent.trim()) {
+                                const texto = span.textContent.trim().toLowerCase();
+                                if (texto.includes('turbo')) return 'Pedido Turbo';
+                                if (texto.includes('retirada')) return 'Pedido Retirada';
                                 return span.textContent.trim();
                             }
                         }
@@ -815,7 +837,13 @@ async function itensScript(page) {
                         }
                     }
                     
-                    // Estratégia 2: Procurar por badges ou labels de tipo
+                    // Estratégia 4: Verificar tag de retirada no topo (print area)
+                    const pickupTag = document.querySelector('[data-testid="pickup-tag"]');
+                    if (pickupTag) {
+                        return 'Pedido Retirada';
+                    }
+                    
+                    // Estratégia 5: Procurar por badges ou labels de tipo
                     const badges = document.querySelectorAll('hexa-v2-badge, hexa-v2-badge-status, [class*="badge"]');
                     for (const badge of badges) {
                         let texto = '';
@@ -831,40 +859,6 @@ async function itensScript(page) {
                         if (textoLower.includes('comum') || textoLower.includes('delivery') || textoLower.includes('entrega')) return 'Pedido Comum';
                     }
                     
-                    // Estratégia 3: Procurar em hexa-v2-text por padrões
-                    const textos = document.querySelectorAll('hexa-v2-text');
-                    for (const el of textos) {
-                        let texto = '';
-                        if (el.shadowRoot) {
-                            const span = el.shadowRoot.querySelector('span');
-                            texto = span ? span.textContent.trim() : '';
-                        }
-                        if (!texto) texto = el.textContent.trim();
-                        
-                        const textoLower = texto.toLowerCase();
-                        if (textoLower === 'turbo' || textoLower === 'pedido turbo') return 'Pedido Turbo';
-                        if (textoLower === 'retirada' || textoLower === 'pedido retirada' || textoLower === 'pickup') return 'Pedido Retirada';
-                        if (textoLower === 'comum' || textoLower === 'pedido comum') return 'Pedido Comum';
-                    }
-                    
-                    // Estratégia 4: Procurar na seção de informações do pedido
-                    const orderInfo = document.querySelector('#order-info, .order-info, [class*="order-info"]');
-                    if (orderInfo) {
-                        const texto = orderInfo.innerText.toLowerCase();
-                        if (texto.includes('turbo')) return 'Pedido Turbo';
-                        if (texto.includes('retirada') || texto.includes('pickup')) return 'Pedido Retirada';
-                    }
-                    
-                    // Estratégia 5: Verificar se tem código de entrega (indica delivery, não retirada)
-                    const codigoEntrega = document.querySelector('#delivery-code, [id*="delivery-code"]');
-                    if (codigoEntrega) {
-                        const texto = codigoEntrega.textContent.trim();
-                        // Se tem código de entrega no formato "XXX XXX XXX X", provavelmente é delivery
-                        if (/[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]/.test(texto)) {
-                            return 'Pedido Comum';
-                        }
-                    }
-                    
                     // Estratégia 6: Verificar endereço (se não tem endereço, pode ser retirada)
                     const enderecoEl = document.querySelector('#route, #address, #main-street');
                     if (enderecoEl) {
@@ -874,7 +868,8 @@ async function itensScript(page) {
                         }
                     }
                     
-                    return ''; // Não conseguiu determinar
+                    // Default: Se chegou aqui e tem código de entrega, é comum
+                    return 'Pedido Comum';
                 });
                 
                 console.log('🚚 [DELIVERY] Tipo detectado:', tipoDelivery || '(não detectado)');
