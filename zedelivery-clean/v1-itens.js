@@ -908,7 +908,51 @@ async function itensScript(page) {
                     });
                 }
                 
-                // Se não encontrou produtos via data-testid, tentar outras estratégias
+                // ESTRATÉGIA PRINCIPAL: Usar área de impressão #print-content (dados em texto plano)
+                // Se não encontrou produtos via Shadow DOM ou os produtos estão vazios
+                if (produtos.length === 0 || produtos.every(p => !p.nome)) {
+                    console.log('📦 [ITENS] Capturando via área de impressão #bought-items...');
+                    
+                    produtos = await page.evaluate(() => {
+                        const items = [];
+                        
+                        // Área de impressão tem os dados em texto plano
+                        const boughtItems = document.querySelectorAll('#bought-items [data-testid="bought-items"]');
+                        
+                        for (const item of boughtItems) {
+                            const quantEl = item.querySelector('#item-quantity');
+                            const nomeEl = item.querySelector('#item-name');
+                            const precoEl = item.querySelector('#item-price span');
+                            
+                            const quantidade = quantEl ? quantEl.textContent.trim() : '1';
+                            const nome = nomeEl ? nomeEl.textContent.trim() : '';
+                            let preco = precoEl ? precoEl.textContent.trim() : '';
+                            
+                            // Limpar preço: "R$ 3.49" -> "3.49"
+                            preco = preco.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                            
+                            // Extrair ID do item do elemento pai (ex: id="item-10308")
+                            const idMatch = item.id?.match(/item-(\d+)/);
+                            const idProduto = idMatch ? idMatch[1] : '';
+                            
+                            if (nome) {
+                                items.push({
+                                    id: idProduto,
+                                    nome: nome,
+                                    quantidade: quantidade,
+                                    preco: preco,
+                                    imagem: ''
+                                });
+                            }
+                        }
+                        
+                        return items;
+                    });
+                    
+                    console.log(`📦 [ITENS] Capturados ${produtos.length} item(s) via área de impressão`);
+                }
+                
+                // Se ainda não encontrou, tentar estratégia alternativa
                 if (produtos.length === 0) {
                     console.log('📦 [ITENS] Tentando capturar itens via estratégia alternativa...');
                     
