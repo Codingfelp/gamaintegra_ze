@@ -457,6 +457,103 @@ function App() {
               </Card>
             )}
 
+            {/* Processos de Integração */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* Aceite Automático */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${services.node_integrador?.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                    🤖 Aceite Automático
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className={`text-xs ${services.node_integrador?.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                    {services.node_integrador?.status === 'online' ? 'Rodando' : 'Parado'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Aceita pedidos automaticamente ao detectar novos pedidos
+                  </p>
+                  <div className="mt-2">
+                    {services.node_integrador?.status !== 'online' ? (
+                      <Button size="sm" variant="outline" className="text-xs h-6 w-full" onClick={() => controlService('integrador', 'start')}>
+                        Iniciar
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" className="text-xs h-6 w-full text-red-600 border-red-200" onClick={() => controlService('integrador', 'stop')}>
+                        Parar
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Captura de Pedidos */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${services.node_itens?.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                    📦 Captura de Itens
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className={`text-xs ${services.node_itens?.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                    {services.node_itens?.status === 'online' ? 'Rodando' : 'Parado'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Captura detalhes: itens, endereço, CPF, tipo delivery
+                  </p>
+                  <div className="mt-2">
+                    {services.node_itens?.status !== 'online' ? (
+                      <Button size="sm" variant="outline" className="text-xs h-6 w-full" onClick={() => controlService('itens', 'start')}>
+                        Iniciar
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" className="text-xs h-6 w-full text-red-600 border-red-200" onClick={() => controlService('itens', 'stop')}>
+                        Parar
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Atualização de Status */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${services.node_integrador?.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                    🔄 Atualização de Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className={`text-xs ${services.node_integrador?.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                    {services.node_integrador?.status === 'online' ? 'Rodando' : 'Parado'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Atualiza status: Aceito, A Caminho, Entregue, etc.
+                  </p>
+                </CardContent>
+              </Card>
+
+              {/* Sync Supabase */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${services.sync?.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></span>
+                    ☁️ Sync Supabase
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className={`text-xs ${services.sync?.status === 'online' ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {services.sync?.status === 'online' ? 'Conectado' : 'Aguardando'}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Sincroniza pedidos com banco Supabase
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Métricas e Componentes */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               {/* Métricas */}
@@ -571,6 +668,61 @@ function App() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Logs em Tempo Real */}
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              {/* Logs de Captura */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium text-gray-900">📝 Logs de Captura (v1-itens.js)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-48 bg-gray-900 rounded-lg p-3">
+                    {(!logs.v1_itens || logs.v1_itens.length === 0) ? (
+                      <p className="text-sm text-gray-500 text-center py-4">Aguardando logs...</p>
+                    ) : (
+                      <div className="space-y-1 font-mono text-xs">
+                        {logs.v1_itens?.slice(-20).map((log, idx) => (
+                          <div key={idx} className={`py-1 px-2 rounded ${
+                            log.message?.includes('❌') || log.type === 'error' ? 'bg-red-900/50 text-red-300' : 
+                            log.message?.includes('✅') ? 'bg-green-900/50 text-green-300' : 
+                            'text-gray-300'
+                          }`}>
+                            {log.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+
+              {/* Logs de Sync */}
+              <Card className="bg-white border-gray-200">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-medium text-gray-900">☁️ Logs de Sync (Supabase)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-48 bg-gray-900 rounded-lg p-3">
+                    {(!logs.sync || logs.sync.length === 0) ? (
+                      <p className="text-sm text-gray-500 text-center py-4">Aguardando logs de sync...</p>
+                    ) : (
+                      <div className="space-y-1 font-mono text-xs">
+                        {logs.sync?.slice(-20).map((log, idx) => (
+                          <div key={idx} className={`py-1 px-2 rounded ${
+                            log.message?.includes('error') || log.type === 'error' ? 'bg-red-900/50 text-red-300' : 
+                            log.message?.includes('success') ? 'bg-green-900/50 text-green-300' : 
+                            'text-gray-300'
+                          }`}>
+                            {log.message}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Logs de Erro */}
             <Card className="bg-white border-gray-200">
