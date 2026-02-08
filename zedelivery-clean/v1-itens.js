@@ -1061,10 +1061,30 @@ async function itensScript(page) {
                 // =====================================================
                 console.log('📍 [ENDEREÇO] Capturando endereço...');
                 
-                // Endereço principal (rua, número)
-                let enderecoRota = await getTextFromShadowOrNormal(page, "#route");
+                // ESTRATÉGIA 1: Área de impressão (dados em texto plano)
+                let enderecoImpressao = await page.evaluate(() => {
+                    const receiptCustomerInfo = document.querySelector('#receipt-customer-info');
+                    if (receiptCustomerInfo) {
+                        const enderecoP = receiptCustomerInfo.querySelector('p');
+                        if (enderecoP) {
+                            // Formato: "Endereço: Rua XXX..."
+                            const spans = enderecoP.querySelectorAll('span');
+                            if (spans.length >= 2) {
+                                return spans[1].textContent.trim();
+                            }
+                        }
+                    }
+                    return '';
+                });
+                
+                let enderecoRota = enderecoImpressao;
+                
+                // Se não encontrou na área de impressão, tentar via Shadow DOM
                 if (!enderecoRota || enderecoRota === "-" || enderecoRota.length < 3) {
-                    // Tentar pegar da seção de impressão
+                    enderecoRota = await getTextFromShadowOrNormal(page, "#route");
+                }
+                if (!enderecoRota || enderecoRota === "-" || enderecoRota.length < 3) {
+                    // Tentar pegar da seção de impressão alternativa
                     enderecoRota = await page.$eval('#main-street', el => el.textContent.trim()).catch(() => '');
                 }
                 
