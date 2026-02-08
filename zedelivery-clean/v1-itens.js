@@ -782,37 +782,174 @@ async function itensScript(page) {
 
                 console.log("PEDIDO ENCONTRADO: " + encodeURIComponent(id_pedido_info));
 
-                // Aguarda os produtos carregarem (sem delay fixo desnecessário)
-                await page.waitForSelector('[data-testid="product"]', { timeout: 10000 });
+                // Aguardar carregamento da página - múltiplas estratégias
+                await sleep(3);
+                
+                // Tentar aguardar produtos - mas não falhar se não existirem
+                let temProdutos = false;
+                try {
+                    await page.waitForSelector('[data-testid="product"]', { timeout: 8000 });
+                    temProdutos = true;
+                } catch (e) {
+                    console.log('⚠️ Produtos não encontrados via data-testid, tentando alternativas...');
+                }
 
-                const produtos = await page.$$eval('[data-testid="product"]', (produtos) => {
-                    return produtos.map(produto => {
-                        const nomeEl = produto.querySelector('[id^="info-title"]');
-                        const quantComp = produto.querySelector('[id^="info-quantity"]');
-                        const precoEl = produto.querySelector('[id^="info-cost"]');
-                        const imagemEl = produto.querySelector('img');
-
-                        // Extrai ID do produto do ID do elemento
-                        const idMatch = nomeEl?.id?.match(/info-title-(\d+)/);
-                        const idProduto = idMatch ? idMatch[1] : '';
-
-                        const nomeSpan = nomeEl?.shadowRoot?.querySelector('span');
-                        const precoSpan = precoEl?.shadowRoot?.querySelector('span');
-
-                        let quantSpan = quantComp?.querySelector('hexa-v2-text')?.shadowRoot?.querySelector('span');
-                        const quantidadeTexto = quantSpan?.textContent.trim() || '';
-                        const quantidade = quantidadeTexto.replace(/^Qtd:\s*/, '');
-
-
-                        return {
-                            id: idProduto,
-                            nome: nomeSpan?.textContent.trim() || '',
-                            quantidade: quantidade,
-                            preco: precoSpan?.textContent.replace('R$', '').replace('.', '').replace(',', '.').trim() || '',
-                            imagem: imagemEl?.src || ''
-                        };
-                    });
+                // =====================================================
+                // CAPTURA DO TIPO DE DELIVERY (COMUM, TURBO, RETIRADA)
+                // =====================================================
+                console.log('🚚 [DELIVERY] Capturando tipo de delivery...');
+                
+                let tipoDelivery = await page.evaluate(() => {
+                    // Estratégia 1: Procurar no elemento #delivery-type
+                    const deliveryTypeEl = document.querySelector('#delivery-type');
+                    if (deliveryTypeEl) {
+                        // Tentar shadow DOM
+                        if (deliveryTypeEl.shadowRoot) {
+                            const span = deliveryTypeEl.shadowRoot.querySelector('span');
+                            if (span && span.textContent.trim()) {
+                                return span.textContent.trim();
+                            }
+                        }
+                        if (deliveryTypeEl.textContent.trim()) {
+                            return deliveryTypeEl.textContent.trim();
+                        }
+                    }
+                    
+                    // Estratégia 2: Procurar por badges ou labels de tipo
+                    const badges = document.querySelectorAll('hexa-v2-badge, hexa-v2-badge-status, [class*="badge"]');
+                    for (const badge of badges) {
+                        let texto = '';
+                        if (badge.shadowRoot) {
+                            const span = badge.shadowRoot.querySelector('span');
+                            texto = span ? span.textContent.trim() : '';
+                        }
+                        if (!texto) texto = badge.textContent.trim();
+                        
+                        const textoLower = texto.toLowerCase();
+                        if (textoLower.includes('turbo')) return 'Pedido Turbo';
+                        if (textoLower.includes('retirada') || textoLower.includes('pickup')) return 'Pedido Retirada';
+                        if (textoLower.includes('comum') || textoLower.includes('delivery') || textoLower.includes('entrega')) return 'Pedido Comum';
+                    }
+                    
+                    // Estratégia 3: Procurar em hexa-v2-text por padrões
+                    const textos = document.querySelectorAll('hexa-v2-text');
+                    for (const el of textos) {
+                        let texto = '';
+                        if (el.shadowRoot) {
+                            const span = el.shadowRoot.querySelector('span');
+                            texto = span ? span.textContent.trim() : '';
+                        }
+                        if (!texto) texto = el.textContent.trim();
+                        
+                        const textoLower = texto.toLowerCase();
+                        if (textoLower === 'turbo' || textoLower === 'pedido turbo') return 'Pedido Turbo';
+                        if (textoLower === 'retirada' || textoLower === 'pedido retirada' || textoLower === 'pickup') return 'Pedido Retirada';
+                        if (textoLower === 'comum' || textoLower === 'pedido comum') return 'Pedido Comum';
+                    }
+                    
+                    // Estratégia 4: Procurar na seção de informações do pedido
+                    const orderInfo = document.querySelector('#order-info, .order-info, [class*="order-info"]');
+                    if (orderInfo) {
+                        const texto = orderInfo.innerText.toLowerCase();
+                        if (texto.includes('turbo')) return 'Pedido Turbo';
+                        if (texto.includes('retirada') || texto.includes('pickup')) return 'Pedido Retirada';
+                    }
+                    
+                    // Estratégia 5: Verificar se tem código de entrega (indica delivery, não retirada)
+                    const codigoEntrega = document.querySelector('#delivery-code, [id*="delivery-code"]');
+                    if (codigoEntrega) {
+                        const texto = codigoEntrega.textContent.trim();
+                        // Se tem código de entrega no formato "XXX XXX XXX X", provavelmente é delivery
+                        if (/[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]/.test(texto)) {
+                            return 'Pedido Comum';
+                        }
+                    }
+                    
+                    // Estratégia 6: Verificar endereço (se não tem endereço, pode ser retirada)
+                    const enderecoEl = document.querySelector('#route, #address, #main-street');
+                    if (enderecoEl) {
+                        const endereco = enderecoEl.textContent.trim();
+                        if (!endereco || endereco === '-' || endereco.length < 5) {
+                            return 'Pedido Retirada';
+                        }
+                    }
+                    
+                    return ''; // Não conseguiu determinar
                 });
+                
+                console.log('🚚 [DELIVERY] Tipo detectado:', tipoDelivery || '(não detectado)');
+
+                // =====================================================
+                // CAPTURA DOS PRODUTOS/ITENS
+                // =====================================================
+                let produtos = [];
+                
+                if (temProdutos) {
+                    produtos = await page.$$eval('[data-testid="product"]', (produtos) => {
+                        return produtos.map(produto => {
+                            const nomeEl = produto.querySelector('[id^="info-title"]');
+                            const quantComp = produto.querySelector('[id^="info-quantity"]');
+                            const precoEl = produto.querySelector('[id^="info-cost"]');
+                            const imagemEl = produto.querySelector('img');
+
+                            const idMatch = nomeEl?.id?.match(/info-title-(\d+)/);
+                            const idProduto = idMatch ? idMatch[1] : '';
+
+                            const nomeSpan = nomeEl?.shadowRoot?.querySelector('span');
+                            const precoSpan = precoEl?.shadowRoot?.querySelector('span');
+
+                            let quantSpan = quantComp?.querySelector('hexa-v2-text')?.shadowRoot?.querySelector('span');
+                            const quantidadeTexto = quantSpan?.textContent.trim() || '';
+                            const quantidade = quantidadeTexto.replace(/^Qtd:\s*/, '');
+
+                            return {
+                                id: idProduto,
+                                nome: nomeSpan?.textContent.trim() || '',
+                                quantidade: quantidade,
+                                preco: precoSpan?.textContent.replace('R$', '').replace('.', '').replace(',', '.').trim() || '',
+                                imagem: imagemEl?.src || ''
+                            };
+                        });
+                    });
+                }
+                
+                // Se não encontrou produtos via data-testid, tentar outras estratégias
+                if (produtos.length === 0) {
+                    console.log('📦 [ITENS] Tentando capturar itens via estratégia alternativa...');
+                    
+                    produtos = await page.evaluate(() => {
+                        const items = [];
+                        
+                        // Estratégia: Procurar containers de produto genéricos
+                        const productContainers = document.querySelectorAll('[class*="product"], [class*="item"], [id*="product"], [id*="item"]');
+                        
+                        for (const container of productContainers) {
+                            // Procurar nome do produto
+                            const nomeEl = container.querySelector('[class*="title"], [class*="name"], h3, h4, span');
+                            const nome = nomeEl ? nomeEl.textContent.trim() : '';
+                            
+                            // Procurar quantidade
+                            const qtdEl = container.querySelector('[class*="quantity"], [class*="qtd"]');
+                            const quantidade = qtdEl ? qtdEl.textContent.replace(/\D/g, '') || '1' : '1';
+                            
+                            // Procurar preço
+                            const precoEl = container.querySelector('[class*="price"], [class*="preco"]');
+                            const preco = precoEl ? precoEl.textContent.replace(/[^\d,\.]/g, '').replace(',', '.') : '';
+                            
+                            // Procurar imagem
+                            const imgEl = container.querySelector('img');
+                            const imagem = imgEl ? imgEl.src : '';
+                            
+                            if (nome && nome.length > 2) {
+                                items.push({ id: '', nome, quantidade, preco, imagem });
+                            }
+                        }
+                        
+                        return items;
+                    });
+                }
+                
+                console.log(`📦 [ITENS] ${produtos.length} produto(s) capturado(s)`);
 
                 // DEBUG: Salvar HTML da página para análise
                 const pageHTML = await page.content();
