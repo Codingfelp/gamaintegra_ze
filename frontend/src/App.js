@@ -79,6 +79,12 @@ function App() {
   const [sessionsData, setSessionsData] = useState(null);
   const [errorLogs, setErrorLogs] = useState([]);
   const [backupStatus, setBackupStatus] = useState(null);
+  
+  // Estados para expandir logs de cada processo
+  const [showLogsAceite, setShowLogsAceite] = useState(false);
+  const [showLogsCaptura, setShowLogsCaptura] = useState(false);
+  const [showLogsStatus, setShowLogsStatus] = useState(false);
+  const [showLogsSync, setShowLogsSync] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
