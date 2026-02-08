@@ -1254,29 +1254,58 @@ async function itensScript(page) {
                 var myHeaders = new Headers();
                 myHeaders.append("Cookie", "PHPSESSID=cf8beildg23vcb3rgi97ase11o");
 
-                const pedidosData = produtos.map(pedido => ({
-                    id: encodeURIComponent(id_pedido_info),
-                    tags: pedido,
-                    desconto: desconto,
-                    frete: frete,
-                    subTotal: subTotal,
-                    cpfCliente: cpfCliente,
-                    customerPhone: customerPhone,
-                    telefoneCliente: customerPhone,
-                    enderecoRota: enderecoRota,
-                    enderecoComplemento: enderecoComplemento,
-                    enderecoCidadeUF: enderecoCidadeUF,
-                    enderecoCep: enderecoCep,
-                    enderecoBairro: enderecoBairro,
-                    troco: troco,
-                    trocoCliente: trocoCliente,
-                    taxaConveniencia: taxaConveniencia,
-                    codigoEntrega: codigoEntrega,
-                    obsPedido: obsPedido,
-                    statusPedido: statusPedido,
-                    entregador: entregador,
-                    tipoDelivery: tipoDelivery
-                }));
+                // Se não tiver produtos, criar pelo menos um registro para enviar os dados do pedido
+                let pedidosData;
+                if (produtos.length === 0) {
+                    console.log('⚠️ [ITENS] Nenhum item encontrado, criando registro sem itens...');
+                    pedidosData = [{
+                        id: encodeURIComponent(id_pedido_info),
+                        tags: { id: '', nome: '', quantidade: '', preco: '', imagem: '' },
+                        desconto: desconto,
+                        frete: frete,
+                        subTotal: subTotal,
+                        cpfCliente: cpfCliente,
+                        customerPhone: customerPhone,
+                        telefoneCliente: customerPhone,
+                        enderecoRota: enderecoRota,
+                        enderecoComplemento: enderecoComplemento,
+                        enderecoCidadeUF: enderecoCidadeUF,
+                        enderecoCep: enderecoCep,
+                        enderecoBairro: enderecoBairro,
+                        troco: troco,
+                        trocoCliente: trocoCliente,
+                        taxaConveniencia: taxaConveniencia,
+                        codigoEntrega: codigoEntrega,
+                        obsPedido: obsPedido,
+                        statusPedido: statusPedido,
+                        entregador: entregador,
+                        tipoDelivery: tipoDelivery
+                    }];
+                } else {
+                    pedidosData = produtos.map(pedido => ({
+                        id: encodeURIComponent(id_pedido_info),
+                        tags: pedido,
+                        desconto: desconto,
+                        frete: frete,
+                        subTotal: subTotal,
+                        cpfCliente: cpfCliente,
+                        customerPhone: customerPhone,
+                        telefoneCliente: customerPhone,
+                        enderecoRota: enderecoRota,
+                        enderecoComplemento: enderecoComplemento,
+                        enderecoCidadeUF: enderecoCidadeUF,
+                        enderecoCep: enderecoCep,
+                        enderecoBairro: enderecoBairro,
+                        troco: troco,
+                        trocoCliente: trocoCliente,
+                        taxaConveniencia: taxaConveniencia,
+                        codigoEntrega: codigoEntrega,
+                        obsPedido: obsPedido,
+                        statusPedido: statusPedido,
+                        entregador: entregador,
+                        tipoDelivery: tipoDelivery
+                    }));
+                }
                 console.log(JSON.stringify(pedidosData));
                 try {
                     // Enviar pedidos como array completo para o PHP
