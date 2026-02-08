@@ -764,69 +764,20 @@ function App() {
                     <div>
                       <p className="font-semibold">{metricsData.orders.latest.delivery_name_cliente}</p>
                       <p className="text-sm text-gray-500">Código: {metricsData.orders.latest.delivery_code}</p>
+                      <p className="text-xs text-gray-400">Tipo: {metricsData.orders.latest.delivery_tipo_pedido || 'N/A'}</p>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      {metricsData.orders.latest.delivery_date_time ? new Date(metricsData.orders.latest.delivery_date_time).toLocaleString() : 'N/A'}
-                    </p>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-600">
+                        {metricsData.orders.latest.delivery_date_time ? new Date(metricsData.orders.latest.delivery_date_time).toLocaleString() : 'N/A'}
+                      </p>
+                      <p className="text-sm font-semibold text-yellow-600">
+                        R$ {parseFloat(metricsData.orders.latest.delivery_total || 0).toFixed(2)}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             )}
-
-            {/* Logs em Tempo Real */}
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              {/* Logs de Captura */}
-              <Card className="bg-white border-gray-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium text-gray-900">📝 Logs de Captura (v1-itens.js)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-48 bg-gray-900 rounded-lg p-3">
-                    {(!logs.v1_itens || logs.v1_itens.length === 0) ? (
-                      <p className="text-sm text-gray-500 text-center py-4">Aguardando logs...</p>
-                    ) : (
-                      <div className="space-y-1 font-mono text-xs">
-                        {logs.v1_itens?.slice(-20).map((log, idx) => (
-                          <div key={idx} className={`py-1 px-2 rounded ${
-                            log.message?.includes('❌') || log.type === 'error' ? 'bg-red-900/50 text-red-300' : 
-                            log.message?.includes('✅') ? 'bg-green-900/50 text-green-300' : 
-                            'text-gray-300'
-                          }`}>
-                            {log.message}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-
-              {/* Logs de Sync */}
-              <Card className="bg-white border-gray-200">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-medium text-gray-900">☁️ Logs de Sync (Supabase)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-48 bg-gray-900 rounded-lg p-3">
-                    {(!logs.sync || logs.sync.length === 0) ? (
-                      <p className="text-sm text-gray-500 text-center py-4">Aguardando logs de sync...</p>
-                    ) : (
-                      <div className="space-y-1 font-mono text-xs">
-                        {logs.sync?.slice(-20).map((log, idx) => (
-                          <div key={idx} className={`py-1 px-2 rounded ${
-                            log.message?.includes('error') || log.type === 'error' ? 'bg-red-900/50 text-red-300' : 
-                            log.message?.includes('success') ? 'bg-green-900/50 text-green-300' : 
-                            'text-gray-300'
-                          }`}>
-                            {log.message}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
 
             {/* Logs de Erro */}
             <Card className="bg-white border-gray-200">
