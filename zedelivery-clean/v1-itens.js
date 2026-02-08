@@ -957,17 +957,110 @@ async function itensScript(page) {
                 fs.writeFileSync('/app/logs/page-debug.html', pageHTML);
                 console.log('HTML salvo em /app/logs/page-debug.html');
 
-                // CPF - tentar múltiplos seletores
+                // =====================================================
+                // CAPTURA DE CPF DO CLIENTE
+                // =====================================================
+                console.log('📋 [CPF] Capturando CPF do cliente...');
                 let cpfCliente = await getTextFromShadowOrNormal(page, "#customer-document", "p[data-testid='hexa-v2-text']");
+                
+                // Se não encontrou, tentar estratégias alternativas
+                if (!cpfCliente || cpfCliente === '-' || cpfCliente.length < 11) {
+                    cpfCliente = await page.evaluate(() => {
+                        // Estratégia 1: Procurar elemento com ID customer-document
+                        const docEl = document.querySelector('#customer-document');
+                        if (docEl) {
+                            // Se tem shadowRoot
+                            if (docEl.shadowRoot) {
+                                const span = docEl.shadowRoot.querySelector('span, p');
+                                if (span && span.textContent.trim() !== '-') {
+                                    return span.textContent.trim();
+                                }
+                            }
+                            const texto = docEl.textContent.trim();
+                            if (texto && texto !== '-') return texto;
+                        }
+                        
+                        // Estratégia 2: Procurar na seção #user-info
+                        const userInfo = document.querySelector('#user-info');
+                        if (userInfo) {
+                            const texto = userInfo.innerText || '';
+                            // Buscar padrão de CPF: XXX.XXX.XXX-XX ou XXXXXXXXXXX
+                            const cpfMatch = texto.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+                            if (cpfMatch) return cpfMatch[0];
+                        }
+                        
+                        // Estratégia 3: Buscar labels que indiquem CPF
+                        const allElements = document.querySelectorAll('hexa-v2-text, span, p');
+                        let foundCPF = false;
+                        for (const el of allElements) {
+                            let texto = '';
+                            if (el.shadowRoot) {
+                                const span = el.shadowRoot.querySelector('span');
+                                texto = span ? span.textContent.trim() : '';
+                            }
+                            if (!texto) texto = el.textContent.trim();
+                            
+                            if (texto.toLowerCase() === 'cpf') {
+                                foundCPF = true;
+                                continue;
+                            }
+                            
+                            if (foundCPF && /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(texto)) {
+                                return texto;
+                            }
+                        }
+                        
+                        return '';
+                    });
+                }
+                
                 cpfCliente = cpfCliente.replace(/\./g, "").replace(/-/g, "").trim();
+                console.log('📋 [CPF] Capturado:', cpfCliente || '(vazio)');
 
-                // Endereço - tentar seletores da página principal E da área de impressão
+                // =====================================================
+                // CAPTURA DE ENDEREÇO COMPLETO
+                // =====================================================
+                console.log('📍 [ENDEREÇO] Capturando endereço...');
+                
+                // Endereço principal (rua, número)
                 let enderecoRota = await getTextFromShadowOrNormal(page, "#route");
                 if (!enderecoRota || enderecoRota === "-" || enderecoRota.length < 3) {
                     // Tentar pegar da seção de impressão
                     enderecoRota = await page.$eval('#main-street', el => el.textContent.trim()).catch(() => '');
                 }
+                
+                // Se ainda não encontrou, tentar estratégias alternativas
+                if (!enderecoRota || enderecoRota === "-" || enderecoRota.length < 3) {
+                    enderecoRota = await page.evaluate(() => {
+                        // Procurar na seção de endereço
+                        const addressSection = document.querySelector('#address-info, [class*="address"]');
+                        if (addressSection) {
+                            // Procurar primeiro texto que pareça endereço
+                            const textos = addressSection.querySelectorAll('hexa-v2-text, span, p');
+                            for (const el of textos) {
+                                let texto = '';
+                                if (el.shadowRoot) {
+                                    const span = el.shadowRoot.querySelector('span');
+                                    texto = span ? span.textContent.trim() : '';
+                                }
+                                if (!texto) texto = el.textContent.trim();
+                                
+                                // Se parece com endereço (contém Rua, Av, número etc)
+                                if (texto.length > 10 && /\d+/.test(texto) && 
+                                    (texto.toLowerCase().includes('rua') || 
+                                     texto.toLowerCase().includes('av') || 
+                                     texto.toLowerCase().includes('alameda') ||
+                                     texto.toLowerCase().includes('travessa') ||
+                                     /^[A-Za-zÀ-ú\s]+,?\s*\d+/.test(texto))) {
+                                    return texto;
+                                }
+                            }
+                        }
+                        return '';
+                    });
+                }
                 enderecoRota = enderecoRota.replace(/-+/g, " ").replace(/\s+/g, " ").trim();
+                console.log('📍 [ENDEREÇO] Rota:', enderecoRota || '(vazio)');
 
                 let enderecoComplemento = await getTextFromShadowOrNormal(page, "#address-plus");
                 enderecoComplemento = enderecoComplemento.replace(/-+/g, "").trim();
@@ -985,6 +1078,9 @@ async function itensScript(page) {
                     enderecoBairro = await page.$eval('#neighborhood-info', el => el.textContent.trim()).catch(() => '');
                 }
                 enderecoBairro = enderecoBairro.replace(/-+/g, "").trim();
+                
+                console.log('📍 [ENDEREÇO] Bairro:', enderecoBairro || '(vazio)');
+                console.log('📍 [ENDEREÇO] Cidade/UF:', enderecoCidadeUF || '(vazio)');
 
                 let desconto = await getTextFromShadowOrNormal(page, "#total-discount");
                 desconto = desconto.replace("R$", "").replace(",", ".").trim();
