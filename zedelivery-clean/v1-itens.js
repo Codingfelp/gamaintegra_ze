@@ -1221,6 +1221,35 @@ async function itensScript(page) {
                 const dataHora = agora.toLocaleString("pt-BR"); 
 
                 console.log(`[${dataHora}] DATA RESGATADA`);
+                
+                // =====================================================
+                // RESUMO DO QUE FOI CAPTURADO
+                // =====================================================
+                console.log('═══════════════════════════════════════════════════════');
+                console.log('📦 RESUMO DA CAPTURA DO PEDIDO ' + id_pedido_info);
+                console.log('═══════════════════════════════════════════════════════');
+                console.log('🚚 Tipo Delivery:', tipoDelivery || '❌ NÃO CAPTURADO');
+                console.log('📋 CPF:', cpfCliente || '❌ NÃO CAPTURADO');
+                console.log('📞 Telefone:', customerPhone || '❌ NÃO CAPTURADO');
+                console.log('📍 Endereço:', enderecoRota || '❌ NÃO CAPTURADO');
+                console.log('📍 Bairro:', enderecoBairro || '❌ NÃO CAPTURADO');
+                console.log('📍 Cidade/UF:', enderecoCidadeUF || '❌ NÃO CAPTURADO');
+                console.log('📍 CEP:', enderecoCep || '❌ NÃO CAPTURADO');
+                console.log('📍 Complemento:', enderecoComplemento || '(vazio)');
+                console.log('💰 Frete:', frete || '0');
+                console.log('💰 Desconto:', desconto || '0');
+                console.log('💰 SubTotal:', subTotal || '❌ NÃO CAPTURADO');
+                console.log('💰 Taxa Conveniência:', taxaConveniencia || '0');
+                console.log('💰 Troco:', troco || '0');
+                console.log('🏷️ Código Entrega:', codigoEntrega || '(vazio)');
+                console.log('📝 Observação:', obsPedido || '(vazia)');
+                console.log('📊 Status:', statusPedido || '❌ NÃO CAPTURADO');
+                console.log('🚴 Entregador:', entregador || '(não encontrado)');
+                console.log('📦 Qtd Itens:', produtos.length);
+                if (produtos.length > 0) {
+                    console.log('   Itens:', produtos.map(p => `${p.quantidade}x ${p.nome}`).join(', '));
+                }
+                console.log('═══════════════════════════════════════════════════════');
 
                 var myHeaders = new Headers();
                 myHeaders.append("Cookie", "PHPSESSID=cf8beildg23vcb3rgi97ase11o");
