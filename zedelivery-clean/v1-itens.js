@@ -1061,23 +1061,47 @@ async function itensScript(page) {
                 // =====================================================
                 console.log('📍 [ENDEREÇO] Capturando endereço...');
                 
-                // ESTRATÉGIA 1: Área de impressão (dados em texto plano)
+                // ESTRATÉGIA PRINCIPAL: Área de impressão (dados em texto plano)
                 let enderecoImpressao = await page.evaluate(() => {
+                    const resultado = {
+                        rua: '',
+                        bairro: '',
+                        complemento: ''
+                    };
+                    
+                    // Bairro - da área de impressão
+                    const bairroEl = document.querySelector('#neighborhood-info');
+                    if (bairroEl) {
+                        resultado.bairro = bairroEl.textContent.trim();
+                    }
+                    
+                    // Endereço principal - da área de impressão
+                    const ruaEl = document.querySelector('#main-street');
+                    if (ruaEl) {
+                        resultado.rua = ruaEl.textContent.trim();
+                    }
+                    
+                    // Complemento - span após main-street no receipt-customer-info
                     const receiptCustomerInfo = document.querySelector('#receipt-customer-info');
                     if (receiptCustomerInfo) {
-                        const enderecoP = receiptCustomerInfo.querySelector('p');
+                        const enderecoP = receiptCustomerInfo.querySelector('p:nth-child(2)');
                         if (enderecoP) {
-                            // Formato: "Endereço: Rua XXX..."
                             const spans = enderecoP.querySelectorAll('span');
-                            if (spans.length >= 2) {
-                                return spans[1].textContent.trim();
+                            // O terceiro span geralmente é o complemento
+                            if (spans.length >= 3) {
+                                resultado.complemento = spans[2].textContent.trim();
                             }
                         }
                     }
-                    return '';
+                    
+                    return resultado;
                 });
                 
-                let enderecoRota = enderecoImpressao;
+                console.log('📍 [ENDEREÇO] Via impressão:', enderecoImpressao);
+                
+                let enderecoRota = enderecoImpressao.rua;
+                let enderecoBairro = enderecoImpressao.bairro;
+                let enderecoComplemento = enderecoImpressao.complemento;
                 
                 // Se não encontrou na área de impressão, tentar via Shadow DOM
                 if (!enderecoRota || enderecoRota === "-" || enderecoRota.length < 3) {
