@@ -1121,11 +1121,75 @@ async function itensScript(page) {
                 console.log('📍 [ENDEREÇO] Bairro:', enderecoBairro || '(vazio)');
                 console.log('📍 [ENDEREÇO] Cidade/UF:', enderecoCidadeUF || '(vazio)');
 
-                let desconto = await getTextFromShadowOrNormal(page, "#total-discount");
-                desconto = desconto.replace("R$", "").replace(",", ".").trim();
+                // =====================================================
+                // CAPTURA DE VALORES (FRETE, DESCONTO, SUBTOTAL, TOTAL)
+                // Prioriza área de impressão (texto plano) sobre Shadow DOM
+                // =====================================================
+                console.log('💰 [VALORES] Capturando valores financeiros...');
 
-                let frete = await getTextFromShadowOrNormal(page, "#freight");
-                frete = frete.replace("R$", "").replace(",", ".").trim();
+                // Tentar primeiro via área de impressão (mais confiável)
+                let valoresImpressao = await page.evaluate(() => {
+                    const valores = {
+                        subtotal: '',
+                        frete: '',
+                        desconto: '',
+                        total: ''
+                    };
+                    
+                    // Subtotal
+                    const subtotalEl = document.querySelector('#payment-details-subtotal span:last-child');
+                    if (subtotalEl) {
+                        valores.subtotal = subtotalEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                    }
+                    
+                    // Frete
+                    const freteEl = document.querySelector('#payment-details-freight span:last-child');
+                    if (freteEl) {
+                        valores.frete = freteEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                    }
+                    
+                    // Desconto
+                    const descontoEl = document.querySelector('#payment-details-discount span:last-child');
+                    if (descontoEl) {
+                        let desc = descontoEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                        // Remover sinal de menos se houver
+                        desc = desc.replace('-', '').trim();
+                        valores.desconto = desc;
+                    }
+                    
+                    // Total
+                    const totalEl = document.querySelector('#payment-details-total span strong span');
+                    if (totalEl) {
+                        valores.total = totalEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                    }
+                    
+                    return valores;
+                });
+                
+                console.log('💰 [VALORES] Via impressão:', valoresImpressao);
+
+                // Fallback para Shadow DOM se área de impressão não tiver valores
+                let desconto = valoresImpressao.desconto;
+                if (!desconto || desconto === '0.00') {
+                    desconto = await getTextFromShadowOrNormal(page, "#total-discount");
+                    desconto = desconto.replace("R$", "").replace(",", ".").replace("-", "").trim();
+                }
+
+                let frete = valoresImpressao.frete;
+                if (!frete) {
+                    frete = await getTextFromShadowOrNormal(page, "#freight");
+                    frete = frete.replace("R$", "").replace(",", ".").trim();
+                }
+                
+                let subTotal = valoresImpressao.subtotal;
+                if (!subTotal) {
+                    subTotal = await getTextFromShadowOrNormal(page, "#subtotal");
+                    subTotal = subTotal.replace("R$", "").replace(",", ".").trim();
+                }
+                
+                console.log('💰 [VALORES] Subtotal:', subTotal || '(vazio)');
+                console.log('💰 [VALORES] Frete:', frete || '0');
+                console.log('💰 [VALORES] Desconto:', desconto || '0');
 
                 // =====================================================
                 // CAPTURA DE TELEFONE DO CLIENTE
