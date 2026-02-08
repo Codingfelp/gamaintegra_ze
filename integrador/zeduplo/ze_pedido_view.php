@@ -174,6 +174,12 @@ if (is_array($json) && count($json) > 0) {
             }
             $statusPedidoNovo = explode('-', $statusPedido);
             $statusPed = trim($statusPedidoNovo['0']);
+            // Tipo de delivery (Comum, Turbo, Retirada)
+            if (empty(trim($json[$x]['tipoDelivery'] ?? ''))) {
+                $tipoDelivery = '';
+            } else {
+                $tipoDelivery = trim($json[$x]['tipoDelivery']);
+            }
             $up['pedido_st_validacao'] = '1';
             $up['pedido_desconto'] = $desconto;
             $up['pedido_frete'] = $frete;
