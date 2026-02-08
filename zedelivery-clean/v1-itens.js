@@ -1320,30 +1320,62 @@ async function itensScript(page) {
 
                 // subTotal já foi capturado anteriormente na seção de valores
 
-                //let codigoEntrega = await getTextFromShadowOrNormal(page, '[data-testid="accept-order-actions-container"] p');
-                const elements = await page.$$('hexa-v2-text');
+                // =====================================================
+                // CAPTURA DO CÓDIGO DE ENTREGA/COLETA
+                // =====================================================
+                console.log('🏷️ [CÓDIGO] Capturando código de entrega...');
+                
+                // ESTRATÉGIA 1: Área de impressão (mais confiável)
+                let codigoEntrega = await page.evaluate(() => {
+                    // Procurar na área de impressão - "Código de coleta: XXX XXX XXX X"
+                    const coletaEl = document.querySelector('#print-content p');
+                    if (coletaEl && coletaEl.textContent.includes('Código de coleta:')) {
+                        const span = coletaEl.querySelector('span');
+                        if (span) {
+                            return span.textContent.trim();
+                        }
+                    }
+                    
+                    // Procurar span com padrão de código
+                    const spans = document.querySelectorAll('#print-content span');
+                    for (const span of spans) {
+                        const texto = span.textContent.trim();
+                        // Padrão flexível: grupos de letras/números separados por espaços
+                        if (/^[A-Z0-9]{2,4}(\s[A-Z0-9]{2,4}){2,4}$/i.test(texto)) {
+                            return texto;
+                        }
+                    }
+                    
+                    return null;
+                });
+                
+                // ESTRATÉGIA 2: Via hexa-v2-text se não encontrou na área de impressão
+                if (!codigoEntrega) {
+                    const elements = await page.$$('hexa-v2-text');
+                    
+                    for (const el of elements) {
+                        const shadowRoot = await el.getProperty('shadowRoot');
 
-                let codigoEntrega = null;
+                        if (shadowRoot) {
+                            const spanHandle = await shadowRoot.$('span[data-testid="hexa-v2-text"]');
+                            if (spanHandle) {
+                                const text = await spanHandle.evaluate(e => e.textContent.trim());
 
-                for (const el of elements) {
-                    const shadowRoot = await el.getProperty('shadowRoot');
+                                // Ignora número do pedido
+                                if (text.startsWith("Pedido")) continue;
 
-                    if (shadowRoot) {
-                        const spanHandle = await shadowRoot.$('span[data-testid="hexa-v2-text"]');
-                        if (spanHandle) {
-                            const text = await spanHandle.evaluate(e => e.textContent.trim());
-
-                            // Ignora número do pedido
-                            if (text.startsWith("Pedido")) continue;
-
-                            // Se o texto tiver o formato de código de coleta, salva
-                            if (/^[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]$/.test(text)) {
-                                codigoEntrega = text;
-                                break;
+                                // Padrão flexível: grupos de letras/números separados por espaços
+                                // Aceita: "XXX XXX XXX X", "XX XXX XXX", "XXX XXX XXX XX", etc.
+                                if (/^[A-Z0-9]{2,4}(\s[A-Z0-9]{2,4}){2,4}$/i.test(text)) {
+                                    codigoEntrega = text;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
+                
+                console.log('🏷️ [CÓDIGO] Código de entrega:', codigoEntrega || '(vazio)');
 
                 let obsPedido = await getTextFromShadowOrNormal(page, "#observation");
 
