@@ -1149,7 +1149,8 @@ async function itensScript(page) {
                     codigoEntrega: codigoEntrega,
                     obsPedido: obsPedido,
                     statusPedido: statusPedido,
-                    entregador: entregador
+                    entregador: entregador,
+                    tipoDelivery: tipoDelivery
                 }));
                 console.log(JSON.stringify(pedidosData));
                 try {
