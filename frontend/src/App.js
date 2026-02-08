@@ -478,9 +478,9 @@ function App() {
                     {services.node_integrador?.status === 'online' ? 'Rodando' : 'Parado'}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Aceita pedidos automaticamente ao detectar novos pedidos
+                    Aceita pedidos automaticamente
                   </p>
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-2">
                     {services.node_integrador?.status !== 'online' ? (
                       <Button size="sm" variant="outline" className="text-xs h-6 w-full" onClick={() => controlService('integrador', 'start')}>
                         Iniciar
@@ -490,7 +490,29 @@ function App() {
                         Parar
                       </Button>
                     )}
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-xs h-6 w-full text-gray-600" 
+                      onClick={() => setShowLogsAceite(!showLogsAceite)}
+                    >
+                      {showLogsAceite ? '▼ Ocultar logs' : '▶ Mostrar logs'}
+                    </Button>
                   </div>
+                  {showLogsAceite && (
+                    <ScrollArea className="h-32 bg-gray-900 rounded-lg p-2 mt-2">
+                      <div className="space-y-1 font-mono text-[10px]">
+                        {logs.v1?.slice(-15).map((log, idx) => (
+                          <div key={idx} className={`py-0.5 ${log.type === 'error' ? 'text-red-300' : 'text-green-300'}`}>
+                            {log.message}
+                          </div>
+                        ))}
+                        {(!logs.v1 || logs.v1.length === 0) && (
+                          <p className="text-gray-500 text-center py-2">Sem logs</p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  )}
                 </CardContent>
               </Card>
 
@@ -507,9 +529,9 @@ function App() {
                     {services.node_itens?.status === 'online' ? 'Rodando' : 'Parado'}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Captura detalhes: itens, endereço, CPF, tipo delivery
+                    Itens, endereço, CPF, tipo
                   </p>
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-2">
                     {services.node_itens?.status !== 'online' ? (
                       <Button size="sm" variant="outline" className="text-xs h-6 w-full" onClick={() => controlService('itens', 'start')}>
                         Iniciar
@@ -519,7 +541,32 @@ function App() {
                         Parar
                       </Button>
                     )}
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-xs h-6 w-full text-gray-600" 
+                      onClick={() => setShowLogsCaptura(!showLogsCaptura)}
+                    >
+                      {showLogsCaptura ? '▼ Ocultar logs' : '▶ Mostrar logs'}
+                    </Button>
                   </div>
+                  {showLogsCaptura && (
+                    <ScrollArea className="h-32 bg-gray-900 rounded-lg p-2 mt-2">
+                      <div className="space-y-1 font-mono text-[10px]">
+                        {logs.v1_itens?.slice(-15).map((log, idx) => (
+                          <div key={idx} className={`py-0.5 ${
+                            log.message?.includes('❌') || log.type === 'error' ? 'text-red-300' : 
+                            log.message?.includes('✅') ? 'text-green-300' : 'text-gray-300'
+                          }`}>
+                            {log.message}
+                          </div>
+                        ))}
+                        {(!logs.v1_itens || logs.v1_itens.length === 0) && (
+                          <p className="text-gray-500 text-center py-2">Sem logs</p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  )}
                 </CardContent>
               </Card>
 
@@ -536,8 +583,32 @@ function App() {
                     {services.node_integrador?.status === 'online' ? 'Rodando' : 'Parado'}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Atualiza status: Aceito, A Caminho, Entregue, etc.
+                    Aceito, A Caminho, Entregue
                   </p>
+                  <div className="mt-2 space-y-2">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-xs h-6 w-full text-gray-600" 
+                      onClick={() => setShowLogsStatus(!showLogsStatus)}
+                    >
+                      {showLogsStatus ? '▼ Ocultar logs' : '▶ Mostrar logs'}
+                    </Button>
+                  </div>
+                  {showLogsStatus && (
+                    <ScrollArea className="h-32 bg-gray-900 rounded-lg p-2 mt-2">
+                      <div className="space-y-1 font-mono text-[10px]">
+                        {logs.v1?.filter(l => l.message?.toLowerCase().includes('status') || l.message?.includes('Entregue') || l.message?.includes('Aceito') || l.message?.includes('Caminho')).slice(-15).map((log, idx) => (
+                          <div key={idx} className={`py-0.5 ${log.type === 'error' ? 'text-red-300' : 'text-green-300'}`}>
+                            {log.message}
+                          </div>
+                        ))}
+                        {(!logs.v1 || logs.v1.filter(l => l.message?.toLowerCase().includes('status')).length === 0) && (
+                          <p className="text-gray-500 text-center py-2">Sem logs de status</p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  )}
                 </CardContent>
               </Card>
 
@@ -554,8 +625,35 @@ function App() {
                     {services.sync?.status === 'online' ? 'Conectado' : 'Aguardando'}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    Sincroniza pedidos com banco Supabase
+                    Sincroniza com Supabase
                   </p>
+                  <div className="mt-2 space-y-2">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-xs h-6 w-full text-gray-600" 
+                      onClick={() => setShowLogsSync(!showLogsSync)}
+                    >
+                      {showLogsSync ? '▼ Ocultar logs' : '▶ Mostrar logs'}
+                    </Button>
+                  </div>
+                  {showLogsSync && (
+                    <ScrollArea className="h-32 bg-gray-900 rounded-lg p-2 mt-2">
+                      <div className="space-y-1 font-mono text-[10px]">
+                        {logs.sync?.slice(-15).map((log, idx) => (
+                          <div key={idx} className={`py-0.5 ${
+                            log.message?.includes('error') || log.type === 'error' ? 'text-red-300' : 
+                            log.message?.includes('success') ? 'text-green-300' : 'text-gray-300'
+                          }`}>
+                            {log.message}
+                          </div>
+                        ))}
+                        {(!logs.sync || logs.sync.length === 0) && (
+                          <p className="text-gray-500 text-center py-2">Sem logs</p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  )}
                 </CardContent>
               </Card>
             </div>
