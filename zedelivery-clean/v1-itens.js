@@ -1145,7 +1145,10 @@ async function itensScript(page) {
                 enderecoRota = enderecoRota.replace(/-+/g, " ").replace(/\s+/g, " ").trim();
                 console.log('📍 [ENDEREÇO] Rota:', enderecoRota || '(vazio)');
 
-                let enderecoComplemento = await getTextFromShadowOrNormal(page, "#address-plus");
+                // Complemento - fallback via Shadow DOM se não veio da área de impressão
+                if (!enderecoComplemento || enderecoComplemento.length < 2) {
+                    enderecoComplemento = await getTextFromShadowOrNormal(page, "#address-plus");
+                }
                 enderecoComplemento = enderecoComplemento.replace(/-+/g, "").trim();
 
                 let enderecoCidadeUF = await getTextFromShadowOrNormal(page, "#address-city-province");
@@ -1154,16 +1157,20 @@ async function itensScript(page) {
                 let enderecoCep = await getTextFromShadowOrNormal(page, "#address-zip-code");
                 enderecoCep = enderecoCep.replace(/-+/g, "").trim();
 
-                // Bairro - tentar múltiplos seletores
-                let enderecoBairro = await getTextFromShadowOrNormal(page, "#address-neighborhood");
+                // Bairro - fallback via Shadow DOM se não veio da área de impressão
                 if (!enderecoBairro || enderecoBairro === "-" || enderecoBairro.length < 2) {
-                    // Tentar pegar da seção de impressão
+                    enderecoBairro = await getTextFromShadowOrNormal(page, "#address-neighborhood");
+                }
+                if (!enderecoBairro || enderecoBairro === "-" || enderecoBairro.length < 2) {
+                    // Tentar pegar da seção de impressão diretamente
                     enderecoBairro = await page.$eval('#neighborhood-info', el => el.textContent.trim()).catch(() => '');
                 }
                 enderecoBairro = enderecoBairro.replace(/-+/g, "").trim();
                 
                 console.log('📍 [ENDEREÇO] Bairro:', enderecoBairro || '(vazio)');
+                console.log('📍 [ENDEREÇO] Complemento:', enderecoComplemento || '(vazio)');
                 console.log('📍 [ENDEREÇO] Cidade/UF:', enderecoCidadeUF || '(vazio)');
+                console.log('📍 [ENDEREÇO] CEP:', enderecoCep || '(vazio)');
 
                 // =====================================================
                 // CAPTURA DE VALORES (FRETE, DESCONTO, SUBTOTAL, TOTAL)
