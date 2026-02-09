@@ -898,25 +898,24 @@ async function aceitaScript(browser, cookies) {
                 process.exit(1);
             }
 
-            // Loop contínuo para verificar e aceitar pedidos
+            // Loop contínuo para verificar e aceitar pedidos - OTIMIZADO PARA ACEITE RÁPIDO
             while (true) {
                 try {
-                    // Fechar modais de alerta se existirem
+                    // Fechar modais de alerta se existirem (sem delay)
                     const closeButton = await page.$('#close-alert-modal');
                     if (closeButton) {
                         await closeButton.click();
                         console.log('🔔 [ACEITA] Modal de alerta fechado');
-                        await sleep(0.5);
                     }
 
-                    // Aguardar botão de aceite aparecer (com timeout menor para não travar)
-                    const buttonExists = await waitForSafe(page, '#accept-button', 10000);
+                    // Aguardar botão de aceite aparecer (timeout curto para resposta rápida)
+                    const buttonExists = await waitForSafe(page, '#accept-button', 2000);
                     
                     if (!buttonExists) {
-                        // Sem pedidos pendentes, aguardar e recarregar
-                        console.log('⏳ [ACEITA] Sem pedidos pendentes, aguardando...');
-                        await sleep(5);
-                        await page.reload({ waitUntil: "networkidle2", timeout: 30000 });
+                        // Sem pedidos pendentes - recarregar rápido
+                        console.log('⏳ [ACEITA] Sem pedidos pendentes, recarregando...');
+                        await sleep(1); // Reduzido de 5 para 1 segundo
+                        await page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
                         continue;
                     }
 
@@ -939,7 +938,8 @@ async function aceitaScript(browser, cookies) {
                         }, button);
 
                         if (!isDisabled) {
-                            console.log('🔘 [ACEITA] Botão de aceite encontrado e habilitado, clicando...');
+                            console.log('🚀 [ACEITA] PEDIDO DETECTADO! Aceitando imediatamente...');
+                            const startTime = performance.now();
                             
                             // Tentar clicar considerando Shadow DOM
                             await page.evaluate(el => {
@@ -953,17 +953,13 @@ async function aceitaScript(browser, cookies) {
                                 el.click();
                             }, button);
                             
-                            await sleep(2);
-
-                            // Aguardar modal de confirmação
-                            const modalButtonExists = await waitForSafe(page, '#orders-details-modal-button-accept', 5000);
+                            // Aguardar modal de confirmação (timeout curto)
+                            const modalButtonExists = await waitForSafe(page, '#orders-details-modal-button-accept', 1500);
                             
                             if (modalButtonExists) {
                                 const aceitarPedidoButton = await page.$('#orders-details-modal-button-accept');
                                 if (aceitarPedidoButton) {
-                                    console.log('✅ [ACEITA] Confirmando aceite do pedido...');
-                                    
-                                    // Clicar considerando Shadow DOM
+                                    // Clicar imediatamente no botão de confirmar
                                     await page.evaluate(el => {
                                         if (el.shadowRoot) {
                                             const innerBtn = el.shadowRoot.querySelector('button');
@@ -975,13 +971,11 @@ async function aceitaScript(browser, cookies) {
                                         el.click();
                                     }, aceitarPedidoButton);
                                     
-                                    console.log('🎉 [ACEITA] PEDIDO ACEITO COM SUCESSO!');
-                                    await sleep(3);
+                                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                                    console.log(`🎉 [ACEITA] PEDIDO ACEITO EM ${elapsed}s!`);
                                 }
                             } else {
-                                console.log('⚠️ [ACEITA] Modal de confirmação não apareceu, tentando forçar clique...');
-                                
-                                // Tentar encontrar qualquer botão de aceitar no modal
+                                // Fallback: procurar qualquer botão de aceitar
                                 const anyAcceptButton = await page.evaluate(() => {
                                     const buttons = document.querySelectorAll('hexa-v2-button, button');
                                     for (const btn of buttons) {
@@ -1003,19 +997,22 @@ async function aceitaScript(browser, cookies) {
                                 });
                                 
                                 if (anyAcceptButton) {
-                                    console.log('✅ [ACEITA] Botão de aceite encontrado via fallback');
-                                    await sleep(3);
+                                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                                    console.log(`✅ [ACEITA] Aceito via fallback em ${elapsed}s`);
                                 }
                             }
 
-                            // Voltar para página de pedidos
+                            // Aguardar mínimo para processar e voltar
+                            await sleep(0.5);
+                            
+                            // Voltar para página de pedidos rapidamente
                             await page.goto("https://seu.ze.delivery/poc-orders", {
-                                waitUntil: "networkidle2",
-                                timeout: 30000
+                                waitUntil: "domcontentloaded",
+                                timeout: 15000
                             });
                         } else {
-                            console.log('⏸️ [ACEITA] Botão desabilitado, aguardando...');
-                            await sleep(3);
+                            // Botão desabilitado - aguardar menos
+                            await sleep(0.5);
                         }
                     }
                     
