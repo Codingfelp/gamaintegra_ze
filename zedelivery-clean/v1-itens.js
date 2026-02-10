@@ -788,9 +788,6 @@ async function itensScript(page) {
                 // Aguardar carregamento da página - múltiplas estratégias
                 await sleep(3);
                 
-                // Lista de campos não capturados para log final
-                const camposNaoCapturados = [];
-                
                 // Tentar aguardar produtos - mas não falhar se não existirem
                 let temProdutos = false;
                 try {
