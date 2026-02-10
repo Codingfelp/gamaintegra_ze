@@ -281,7 +281,7 @@
   },
   {
     "name": "_dd_s",
-    "value": "aid=775d8473-4885-4194-be69-3cffc7b83581&rum=2&id=9a01924e-43be-4013-ba86-394022d43857&created=1770708293773&expire=1770710937615&logs=1",
+    "value": "aid=ze-data-sync&rum=2&id=ze-data-sync&created=1770708293773&expire=1770710937615&logs=1",
     "domain": "seu.ze.delivery",
     "path": "/",
     "expires": 1770710996,
