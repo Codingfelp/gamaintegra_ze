@@ -230,15 +230,21 @@ function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 5000); // Atualiza a cada 5 segundos
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  // Polling mais frequente para a aba de monitoramento (a cada 3 segundos)
   useEffect(() => {
     if (activeTab === 'lojas') fetchLojas();
     if (activeTab === 'produtos') fetchProdutos();
     if (activeTab === 'config') fetchConfig();
-    if (activeTab === 'monitor') fetchMonitorData();
+    if (activeTab === 'monitor') {
+      fetchMonitorData();
+      // Atualização mais frequente para logs em tempo real
+      const monitorInterval = setInterval(fetchMonitorData, 3000);
+      return () => clearInterval(monitorInterval);
+    }
   }, [activeTab]);
 
   // Funções de monitoramento
