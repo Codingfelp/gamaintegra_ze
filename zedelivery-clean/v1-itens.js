@@ -1151,8 +1151,13 @@ async function itensScript(page) {
                 
                 console.log('📍 [ENDEREÇO] Via impressão:', enderecoImpressao);
                 
-                let enderecoRota = enderecoImpressao.rua;
-                let enderecoBairro = enderecoImpressao.bairro;
+                // Usar valores da área de impressão OU os já capturados anteriormente
+                if (enderecoImpressao.rua && enderecoImpressao.rua.length > 3) {
+                    enderecoRota = enderecoImpressao.rua;
+                }
+                if (enderecoImpressao.bairro && enderecoImpressao.bairro.length > 2) {
+                    enderecoBairro = enderecoImpressao.bairro;
+                }
                 let enderecoComplemento = enderecoImpressao.complemento;
                 
                 // Se não encontrou na área de impressão, tentar via Shadow DOM
@@ -1271,23 +1276,36 @@ async function itensScript(page) {
                 
                 console.log('💰 [VALORES] Via impressão:', valoresImpressao);
 
-                // Fallback para Shadow DOM se área de impressão não tiver valores
-                let desconto = valoresImpressao.desconto;
+                // Usar valores da área de impressão OU os já capturados anteriormente
+                // Só sobrescreve se o valor da impressão for válido
+                if (valoresImpressao.desconto && valoresImpressao.desconto !== '0.00') {
+                    desconto = valoresImpressao.desconto;
+                }
                 if (!desconto || desconto === '0.00') {
-                    desconto = await getTextFromShadowOrNormal(page, "#total-discount");
-                    desconto = desconto.replace("R$", "").replace(",", ".").replace("-", "").trim();
+                    const descontoShadow = await getTextFromShadowOrNormal(page, "#total-discount");
+                    if (descontoShadow && descontoShadow !== '-') {
+                        desconto = descontoShadow.replace("R$", "").replace(",", ".").replace("-", "").trim();
+                    }
                 }
 
-                let frete = valoresImpressao.frete;
+                if (valoresImpressao.frete) {
+                    frete = valoresImpressao.frete;
+                }
                 if (!frete) {
-                    frete = await getTextFromShadowOrNormal(page, "#freight");
-                    frete = frete.replace("R$", "").replace(",", ".").trim();
+                    const freteShadow = await getTextFromShadowOrNormal(page, "#freight");
+                    if (freteShadow && freteShadow !== '-') {
+                        frete = freteShadow.replace("R$", "").replace(",", ".").trim();
+                    }
                 }
                 
-                let subTotal = valoresImpressao.subtotal;
+                if (valoresImpressao.subtotal) {
+                    subTotal = valoresImpressao.subtotal;
+                }
                 if (!subTotal) {
-                    subTotal = await getTextFromShadowOrNormal(page, "#subtotal");
-                    subTotal = subTotal.replace("R$", "").replace(",", ".").trim();
+                    const subTotalShadow = await getTextFromShadowOrNormal(page, "#subtotal");
+                    if (subTotalShadow && subTotalShadow !== '-') {
+                        subTotal = subTotalShadow.replace("R$", "").replace(",", ".").trim();
+                    }
                 }
                 
                 console.log('💰 [VALORES] Subtotal:', subTotal || '(vazio)');
