@@ -1395,29 +1395,32 @@ async function itensScript(page) {
                 // =====================================================
                 console.log('🏷️ [CÓDIGO] Capturando código de entrega...');
                 
-                // ESTRATÉGIA 1: Área de impressão (mais confiável)
-                let codigoEntrega = await page.evaluate(() => {
-                    // Procurar na área de impressão - "Código de coleta: XXX XXX XXX X"
-                    const coletaEl = document.querySelector('#print-content p');
-                    if (coletaEl && coletaEl.textContent.includes('Código de coleta:')) {
-                        const span = coletaEl.querySelector('span');
-                        if (span) {
-                            return span.textContent.trim();
+                // Só busca código se não foi capturado anteriormente da área de impressão
+                if (!codigoEntrega) {
+                    // ESTRATÉGIA 1: Área de impressão (mais confiável)
+                    codigoEntrega = await page.evaluate(() => {
+                        // Procurar na área de impressão - "Código de coleta: XXX XXX XXX X"
+                        const coletaEl = document.querySelector('#print-content p');
+                        if (coletaEl && coletaEl.textContent.includes('Código de coleta:')) {
+                            const span = coletaEl.querySelector('span');
+                            if (span) {
+                                return span.textContent.trim();
+                            }
                         }
-                    }
-                    
-                    // Procurar span com padrão de código
-                    const spans = document.querySelectorAll('#print-content span');
-                    for (const span of spans) {
-                        const texto = span.textContent.trim();
-                        // Padrão flexível: grupos de letras/números separados por espaços
-                        if (/^[A-Z0-9]{2,4}(\s[A-Z0-9]{2,4}){2,4}$/i.test(texto)) {
-                            return texto;
+                        
+                        // Procurar span com padrão de código
+                        const spans = document.querySelectorAll('#print-content span');
+                        for (const span of spans) {
+                            const texto = span.textContent.trim();
+                            // Padrão flexível: grupos de letras/números separados por espaços
+                            if (/^[A-Z0-9]{2,4}(\s[A-Z0-9]{2,4}){2,4}$/i.test(texto)) {
+                                return texto;
+                            }
                         }
-                    }
-                    
-                    return null;
-                });
+                        
+                        return null;
+                    });
+                }
                 
                 // ESTRATÉGIA 2: Via hexa-v2-text se não encontrou na área de impressão
                 if (!codigoEntrega) {
