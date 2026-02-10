@@ -916,6 +916,22 @@ async function itensScript(page) {
                 if (produtos.length === 0 || produtos.every(p => !p.nome)) {
                     console.log('📦 [ITENS] Capturando via área de impressão #bought-items...');
                     
+                    // Debug: verificar se elementos existem
+                    const debugInfo = await page.evaluate(() => {
+                        const printContent = document.querySelector('#print-content');
+                        const boughtItems = document.querySelector('#bought-items');
+                        const itemsFound = document.querySelectorAll('#bought-items [data-testid="bought-items"]');
+                        const allTestIds = [...document.querySelectorAll('[data-testid]')].map(el => el.getAttribute('data-testid')).slice(0, 20);
+                        
+                        return {
+                            hasPrintContent: !!printContent,
+                            hasBoughtItems: !!boughtItems,
+                            itemsCount: itemsFound.length,
+                            sampleTestIds: allTestIds
+                        };
+                    });
+                    console.log('📦 [ITENS] Debug:', JSON.stringify(debugInfo));
+                    
                     produtos = await page.evaluate(() => {
                         const items = [];
                         
