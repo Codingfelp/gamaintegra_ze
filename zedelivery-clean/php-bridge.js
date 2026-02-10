@@ -77,31 +77,6 @@ function execPhp(script, getData = {}, postData = {}, timeout = 30000) {
         // Criar arquivo temporário com o código PHP
         const tmpFile = path.join(os.tmpdir(), `php_bridge_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.php`);
         
-        // Serializar dados como JSON para evitar problemas de escaping
-        const getDataJson = JSON.stringify({ ide: TOKEN, ...getData });
-        const postDataJson = JSON.stringify(postData);
-        
-        const phpCode = `<?php
-error_reporting(0);
-set_time_limit(${Math.floor(timeout / 1000)});
-chdir('${PHP_DIR}');
-
-// Decodificar dados passados como argumentos
-$_GET = json_decode($argv[1] ?? '{}', true) ?: [];
-$_POST = json_decode($argv[2] ?? '{}', true) ?: [];
-
-// Iniciar sessão se necessário
-if (session_status() === PHP_SESSION_NONE) {
-    @session_start();
-}
-$_SESSION['ambiente'] = '1';
-
-ob_start();
-include '${script}';
-$output = ob_get_clean();
-echo $output;
-`;
-        
         try {
             // Criar arquivo de dados para evitar problemas de escaping
             const dataFile = tmpFile.replace('.php', '.json');
