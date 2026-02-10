@@ -29,32 +29,38 @@ const PHP_DIR = '/app/integrador/zeduplo';
  */
 async function execSessionPHP(action, profile = '', cookies = '') {
     return new Promise((resolve, reject) => {
-        let cmd = `cd ${PHP_DIR} && php ze_session.php`;
+        const os = require('os');
+        const tmpFile = path.join(os.tmpdir(), `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.json`);
         
-        // Adicionar parâmetros GET via query string simulada
-        const queryParams = [`action=${action}`];
-        if (profile) {
-            queryParams.push(`profile=${profile}`);
+        // Criar arquivo temporário com os dados
+        const data = {
+            action: action,
+            profile: profile,
+            cookies: cookies
+        };
+        
+        try {
+            fs.writeFileSync(tmpFile, JSON.stringify(data), 'utf8');
+        } catch (err) {
+            reject(new Error('Erro ao criar arquivo temporário: ' + err.message));
+            return;
         }
         
-        // Para save, precisamos passar cookies via stdin
-        if (action === 'save' && cookies) {
-            const escapedCookies = cookies.replace(/'/g, "'\\''");
-            cmd = `cd ${PHP_DIR} && php -r "
-                \\$_GET['action'] = '${action}';
-                \\$_GET['profile'] = '${profile}';
-                \\$_POST['cookies'] = '${escapedCookies}';
-                include 'ze_session.php';
-            "`;
-        } else {
-            cmd = `cd ${PHP_DIR} && php -r "
-                \\$_GET['action'] = '${action}';
-                \\$_GET['profile'] = '${profile}';
-                include 'ze_session.php';
-            "`;
-        }
+        // PHP que lê do arquivo
+        const cmd = `cd ${PHP_DIR} && php -r "
+\\$data = json_decode(file_get_contents('${tmpFile}'), true);
+\\$_GET['action'] = \\$data['action'];
+\\$_GET['profile'] = \\$data['profile'];
+if (!empty(\\$data['cookies'])) {
+    \\$_POST['cookies'] = \\$data['cookies'];
+}
+include 'ze_session.php';
+"`;
         
         exec(cmd, { timeout: 30000, maxBuffer: 5 * 1024 * 1024 }, (error, stdout, stderr) => {
+            // Limpar arquivo temporário
+            try { fs.unlinkSync(tmpFile); } catch (e) {}
+            
             if (error && !stdout) {
                 console.error('❌ [SESSION-PHP] Erro:', stderr || error.message);
                 reject(error);
