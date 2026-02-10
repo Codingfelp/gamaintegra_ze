@@ -103,21 +103,48 @@ echo $output;
 `;
         
         try {
-            fs.writeFileSync(tmpFile, phpCode, 'utf8');
+            // Criar arquivo de dados para evitar problemas de escaping
+            const dataFile = tmpFile.replace('.php', '.json');
+            const dataContent = JSON.stringify({ get: { ide: TOKEN, ...getData }, post: postData });
+            fs.writeFileSync(dataFile, dataContent, 'utf8');
             
-            // Escapar JSON para linha de comando
-            const escapedGet = getDataJson.replace(/'/g, "'\\''");
-            const escapedPost = postDataJson.replace(/'/g, "'\\''");
+            // Código PHP que lê dados do arquivo
+            const phpCodeWithFile = `<?php
+error_reporting(0);
+set_time_limit(${Math.floor(timeout / 1000)});
+chdir('${PHP_DIR}');
+
+// Ler dados do arquivo JSON
+\$dataFile = '${dataFile}';
+\$jsonData = file_get_contents(\$dataFile);
+\$data = json_decode(\$jsonData, true);
+\$_GET = \$data['get'] ?? [];
+\$_POST = \$data['post'] ?? [];
+
+// Iniciar sessão se necessário
+if (session_status() === PHP_SESSION_NONE) {
+    @session_start();
+}
+\$_SESSION['ambiente'] = '1';
+
+ob_start();
+include '${script}';
+\$output = ob_get_clean();
+echo \$output;
+`;
             
-            const cmd = `php '${tmpFile}' '${escapedGet}' '${escapedPost}'`;
+            fs.writeFileSync(tmpFile, phpCodeWithFile, 'utf8');
+            
+            const cmd = `php '${tmpFile}'`;
             
             exec(cmd, { 
                 timeout, 
                 maxBuffer: 1024 * 1024,
                 cwd: PHP_DIR 
             }, (error, stdout, stderr) => {
-                // Limpar arquivo temporário
+                // Limpar arquivos temporários
                 try { fs.unlinkSync(tmpFile); } catch (e) {}
+                try { fs.unlinkSync(dataFile); } catch (e) {}
                 
                 if (error && error.killed) {
                     reject(new Error(`PHP timeout: ${script}`));
@@ -128,8 +155,9 @@ echo $output;
                 }
             });
         } catch (err) {
-            // Limpar arquivo temporário em caso de erro
+            // Limpar arquivos temporários em caso de erro
             try { fs.unlinkSync(tmpFile); } catch (e) {}
+            try { fs.unlinkSync(tmpFile.replace('.php', '.json')); } catch (e) {}
             reject(new Error(`PHP bridge error: ${err.message}`));
         }
     });
