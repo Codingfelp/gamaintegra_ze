@@ -785,17 +785,133 @@ async function itensScript(page) {
                 console.log("📦 [CAPTURA] INICIANDO CAPTURA DO PEDIDO: " + encodeURIComponent(id_pedido_info));
                 console.log("═══════════════════════════════════════════════════════");
 
-                // Aguardar carregamento da página - múltiplas estratégias
+                // Aguardar carregamento da página
                 await sleep(3);
                 
-                // Tentar aguardar produtos - mas não falhar se não existirem
-                let temProdutos = false;
-                try {
-                    await page.waitForSelector('[data-testid="product"]', { timeout: 8000 });
-                    temProdutos = true;
-                } catch (e) {
-                    console.log('⚠️ [CAPTURA] Produtos não encontrados via data-testid, tentando alternativas...');
-                }
+                // =====================================================
+                // CAPTURA SIMPLIFICADA - USA ÁREA DE IMPRESSÃO (#print-content)
+                // Esta área contém texto plano, sem Shadow DOM
+                // =====================================================
+                
+                // Aguardar área de impressão carregar
+                await page.waitForSelector('#print-content', { timeout: 10000 }).catch(() => {
+                    console.log('⚠️ [CAPTURA] Área de impressão não encontrada');
+                });
+                
+                // Capturar TODOS os dados de uma vez da área de impressão
+                const dadosPrintArea = await page.evaluate(() => {
+                    const resultado = {
+                        codigoColeta: '',
+                        tipoPedido: '',
+                        bairro: '',
+                        endereco: '',
+                        complemento: '',
+                        cliente: '',
+                        itens: [],
+                        subtotal: '',
+                        frete: '',
+                        desconto: '',
+                        total: ''
+                    };
+                    
+                    // 1. CÓDIGO DE COLETA - está em um <p> com span
+                    const paragrafos = document.querySelectorAll('#print-content p');
+                    for (const p of paragrafos) {
+                        if (p.textContent.includes('Código de coleta:')) {
+                            const span = p.querySelector('span');
+                            if (span) resultado.codigoColeta = span.textContent.trim();
+                            break;
+                        }
+                    }
+                    
+                    // 2. TIPO DO PEDIDO
+                    const tipoEl = document.querySelector('[data-testid="delivery-type-label"]');
+                    if (tipoEl) {
+                        const texto = tipoEl.textContent.trim().toLowerCase();
+                        if (texto === 'comum' || texto.includes('comum')) resultado.tipoPedido = 'Pedido Comum';
+                        else if (texto === 'turbo' || texto.includes('turbo')) resultado.tipoPedido = 'Pedido Turbo';
+                        else if (texto === 'retirada' || texto.includes('retirada') || texto.includes('pickup')) resultado.tipoPedido = 'Pedido Retirada';
+                        else resultado.tipoPedido = tipoEl.textContent.trim();
+                    }
+                    
+                    // 3. BAIRRO
+                    const bairroEl = document.querySelector('#neighborhood-info');
+                    if (bairroEl) resultado.bairro = bairroEl.textContent.trim();
+                    
+                    // 4. ENDEREÇO
+                    const enderecoEl = document.querySelector('#main-street');
+                    if (enderecoEl) resultado.endereco = enderecoEl.textContent.trim();
+                    
+                    // 5. CLIENTE
+                    const clienteEl = document.querySelector('#print-customer-name');
+                    if (clienteEl) resultado.cliente = clienteEl.textContent.trim();
+                    
+                    // 6. ITENS DO PEDIDO
+                    const itensContainer = document.querySelectorAll('#bought-items [data-testid="bought-items"]');
+                    itensContainer.forEach(item => {
+                        const qtdEl = item.querySelector('#item-quantity');
+                        const nomeEl = item.querySelector('#item-name');
+                        const precoEl = item.querySelector('#item-price span');
+                        
+                        const quantidade = qtdEl ? qtdEl.textContent.trim() : '1';
+                        const nome = nomeEl ? nomeEl.textContent.trim() : '';
+                        let preco = precoEl ? precoEl.textContent.trim() : '';
+                        preco = preco.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                        
+                        const idMatch = item.id?.match(/item-(\d+)/);
+                        const id = idMatch ? idMatch[1] : '';
+                        
+                        if (nome) {
+                            resultado.itens.push({ id, nome, quantidade, preco });
+                        }
+                    });
+                    
+                    // 7. VALORES FINANCEIROS
+                    const subtotalEl = document.querySelector('#payment-details-subtotal span:last-child');
+                    if (subtotalEl) {
+                        resultado.subtotal = subtotalEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                    }
+                    
+                    const freteEl = document.querySelector('#payment-details-freight span:last-child');
+                    if (freteEl) {
+                        resultado.frete = freteEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                    }
+                    
+                    const descontoEl = document.querySelector('#payment-details-discount span:last-child');
+                    if (descontoEl) {
+                        let desc = descontoEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                        desc = desc.replace('-', '').trim();
+                        resultado.desconto = desc;
+                    }
+                    
+                    const totalEl = document.querySelector('#payment-details-total span strong span');
+                    if (totalEl) {
+                        resultado.total = totalEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                    }
+                    
+                    return resultado;
+                });
+                
+                console.log('📄 [CAPTURA] Dados da área de impressão:', JSON.stringify(dadosPrintArea, null, 2));
+                
+                // Usar os dados capturados da área de impressão
+                let tipoDelivery = dadosPrintArea.tipoPedido;
+                let codigoEntrega = dadosPrintArea.codigoColeta;
+                let enderecoBairro = dadosPrintArea.bairro;
+                let enderecoRota = dadosPrintArea.endereco;
+                let produtos = dadosPrintArea.itens.map(item => ({
+                    id: item.id,
+                    nome: item.nome,
+                    quantidade: item.quantidade,
+                    preco: item.preco,
+                    imagem: ''
+                }));
+                let subTotal = dadosPrintArea.subtotal;
+                let frete = dadosPrintArea.frete;
+                let desconto = dadosPrintArea.desconto;
+                
+                // Continuar com captura de campos adicionais via Shadow DOM como fallback
+                let temProdutos = produtos.length > 0;
 
                 // =====================================================
                 // CAPTURA DO TIPO DE DELIVERY (COMUM, TURBO, RETIRADA)
