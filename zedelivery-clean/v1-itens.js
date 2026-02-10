@@ -771,8 +771,9 @@ async function itensScript(page) {
     while (true) {
         let id_pedido_info = await pegar_id_pedido();
 
-        if (id_pedido_info == 0) {
-            console.log("SEM PEDIDOS DISPONIVEIS");
+        if (id_pedido_info == 0 || id_pedido_info === null) {
+            console.log("⏳ [CAPTURA] Aguardando novos pedidos para capturar detalhes...");
+            await sleep(5);
         } else {
             try {
                 /**ABRIR TODOS OS PEDIDOS */
@@ -780,10 +781,15 @@ async function itensScript(page) {
                     "https://seu.ze.delivery/order/" + encodeURIComponent(id_pedido_info)
                 );
 
-                console.log("PEDIDO ENCONTRADO: " + encodeURIComponent(id_pedido_info));
+                console.log("═══════════════════════════════════════════════════════");
+                console.log("📦 [CAPTURA] INICIANDO CAPTURA DO PEDIDO: " + encodeURIComponent(id_pedido_info));
+                console.log("═══════════════════════════════════════════════════════");
 
                 // Aguardar carregamento da página - múltiplas estratégias
                 await sleep(3);
+                
+                // Lista de campos não capturados para log final
+                const camposNaoCapturados = [];
                 
                 // Tentar aguardar produtos - mas não falhar se não existirem
                 let temProdutos = false;
@@ -791,7 +797,7 @@ async function itensScript(page) {
                     await page.waitForSelector('[data-testid="product"]', { timeout: 8000 });
                     temProdutos = true;
                 } catch (e) {
-                    console.log('⚠️ Produtos não encontrados via data-testid, tentando alternativas...');
+                    console.log('⚠️ [CAPTURA] Produtos não encontrados via data-testid, tentando alternativas...');
                 }
 
                 // =====================================================
