@@ -1414,31 +1414,61 @@ async function itensScript(page) {
                 console.log(`[${dataHora}] DATA RESGATADA`);
                 
                 // =====================================================
+                // VERIFICAR CAMPOS NÃO CAPTURADOS
+                // =====================================================
+                const camposNaoCapturados = [];
+                if (!tipoDelivery) camposNaoCapturados.push('Tipo Delivery');
+                if (!cpfCliente) camposNaoCapturados.push('CPF');
+                if (!customerPhone) camposNaoCapturados.push('Telefone');
+                if (!enderecoRota && tipoDelivery !== 'Pedido Retirada') camposNaoCapturados.push('Endereço');
+                if (!enderecoBairro && tipoDelivery !== 'Pedido Retirada') camposNaoCapturados.push('Bairro');
+                if (!subTotal) camposNaoCapturados.push('SubTotal');
+                if (produtos.length === 0) camposNaoCapturados.push('Itens do Pedido');
+                if (!codigoEntrega && tipoDelivery !== 'Pedido Retirada') camposNaoCapturados.push('Código de Entrega');
+                
+                // =====================================================
                 // RESUMO DO QUE FOI CAPTURADO
                 // =====================================================
                 console.log('═══════════════════════════════════════════════════════');
                 console.log('📦 RESUMO DA CAPTURA DO PEDIDO ' + id_pedido_info);
                 console.log('═══════════════════════════════════════════════════════');
+                
+                // Se houver campos não capturados, mostrar alerta
+                if (camposNaoCapturados.length > 0) {
+                    console.log('⚠️ ATENÇÃO: CAMPOS NÃO CAPTURADOS:');
+                    console.log('   ❌ ' + camposNaoCapturados.join('\n   ❌ '));
+                    console.log('───────────────────────────────────────────────────────');
+                }
+                
                 console.log('🚚 Tipo Delivery:', tipoDelivery || '❌ NÃO CAPTURADO');
                 console.log('📋 CPF:', cpfCliente || '❌ NÃO CAPTURADO');
                 console.log('📞 Telefone:', customerPhone || '❌ NÃO CAPTURADO');
-                console.log('📍 Endereço:', enderecoRota || '❌ NÃO CAPTURADO');
-                console.log('📍 Bairro:', enderecoBairro || '❌ NÃO CAPTURADO');
-                console.log('📍 Cidade/UF:', enderecoCidadeUF || '❌ NÃO CAPTURADO');
-                console.log('📍 CEP:', enderecoCep || '❌ NÃO CAPTURADO');
+                console.log('📍 Endereço:', enderecoRota || (tipoDelivery === 'Pedido Retirada' ? '(Retirada - sem endereço)' : '❌ NÃO CAPTURADO'));
+                console.log('📍 Bairro:', enderecoBairro || (tipoDelivery === 'Pedido Retirada' ? '(Retirada)' : '❌ NÃO CAPTURADO'));
+                console.log('📍 Cidade/UF:', enderecoCidadeUF || '(vazio)');
+                console.log('📍 CEP:', enderecoCep || '(vazio)');
                 console.log('📍 Complemento:', enderecoComplemento || '(vazio)');
                 console.log('💰 Frete:', frete || '0');
                 console.log('💰 Desconto:', desconto || '0');
                 console.log('💰 SubTotal:', subTotal || '❌ NÃO CAPTURADO');
                 console.log('💰 Taxa Conveniência:', taxaConveniencia || '0');
                 console.log('💰 Troco:', troco || '0');
-                console.log('🏷️ Código Entrega:', codigoEntrega || '(vazio)');
+                console.log('🏷️ Código Entrega:', codigoEntrega || (tipoDelivery === 'Pedido Retirada' ? '(Retirada)' : '❌ NÃO CAPTURADO'));
                 console.log('📝 Observação:', obsPedido || '(vazia)');
                 console.log('📊 Status:', statusPedido || '❌ NÃO CAPTURADO');
                 console.log('🚴 Entregador:', entregador || '(não encontrado)');
                 console.log('📦 Qtd Itens:', produtos.length);
                 if (produtos.length > 0) {
                     console.log('   Itens:', produtos.map(p => `${p.quantidade}x ${p.nome}`).join(', '));
+                } else {
+                    console.log('   ❌ NENHUM ITEM CAPTURADO!');
+                }
+                
+                // Status final da captura
+                if (camposNaoCapturados.length === 0) {
+                    console.log('✅ CAPTURA COMPLETA - Todos os campos capturados com sucesso!');
+                } else {
+                    console.log(`⚠️ CAPTURA INCOMPLETA - ${camposNaoCapturados.length} campo(s) faltando`);
                 }
                 console.log('═══════════════════════════════════════════════════════');
 
