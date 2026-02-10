@@ -1826,14 +1826,54 @@ async function aceitaScript(browser, cookies) {
                         const isDisabled = await page.evaluate(el => el.disabled, button);
 
                         if (!isDisabled) {
+                            console.log('[ACEITA] ⏳ Botão disponível, clicando...');
+                            const startTime = Date.now();
                             await button.click();
-                            console.log('Botão clicado!');
+                            console.log('[ACEITA] ✓ Botão clicado!');
 
+                            // Aguardar modal aparecer
+                            await sleep(0.5);
+                            
                             const aceitarPedidoButton = await page.$('#orders-details-modal-button-accept');
                             if (aceitarPedidoButton) {
                                 await aceitarPedidoButton.click();
-                                console.log('Pedido Aceito!');
-                                await sleep(10);
+                                console.log('[ACEITA] ✓ Botão Aceitar Pedido clicado!');
+                                
+                                // VERIFICAÇÃO DE SUCESSO: Aguardar mudança de status
+                                let aceitoComSucesso = false;
+                                const maxTentativas = 10;
+                                
+                                for (let tentativa = 0; tentativa < maxTentativas; tentativa++) {
+                                    await sleep(1);
+                                    
+                                    // Verificar se o modal fechou ou se há indicação de sucesso
+                                    const modalFechado = await page.$('#orders-details-modal-button-accept') === null;
+                                    const msgSucesso = await page.evaluate(() => {
+                                        const alerts = document.querySelectorAll('[role="alert"], .toast, .notification');
+                                        for (const alert of alerts) {
+                                            const texto = alert.textContent.toLowerCase();
+                                            if (texto.includes('aceito') || texto.includes('sucesso')) {
+                                                return true;
+                                            }
+                                        }
+                                        return false;
+                                    });
+                                    
+                                    if (modalFechado || msgSucesso) {
+                                        aceitoComSucesso = true;
+                                        const elapsed = Date.now() - startTime;
+                                        console.log(`[ACEITA] ✅ Pedido ACEITO com sucesso em ${elapsed}ms!`);
+                                        break;
+                                    }
+                                    
+                                    console.log(`[ACEITA] ⏳ Verificando status... tentativa ${tentativa + 1}/${maxTentativas}`);
+                                }
+                                
+                                if (!aceitoComSucesso) {
+                                    console.log('[ACEITA] ⚠️ Não foi possível confirmar o aceite. Recarregando...');
+                                }
+                                
+                                await sleep(2);
                             }
 
                             await page.goto("https://seu.ze.delivery/poc-orders", {
@@ -1842,7 +1882,7 @@ async function aceitaScript(browser, cookies) {
                         }
                     }
                 } catch (err) {
-                    console.error("Erro dentro do loop de aceite:", err.message);
+                    console.error("[ACEITA] Erro dentro do loop de aceite:", err.message);
                     try { await page.reload({ waitUntil: "networkidle2" }); } catch (e) { }
                 }
             }
