@@ -332,29 +332,43 @@ def get_db():
 @app.get("/api/services/status")
 async def get_services_status():
     """Retorna status dos serviços - HEALTHCHECK REAL (runtime, não cosmético)"""
+    import asyncio
+    import concurrent.futures
+    
     status = {"success": True, "data": {}}
     
-    # 1. MySQL Railway Cloud - Teste REAL de conexão
-    try:
-        conn = get_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        cursor.close()
-        conn.close()
-        status["data"]["mysql"] = {
-            "status": "online", 
-            "host": DB_CONFIG['host'],
-            "database": DB_CONFIG['database'],
-            "note": "Railway Cloud MySQL - conexão testada"
-        }
-    except Exception as e:
-        status["data"]["mysql"] = {
-            "status": "offline", 
-            "error": str(e)[:100], 
-            "host": DB_CONFIG['host'],
-            "database": DB_CONFIG['database']
-        }
+    # 1. MySQL Railway Cloud - Teste REAL de conexão COM TIMEOUT
+    def test_mysql():
+        try:
+            # Configuração com timeout curto
+            test_config = {**DB_CONFIG, 'connection_timeout': 3}
+            conn = mysql.connector.connect(**test_config)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
+            conn.close()
+            return {"status": "online", "host": DB_CONFIG['host'], "database": DB_CONFIG['database']}
+        except Exception as e:
+            return {"status": "offline", "error": str(e)[:100], "host": DB_CONFIG['host']}
+    
+    # Executar com timeout de 5 segundos
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        try:
+            future = loop.run_in_executor(executor, test_mysql)
+            status["data"]["mysql"] = await asyncio.wait_for(future, timeout=5.0)
+        except asyncio.TimeoutError:
+            status["data"]["mysql"] = {
+                "status": "offline", 
+                "error": "Connection timeout (5s)", 
+                "host": DB_CONFIG['host']
+            }
+        except Exception as e:
+            status["data"]["mysql"] = {
+                "status": "offline", 
+                "error": str(e)[:100]
+            }
     
     # 2. PHP cURL (Gmail API) - Teste REAL em runtime
     ok, out = run_shell("php -r \"echo extension_loaded('curl') ? 'CURL_OK' : 'CURL_FAIL';\"", timeout=10)
