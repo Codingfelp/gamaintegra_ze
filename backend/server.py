@@ -297,11 +297,20 @@ else:
 print(f"🔧 MySQL Config: {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['database']}")
 
 db_pool = None
+_pool_init_attempted = False
 
 def create_db_pool():
-    global db_pool
+    global db_pool, _pool_init_attempted
+    
+    # Só tentar uma vez
+    if _pool_init_attempted:
+        return db_pool is not None
+    _pool_init_attempted = True
+    
     try:
-        db_pool = pooling.MySQLConnectionPool(pool_name="ze_pool", pool_size=3, pool_reset_session=True, **DB_CONFIG)
+        # Timeout curto para não travar
+        pool_config = {**DB_CONFIG, 'connection_timeout': 3}
+        db_pool = pooling.MySQLConnectionPool(pool_name="ze_pool", pool_size=3, pool_reset_session=True, **pool_config)
         print("✅ Pool MySQL criado com sucesso")
         return True
     except Exception as e:
@@ -309,8 +318,8 @@ def create_db_pool():
         db_pool = None
         return False
 
-# Tentar criar pool na inicialização
-create_db_pool()
+# NÃO criar pool na inicialização - será criado na primeira requisição
+# create_db_pool()
 
 def get_db():
     global db_pool
