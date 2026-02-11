@@ -323,15 +323,21 @@ def create_db_pool():
 
 def get_db():
     global db_pool
+    
+    # Lazy initialization do pool
+    if not _pool_init_attempted:
+        create_db_pool()
+    
     try:
         if db_pool:
             return db_pool.get_connection()
     except Exception as e:
         print(f"⚠️ Pool falhou, tentando conexão direta: {e}")
     
-    # Fallback: conexão direta
+    # Fallback: conexão direta com timeout curto
     try:
-        return mysql.connector.connect(**DB_CONFIG)
+        direct_config = {**DB_CONFIG, 'connection_timeout': 5}
+        return mysql.connector.connect(**direct_config)
     except Exception as e:
         print(f"❌ Conexão MySQL falhou: {e}")
         raise
