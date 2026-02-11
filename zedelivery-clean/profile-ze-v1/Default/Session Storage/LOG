@@ -1,3 +1,6 @@
 2026/02/11-18:30:41.474 2a93 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
 2026/02/11-18:30:41.475 2a93 Recovering log #19
 2026/02/11-18:30:41.479 2a93 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000019.log 
+2026/02/11-18:42:40.130 2a96 Level-0 table #24: started
+2026/02/11-18:42:40.138 2a96 Level-0 table #24: 18372 bytes OK
+2026/02/11-18:42:40.144 2a96 Delete type=0 #19
