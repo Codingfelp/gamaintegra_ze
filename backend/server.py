@@ -373,6 +373,38 @@ async def get_services_status():
     
     return status
 
+
+# Endpoint separado para testar MySQL (com timeout)
+@app.get("/api/services/mysql-test")
+async def test_mysql_connection():
+    """Testa conexão MySQL em background - não bloqueia"""
+    import asyncio
+    import concurrent.futures
+    
+    def do_test():
+        try:
+            test_config = {**DB_CONFIG, 'connection_timeout': 3}
+            conn = mysql.connector.connect(**test_config)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
+            conn.close()
+            return {"status": "online", "host": DB_CONFIG['host'], "database": DB_CONFIG['database']}
+        except Exception as e:
+            return {"status": "offline", "error": str(e)[:100], "host": DB_CONFIG.get('host', 'N/A')}
+    
+    loop = asyncio.get_event_loop()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        try:
+            future = loop.run_in_executor(executor, do_test)
+            result = await asyncio.wait_for(future, timeout=5.0)
+            return {"success": True, "data": result}
+        except asyncio.TimeoutError:
+            return {"success": False, "data": {"status": "offline", "error": "Connection timeout (5s)"}}
+        except Exception as e:
+            return {"success": False, "data": {"status": "offline", "error": str(e)[:100]}}
+
 @app.get("/api/pedidos")
 async def get_pedidos(limit: int = 50, status: Optional[int] = None):
     """Lista pedidos"""
