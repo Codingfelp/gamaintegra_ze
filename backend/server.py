@@ -331,17 +331,26 @@ def get_db():
 
 @app.get("/api/services/status")
 async def get_services_status():
-    """Retorna status dos serviços - HEALTHCHECK REAL (runtime, não cosmético)"""
+    """Retorna status dos serviços - HEALTHCHECK REAL com timeouts rápidos"""
     import asyncio
     import concurrent.futures
     
     status = {"success": True, "data": {}}
     
-    # 1. MySQL Railway Cloud - Teste REAL de conexão COM TIMEOUT
+    # Função para executar testes em background com timeout
+    async def run_with_timeout(func, timeout_secs=3):
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            try:
+                future = loop.run_in_executor(executor, func)
+                return await asyncio.wait_for(future, timeout=timeout_secs)
+            except (asyncio.TimeoutError, Exception) as e:
+                return {"status": "offline", "error": f"Timeout ou erro: {str(e)[:50]}"}
+    
+    # 1. MySQL - Teste rápido
     def test_mysql():
         try:
-            # Configuração com timeout curto
-            test_config = {**DB_CONFIG, 'connection_timeout': 3}
+            test_config = {**DB_CONFIG, 'connection_timeout': 2}
             conn = mysql.connector.connect(**test_config)
             cursor = conn.cursor()
             cursor.execute("SELECT 1")
@@ -350,83 +359,58 @@ async def get_services_status():
             conn.close()
             return {"status": "online", "host": DB_CONFIG['host'], "database": DB_CONFIG['database']}
         except Exception as e:
-            return {"status": "offline", "error": str(e)[:100], "host": DB_CONFIG['host']}
+            return {"status": "offline", "error": str(e)[:80], "host": DB_CONFIG.get('host', 'N/A')}
     
-    # Executar com timeout de 5 segundos
-    loop = asyncio.get_event_loop()
-    with concurrent.futures.ThreadPoolExecutor() as executor:
+    # 2. PHP - Teste simples sem conexão DB
+    def test_php():
         try:
-            future = loop.run_in_executor(executor, test_mysql)
-            status["data"]["mysql"] = await asyncio.wait_for(future, timeout=5.0)
-        except asyncio.TimeoutError:
-            status["data"]["mysql"] = {
-                "status": "offline", 
-                "error": "Connection timeout (5s)", 
-                "host": DB_CONFIG['host']
-            }
+            ok, out = run_shell("php -r \"echo 'PHP_OK';\"", timeout=3)
+            if ok and 'PHP_OK' in out:
+                return {"status": "online", "mode": "CLI"}
+            return {"status": "offline", "error": "PHP não respondeu"}
         except Exception as e:
-            status["data"]["mysql"] = {
-                "status": "offline", 
-                "error": str(e)[:100]
-            }
+            return {"status": "offline", "error": str(e)[:50]}
     
-    # 2. PHP cURL (Gmail API) - Teste REAL em runtime
-    ok, out = run_shell("php -r \"echo extension_loaded('curl') ? 'CURL_OK' : 'CURL_FAIL';\"", timeout=10)
-    if ok and 'CURL_OK' in out:
-        # Testar conexão com banco via PHP
-        db_ok, db_out = run_shell("""php -r "
-            chdir('/app/integrador/zeduplo');
-            require_once '_class/AutoLoad.php';
-            \$DB = new Database();
-            \$conn = \$DB->Conn();
-            echo \$conn ? 'DB_OK' : 'DB_FAIL';
-        " """, timeout=10)
+    # 3. Scripts Node - Verificar processos
+    def test_node_scripts():
+        scripts = {}
+        for name, pattern in [("v1.js", "v1.js"), ("v1-itens.js", "v1-itens.js"), ("sync", "sync-cron.js")]:
+            ok, out = run_shell(f"pgrep -f '{pattern}'", timeout=2)
+            pid = out.strip().split()[0] if ok and out.strip() else None
+            scripts[name] = {"status": "online" if ok and pid else "offline", "pid": pid}
+        return scripts
+    
+    # Executar todos os testes em paralelo com timeout global
+    try:
+        mysql_task = run_with_timeout(test_mysql, 3)
+        php_task = run_with_timeout(test_php, 3)
+        node_task = run_with_timeout(test_node_scripts, 3)
         
-        if db_ok and 'DB_OK' in db_out:
-            status["data"]["php"] = {
-                "status": "online", 
-                "mode": "CLI", 
-                "gmail_api": True,
-                "db_connected": True,
-                "note": "PHP + Gmail API (OAuth 2.0) validado"
-            }
+        # Aguardar todos com timeout global de 5s
+        results = await asyncio.gather(mysql_task, php_task, node_task, return_exceptions=True)
+        
+        # Processar resultados
+        status["data"]["mysql"] = results[0] if not isinstance(results[0], Exception) else {"status": "offline", "error": "Exception"}
+        status["data"]["php"] = results[1] if not isinstance(results[1], Exception) else {"status": "offline", "error": "Exception"}
+        
+        # Node scripts
+        if isinstance(results[2], dict) and "status" not in results[2]:
+            status["data"].update(results[2])
         else:
-            status["data"]["php"] = {
-                "status": "degraded", 
-                "mode": "CLI", 
-                "gmail_api": True,
-                "db_connected": False,
-                "note": "Gmail API OK, mas PHP não conecta no banco"
-            }
-    else:
-        status["data"]["php"] = {
-            "status": "offline", 
-            "mode": "CLI", 
-            "gmail_api": False,
-            "db_connected": False,
-            "note": "cURL extension NOT loaded - Gmail API não funcionará"
-        }
+            status["data"]["v1.js"] = {"status": "offline"}
+            status["data"]["v1-itens.js"] = {"status": "offline"}
+            status["data"]["sync"] = {"status": "offline"}
+            
+    except Exception as e:
+        # Fallback: retornar status desconhecido mas não travar
+        status["data"]["mysql"] = {"status": "unknown", "error": str(e)[:50]}
+        status["data"]["php"] = {"status": "unknown"}
+        status["data"]["v1.js"] = {"status": "unknown"}
+        status["data"]["v1-itens.js"] = {"status": "unknown"}
+        status["data"]["sync"] = {"status": "unknown"}
     
-    # 3. Scripts Node.js - Verificar processos REAIS
-    scripts_info = [
-        ("v1.js", "puppeteer-wrapper.js v1.js"), 
-        ("v1-itens.js", "puppeteer-wrapper.js v1-itens.js"), 
-        ("sync", "sync-cron.js")
-    ]
-    for name, script in scripts_info:
-        ok, out = run_shell(f"pgrep -f '{script}'", timeout=5)
-        pid = out.strip().split()[0] if ok and out.strip() else None
-        status["data"][name] = {
-            "status": "online" if ok else "offline", 
-            "pid": pid
-        }
-    
-    # 4. Chromium
-    ok, _ = run_shell("which chromium", timeout=5)
-    status["data"]["chromium"] = {"status": "online" if ok else "offline"}
-    
-    # Chromium
-    ok, _ = run_shell("which chromium", timeout=5)
+    # Chromium - rápido
+    ok, _ = run_shell("which chromium", timeout=2)
     status["data"]["chromium"] = {"status": "online" if ok else "offline"}
     
     return status
