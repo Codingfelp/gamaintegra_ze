@@ -30,13 +30,17 @@ function StatusBadge({ status }) {
 
 function ServiceIndicator({ name, status, message, onStart, onStop }) {
   const isOnline = status === 'online';
+  const isUnknown = status === 'unknown';
+  const statusColor = isOnline ? 'bg-green-500' : (isUnknown ? 'bg-yellow-500' : 'bg-red-500');
+  const statusText = isOnline ? 'Online' : (isUnknown ? 'Verificando...' : 'Offline');
+  
   return (
     <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
       <div className="flex items-center gap-3">
-        <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+        <div className={`w-2 h-2 rounded-full ${statusColor}`} />
         <div>
           <p className="font-medium text-gray-900 text-sm">{name}</p>
-          <p className="text-xs text-gray-500">{message || (isOnline ? 'Online' : 'Offline')}</p>
+          <p className="text-xs text-gray-500">{message || statusText}</p>
         </div>
       </div>
       {(onStart || onStop) && (
