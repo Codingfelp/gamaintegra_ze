@@ -1252,7 +1252,9 @@ async function itensScript(page) {
                 if (enderecoImpressao.bairro && enderecoImpressao.bairro.length > 2) {
                     enderecoBairro = enderecoImpressao.bairro;
                 }
-                let enderecoComplemento = enderecoImpressao.complemento;
+                if (!enderecoComplemento) {
+                    enderecoComplemento = enderecoImpressao.complemento;
+                }
                 
                 // Se não encontrou na área de impressão, tentar via Shadow DOM
                 if (!enderecoRota || enderecoRota === "-" || enderecoRota.length < 3) {
