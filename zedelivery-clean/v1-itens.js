@@ -1128,16 +1128,20 @@ async function itensScript(page) {
                 // =====================================================
                 console.log('📋 [CPF] Capturando CPF do cliente...');
                 
-                // ESTRATÉGIA 1: Área de impressão - buscar na seção de cliente
-                let cpfCliente = await page.evaluate(() => {
-                    // Buscar CPF na área de impressão #receipt-customer-info
-                    const receiptInfo = document.querySelector('#receipt-customer-info');
-                    if (receiptInfo) {
-                        const texto = receiptInfo.innerText || receiptInfo.textContent || '';
-                        // Buscar padrão CPF: XXX.XXX.XXX-XX ou XXXXXXXXXXX
-                        const cpfMatch = texto.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
-                        if (cpfMatch) return cpfMatch[0];
-                    }
+                // Usar CPF já capturado da área de impressão, se disponível
+                let cpfCliente = cpfCapturado || '';
+                
+                // ESTRATÉGIA 1: Se não tem CPF, buscar na área de impressão
+                if (!cpfCliente || cpfCliente.length < 11) {
+                    cpfCliente = await page.evaluate(() => {
+                        // Buscar CPF na área de impressão #receipt-customer-info
+                        const receiptInfo = document.querySelector('#receipt-customer-info');
+                        if (receiptInfo) {
+                            const texto = receiptInfo.innerText || receiptInfo.textContent || '';
+                            // Buscar padrão CPF: XXX.XXX.XXX-XX ou XXXXXXXXXXX
+                            const cpfMatch = texto.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+                            if (cpfMatch) return cpfMatch[0];
+                        }
                     
                     // Buscar em #print-content
                     const printContent = document.querySelector('#print-content');
