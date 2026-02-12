@@ -957,7 +957,7 @@ async function itensScript(page) {
                 }
                 
                 // Se AINDA não tem produtos, tentar área de impressão #bought-items
-                if (produtos.length === 0 || produtos.every(p => !p.nome)) {
+                if (!temProdutos) {
                     console.log('📦 [ITENS] Capturando via área de impressão #bought-items...');
                     
                     // Debug: verificar se elementos existem
