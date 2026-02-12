@@ -904,17 +904,22 @@ async function itensScript(page) {
                         }
                     });
                     
-                    // 7. VALORES FINANCEIROS
+                    // 9. VALORES FINANCEIROS - do #receipt-payment-info
+                    const paymentInfo = document.querySelector('#receipt-payment-info');
+                    
+                    // Subtotal
                     const subtotalEl = document.querySelector('#payment-details-subtotal span:last-child');
                     if (subtotalEl) {
                         resultado.subtotal = subtotalEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
                     }
                     
+                    // Frete
                     const freteEl = document.querySelector('#payment-details-freight span:last-child');
                     if (freteEl) {
                         resultado.frete = freteEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
                     }
                     
+                    // Desconto
                     const descontoEl = document.querySelector('#payment-details-discount span:last-child');
                     if (descontoEl) {
                         let desc = descontoEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
@@ -922,7 +927,23 @@ async function itensScript(page) {
                         resultado.desconto = desc;
                     }
                     
-                    const totalEl = document.querySelector('#payment-details-total span strong span');
+                    // Taxa de Conveniência
+                    const taxaEl = document.querySelector('#payment-details-convenience-fee span:last-child, #payment-details-service-fee span:last-child');
+                    if (taxaEl) {
+                        resultado.taxaConveniencia = taxaEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                    }
+                    
+                    // Troco - buscar no texto de pagamento
+                    if (paymentInfo) {
+                        const textoPayment = paymentInfo.innerText || '';
+                        const trocoMatch = textoPayment.match(/troco[:\s]+R?\$?\s*([\d,\.]+)/i);
+                        if (trocoMatch) {
+                            resultado.troco = trocoMatch[1].replace(',', '.').trim();
+                        }
+                    }
+                    
+                    // Total
+                    const totalEl = document.querySelector('#payment-details-total span strong span, #payment-details-total strong');
                     if (totalEl) {
                         resultado.total = totalEl.textContent.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
                     }
@@ -937,6 +958,9 @@ async function itensScript(page) {
                 let codigoEntrega = dadosPrintArea.codigoColeta;
                 let enderecoBairro = dadosPrintArea.bairro;
                 let enderecoRota = dadosPrintArea.endereco;
+                let enderecoComplemento = dadosPrintArea.complemento;
+                let enderecoCidadeUF = dadosPrintArea.cidadeUF;
+                let cpfCapturado = dadosPrintArea.cpf;
                 let produtos = dadosPrintArea.itens.map(item => ({
                     id: item.id,
                     nome: item.nome,
@@ -947,6 +971,8 @@ async function itensScript(page) {
                 let subTotal = dadosPrintArea.subtotal;
                 let frete = dadosPrintArea.frete;
                 let desconto = dadosPrintArea.desconto;
+                let taxaConveniencia = dadosPrintArea.taxaConveniencia;
+                let troco = dadosPrintArea.troco;
                 
                 // Verificar se capturou produtos
                 let temProdutos = produtos.length > 0 && produtos.some(p => p.nome && p.nome.length > 2);
