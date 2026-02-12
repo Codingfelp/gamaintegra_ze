@@ -1022,6 +1022,7 @@ async function itensScript(page) {
                 let desconto = dadosPrintArea.desconto;
                 let taxaConveniencia = dadosPrintArea.taxaConveniencia;
                 let troco = dadosPrintArea.troco;
+                let cupomDescricao = ''; // Será capturado via Shadow DOM
                 
                 // Verificar se capturou produtos
                 let temProdutos = produtos.length > 0 && produtos.some(p => p.nome && p.nome.length > 2);
