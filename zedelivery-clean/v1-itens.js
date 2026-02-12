@@ -816,7 +816,8 @@ async function itensScript(page) {
                         desconto: '',
                         taxaConveniencia: '',
                         troco: '',
-                        total: ''
+                        total: '',
+                        cupomDescricao: ''
                     };
                     
                     // 1. CÓDIGO DE COLETA - está em um <p> com span
