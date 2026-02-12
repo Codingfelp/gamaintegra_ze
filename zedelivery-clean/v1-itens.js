@@ -1304,11 +1304,14 @@ async function itensScript(page) {
                 }
                 enderecoComplemento = enderecoComplemento.replace(/-+/g, "").trim();
 
-                let enderecoCidadeUF = await getTextFromShadowOrNormal(page, "#address-city-province");
-                enderecoCidadeUF = enderecoCidadeUF.replace(/-+/g, "").trim();
+                // Cidade/UF - fallback via Shadow DOM se não veio da área de impressão
+                if (!enderecoCidadeUF || enderecoCidadeUF === "-") {
+                    enderecoCidadeUF = await getTextFromShadowOrNormal(page, "#address-city-province");
+                }
+                enderecoCidadeUF = enderecoCidadeUF ? enderecoCidadeUF.replace(/-+/g, "").trim() : '';
 
                 let enderecoCep = await getTextFromShadowOrNormal(page, "#address-zip-code");
-                enderecoCep = enderecoCep.replace(/-+/g, "").trim();
+                enderecoCep = enderecoCep ? enderecoCep.replace(/-+/g, "").trim() : '';
 
                 // Bairro - fallback via Shadow DOM se não veio da área de impressão
                 if (!enderecoBairro || enderecoBairro === "-" || enderecoBairro.length < 2) {
