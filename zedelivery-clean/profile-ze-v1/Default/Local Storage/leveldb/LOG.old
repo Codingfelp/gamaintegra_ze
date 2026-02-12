@@ -1,3 +1,4 @@
-2026/02/12-21:26:52.172 2a10 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/MANIFEST-000001
-2026/02/12-21:26:52.187 2a10 Recovering log #270
-2026/02/12-21:26:52.189 2a10 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/000270.log 
+2026/02/12-21:41:13.606 2aa5 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/MANIFEST-000001
+2026/02/12-21:41:13.613 2aa5 Recovering log #270
+2026/02/12-21:41:13.616 2aa5 (ignoring error) /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/000270.log: dropping 1008 bytes; Corruption: missing start of fragmented record(2)
+2026/02/12-21:41:13.620 2aa5 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/000270.log 
