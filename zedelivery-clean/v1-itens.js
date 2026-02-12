@@ -1129,10 +1129,8 @@ async function itensScript(page) {
                         return '';
                     });
                 }
-                    });
-                }
                 
-                cpfCliente = cpfCliente.replace(/\./g, "").replace(/-/g, "").trim();
+                cpfCliente = cpfCliente ? cpfCliente.replace(/\./g, "").replace(/-/g, "").trim() : '';
                 console.log('📋 [CPF] Capturado:', cpfCliente || '(vazio)');
 
                 // =====================================================
