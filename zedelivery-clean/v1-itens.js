@@ -1699,6 +1699,45 @@ async function itensScript(page) {
                         tipoDelivery: tipoDelivery
                     }));
                 }
+                
+                // RESUMO DE CAPTURA - VERIFICAÇÃO DE CAMPOS
+                console.log("═══════════════════════════════════════════════════════");
+                console.log("📊 [RESUMO] CAMPOS CAPTURADOS:");
+                console.log("═══════════════════════════════════════════════════════");
+                console.log(`  📋 CPF: ${cpfCliente || '❌ NÃO CAPTURADO'}`);
+                console.log(`  📦 Tipo Pedido: ${tipoDelivery || '❌ NÃO CAPTURADO'}`);
+                console.log(`  📍 Endereço: ${enderecoRota || '❌ NÃO CAPTURADO'}`);
+                console.log(`  🏠 Complemento: ${enderecoComplemento || '(vazio)'}`);
+                console.log(`  🏘️ Bairro: ${enderecoBairro || '❌ NÃO CAPTURADO'}`);
+                console.log(`  🏙️ Cidade/UF: ${enderecoCidadeUF || '(vazio)'}`);
+                console.log(`  📮 CEP: ${enderecoCep || '(vazio)'}`);
+                console.log(`  🏷️ Código Entrega: ${codigoEntrega || '❌ NÃO CAPTURADO'}`);
+                console.log(`  📦 Itens: ${produtos.length} produto(s)`);
+                console.log(`  💰 Subtotal: ${subTotal || '❌ NÃO CAPTURADO'}`);
+                console.log(`  🚚 Frete: ${frete || '0'}`);
+                console.log(`  🎁 Desconto: ${desconto || '0'}`);
+                console.log(`  💳 Taxa Conveniência: ${taxaConveniencia || '0'}`);
+                console.log(`  💵 Troco: ${troco || '0'}`);
+                console.log(`  📞 Telefone: ${customerPhone || '(não capturado)'}`);
+                console.log("═══════════════════════════════════════════════════════");
+                
+                // Alertar se campos críticos estão faltando
+                const camposFaltando = [];
+                if (!cpfCliente) camposFaltando.push('CPF');
+                if (!tipoDelivery) camposFaltando.push('Tipo Pedido');
+                if (!enderecoRota) camposFaltando.push('Endereço');
+                if (!enderecoBairro) camposFaltando.push('Bairro');
+                if (!codigoEntrega) camposFaltando.push('Código Entrega');
+                if (!subTotal) camposFaltando.push('Subtotal');
+                if (produtos.length === 0) camposFaltando.push('Itens');
+                
+                if (camposFaltando.length > 0) {
+                    console.log(`⚠️ [ALERTA] CAMPOS CRÍTICOS NÃO CAPTURADOS: ${camposFaltando.join(', ')}`);
+                } else {
+                    console.log(`✅ [SUCESSO] Todos os campos críticos foram capturados!`);
+                }
+                console.log("═══════════════════════════════════════════════════════");
+                
                 console.log(JSON.stringify(pedidosData));
                 try {
                     // Enviar pedidos como array completo para o PHP
