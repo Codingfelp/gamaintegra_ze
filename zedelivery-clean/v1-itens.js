@@ -1810,7 +1810,8 @@ async function itensScript(page) {
                         obsPedido: obsPedido,
                         statusPedido: statusPedido,
                         entregador: entregador,
-                        tipoDelivery: tipoDelivery
+                        tipoDelivery: tipoDelivery,
+                        cupomDescricao: cupomDescricao
                     }));
                 }
                 
