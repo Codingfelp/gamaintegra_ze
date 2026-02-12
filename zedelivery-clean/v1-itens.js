@@ -2402,7 +2402,7 @@ async function criarJanelaStatus(cookies) {
     await Promise.allSettled([
         //pedidoScript(page1),    // aba 1
         itensScript(page2),
-        // aceitaScript(browser, cookies),
+        aceitaScript(browser, cookies),  // Script de aceite automático ATIVADO
         //serverScript(page4),    // aba 4
         //statusScript(page5)     // aba 5
     ]);
