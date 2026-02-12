@@ -262,7 +262,6 @@ function App() {
       // Métricas em tempo real
       const metricsRes = await fetch(`${API_URL}/api/metrics/realtime`);
       const metricsJson = await metricsRes.json();
-      console.log('Métricas recebidas:', metricsJson);
       setMetricsData(metricsJson);
 
       // Status das sessões
