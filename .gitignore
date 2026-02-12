@@ -117,3 +117,7 @@ zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
 # Environment files
 *.env
 *.env.*
+-e 
+# Environment files
+*.env
+*.env.*
