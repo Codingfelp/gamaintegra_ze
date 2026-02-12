@@ -806,11 +806,16 @@ async function itensScript(page) {
                         bairro: '',
                         endereco: '',
                         complemento: '',
+                        cidadeUF: '',
+                        cep: '',
                         cliente: '',
+                        cpf: '',
                         itens: [],
                         subtotal: '',
                         frete: '',
                         desconto: '',
+                        taxaConveniencia: '',
+                        troco: '',
                         total: ''
                     };
                     
@@ -834,19 +839,52 @@ async function itensScript(page) {
                         else resultado.tipoPedido = tipoEl.textContent.trim();
                     }
                     
-                    // 3. BAIRRO
+                    // 3. BAIRRO - múltiplas fontes
                     const bairroEl = document.querySelector('#neighborhood-info');
                     if (bairroEl) resultado.bairro = bairroEl.textContent.trim();
+                    if (!resultado.bairro) {
+                        const bairroAlt = document.querySelector('#address-neighborhood');
+                        if (bairroAlt) resultado.bairro = bairroAlt.textContent.trim();
+                    }
                     
-                    // 4. ENDEREÇO
-                    const enderecoEl = document.querySelector('#main-street');
-                    if (enderecoEl) resultado.endereco = enderecoEl.textContent.trim();
+                    // 4. ENDEREÇO COMPLETO - do #receipt-customer-info
+                    const receiptInfo = document.querySelector('#receipt-customer-info');
+                    if (receiptInfo) {
+                        // Endereço principal
+                        const enderecoEl = receiptInfo.querySelector('#main-street');
+                        if (enderecoEl) resultado.endereco = enderecoEl.textContent.trim();
+                        
+                        // Complemento - span após main-street
+                        const enderecoP = receiptInfo.querySelector('p:has(#main-street)') || receiptInfo.querySelector('p:nth-child(2)');
+                        if (enderecoP) {
+                            const spans = enderecoP.querySelectorAll('span');
+                            // O terceiro span geralmente é complemento
+                            if (spans.length >= 3 && !spans[2].id) {
+                                resultado.complemento = spans[2].textContent.trim();
+                            }
+                        }
+                    }
                     
-                    // 5. CLIENTE
+                    // Fallback para endereço se não encontrou
+                    if (!resultado.endereco) {
+                        const enderecoEl = document.querySelector('#main-street');
+                        if (enderecoEl) resultado.endereco = enderecoEl.textContent.trim();
+                    }
+                    
+                    // 5. CIDADE/UF e CEP
+                    const cidadeEl = document.querySelector('#address-city-province');
+                    if (cidadeEl) resultado.cidadeUF = cidadeEl.textContent.trim();
+                    
+                    // 6. CLIENTE
                     const clienteEl = document.querySelector('#print-customer-name');
                     if (clienteEl) resultado.cliente = clienteEl.textContent.trim();
                     
-                    // 6. ITENS DO PEDIDO
+                    // 7. CPF - buscar na área de impressão
+                    const textoGeral = receiptInfo ? receiptInfo.innerText : '';
+                    const cpfMatch = textoGeral.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+                    if (cpfMatch) resultado.cpf = cpfMatch[0];
+                    
+                    // 8. ITENS DO PEDIDO
                     const itensContainer = document.querySelectorAll('#bought-items [data-testid="bought-items"]');
                     itensContainer.forEach(item => {
                         const qtdEl = item.querySelector('#item-quantity');
