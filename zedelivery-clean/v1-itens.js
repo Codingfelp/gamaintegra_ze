@@ -1063,15 +1063,40 @@ async function itensScript(page) {
                 // CAPTURA DE CPF DO CLIENTE
                 // =====================================================
                 console.log('📋 [CPF] Capturando CPF do cliente...');
-                let cpfCliente = await getTextFromShadowOrNormal(page, "#customer-document", "p[data-testid='hexa-v2-text']");
                 
-                // Se não encontrou, tentar estratégias alternativas
+                // ESTRATÉGIA 1: Área de impressão - buscar na seção de cliente
+                let cpfCliente = await page.evaluate(() => {
+                    // Buscar CPF na área de impressão #receipt-customer-info
+                    const receiptInfo = document.querySelector('#receipt-customer-info');
+                    if (receiptInfo) {
+                        const texto = receiptInfo.innerText || receiptInfo.textContent || '';
+                        // Buscar padrão CPF: XXX.XXX.XXX-XX ou XXXXXXXXXXX
+                        const cpfMatch = texto.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+                        if (cpfMatch) return cpfMatch[0];
+                    }
+                    
+                    // Buscar em #print-content
+                    const printContent = document.querySelector('#print-content');
+                    if (printContent) {
+                        const texto = printContent.innerText || printContent.textContent || '';
+                        const cpfMatch = texto.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+                        if (cpfMatch) return cpfMatch[0];
+                    }
+                    
+                    return '';
+                });
+                
+                // ESTRATÉGIA 2: Se não encontrou, tentar via Shadow DOM
+                if (!cpfCliente || cpfCliente.length < 11) {
+                    cpfCliente = await getTextFromShadowOrNormal(page, "#customer-document", "p[data-testid='hexa-v2-text']");
+                }
+                
+                // ESTRATÉGIA 3: Fallback - buscar em toda a página
                 if (!cpfCliente || cpfCliente === '-' || cpfCliente.length < 11) {
                     cpfCliente = await page.evaluate(() => {
-                        // Estratégia 1: Procurar elemento com ID customer-document
+                        // Procurar elemento com ID customer-document
                         const docEl = document.querySelector('#customer-document');
                         if (docEl) {
-                            // Se tem shadowRoot
                             if (docEl.shadowRoot) {
                                 const span = docEl.shadowRoot.querySelector('span, p');
                                 if (span && span.textContent.trim() !== '-') {
@@ -1079,40 +1104,31 @@ async function itensScript(page) {
                                 }
                             }
                             const texto = docEl.textContent.trim();
-                            if (texto && texto !== '-') return texto;
+                            if (texto && texto !== '-' && texto.length >= 11) return texto;
                         }
                         
-                        // Estratégia 2: Procurar na seção #user-info
+                        // Procurar na seção #user-info
                         const userInfo = document.querySelector('#user-info');
                         if (userInfo) {
                             const texto = userInfo.innerText || '';
-                            // Buscar padrão de CPF: XXX.XXX.XXX-XX ou XXXXXXXXXXX
                             const cpfMatch = texto.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
                             if (cpfMatch) return cpfMatch[0];
                         }
                         
-                        // Estratégia 3: Buscar labels que indiquem CPF
-                        const allElements = document.querySelectorAll('hexa-v2-text, span, p');
-                        let foundCPF = false;
-                        for (const el of allElements) {
-                            let texto = '';
-                            if (el.shadowRoot) {
-                                const span = el.shadowRoot.querySelector('span');
-                                texto = span ? span.textContent.trim() : '';
-                            }
-                            if (!texto) texto = el.textContent.trim();
-                            
-                            if (texto.toLowerCase() === 'cpf') {
-                                foundCPF = true;
-                                continue;
-                            }
-                            
-                            if (foundCPF && /^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(texto)) {
-                                return texto;
+                        // Busca geral na página
+                        const bodyText = document.body.innerText || '';
+                        const cpfMatches = bodyText.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g);
+                        if (cpfMatches && cpfMatches.length > 0) {
+                            // Retornar o primeiro CPF válido encontrado
+                            for (const cpf of cpfMatches) {
+                                const limpo = cpf.replace(/\D/g, '');
+                                if (limpo.length === 11) return cpf;
                             }
                         }
                         
                         return '';
+                    });
+                }
                     });
                 }
                 
