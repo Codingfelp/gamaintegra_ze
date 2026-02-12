@@ -1543,6 +1543,69 @@ async function itensScript(page) {
                 }
                 taxaConveniencia = taxaConveniencia ? taxaConveniencia.replace("R$", "").replace(",", ".").trim() : '';
 
+                // =====================================================
+                // CAPTURA DA DESCRIÇÃO DO CUPOM
+                // =====================================================
+                console.log('🎟️ [CUPOM] Capturando descrição do cupom...');
+                
+                // Tentar capturar via Shadow DOM (elemento #discount-description)
+                cupomDescricao = await getTextFromShadowOrNormal(page, "#discount-description");
+                
+                // Se não encontrou, tentar buscar em elementos alternativos
+                if (!cupomDescricao) {
+                    cupomDescricao = await page.evaluate(() => {
+                        // Procurar em elementos com texto de cupom
+                        const possiveisSeletores = [
+                            '#coupon-description',
+                            '#cupom-description', 
+                            '[data-testid="discount-description"]',
+                            '[data-testid="coupon-description"]',
+                            '.coupon-info',
+                            '.discount-info'
+                        ];
+                        
+                        for (const seletor of possiveisSeletores) {
+                            const el = document.querySelector(seletor);
+                            if (el) {
+                                // Tentar Shadow DOM
+                                if (el.shadowRoot) {
+                                    const innerEl = el.shadowRoot.querySelector('span, p, div');
+                                    if (innerEl && innerEl.textContent.trim()) {
+                                        return innerEl.textContent.trim();
+                                    }
+                                }
+                                // Texto normal
+                                if (el.textContent.trim()) {
+                                    return el.textContent.trim();
+                                }
+                            }
+                        }
+                        
+                        // Buscar na página texto que parece descrição de cupom
+                        // Padrão: "Válido para compras acima de R$XX" ou "Desconto limitado a R$XX"
+                        const pageText = document.body.innerText || '';
+                        const cupomPatterns = [
+                            /(Válido para compras[^.]+\.)/i,
+                            /(Desconto limitado[^.]+\.)/i,
+                            /(Limite de \d+[^.]+\.)/i,
+                            /(Cupom[^.]+usos[^.]+\.)/i
+                        ];
+                        
+                        for (const pattern of cupomPatterns) {
+                            const match = pageText.match(pattern);
+                            if (match) {
+                                return match[1].trim();
+                            }
+                        }
+                        
+                        return '';
+                    });
+                }
+                
+                // Limpar a descrição do cupom
+                cupomDescricao = cupomDescricao ? cupomDescricao.trim() : '';
+                console.log('🎟️ [CUPOM] Descrição:', cupomDescricao || '(sem cupom)');
+
                 // subTotal já foi capturado anteriormente na seção de valores
 
                 // =====================================================
