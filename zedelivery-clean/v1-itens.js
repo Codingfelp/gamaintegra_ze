@@ -1739,6 +1739,7 @@ async function itensScript(page) {
                 console.log('💰 Taxa Conveniência:', taxaConveniencia || '0');
                 console.log('💰 Troco:', troco || '0');
                 console.log('🏷️ Código Entrega:', codigoEntrega || (tipoDelivery === 'Pedido Retirada' ? '(Retirada)' : '❌ NÃO CAPTURADO'));
+                console.log('🎟️ Cupom Descrição:', cupomDescricao || '(sem cupom)');
                 console.log('📝 Observação:', obsPedido || '(vazia)');
                 console.log('📊 Status:', statusPedido || '❌ NÃO CAPTURADO');
                 console.log('🚴 Entregador:', entregador || '(não encontrado)');
