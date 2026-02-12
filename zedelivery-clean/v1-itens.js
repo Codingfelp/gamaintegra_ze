@@ -1834,6 +1834,7 @@ async function itensScript(page) {
                 console.log(`  💳 Taxa Conveniência: ${taxaConveniencia || '0'}`);
                 console.log(`  💵 Troco: ${troco || '0'}`);
                 console.log(`  📞 Telefone: ${customerPhone || '(não capturado)'}`);
+                console.log(`  🎟️ Cupom Descrição: ${cupomDescricao || '(sem cupom)'}`);
                 console.log("═══════════════════════════════════════════════════════");
                 
                 // Alertar se campos críticos estão faltando
