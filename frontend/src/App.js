@@ -273,6 +273,20 @@ function App() {
       const errorsRes = await fetch(`${API_URL}/api/logs/errors?limit=20`);
       const errorsJson = await errorsRes.json();
       if (errorsJson.success) setErrorLogs(errorsJson.logs || []);
+      
+      // TAMBÉM atualizar status dos serviços para manter sincronizado
+      const servicesRes = await fetch(`${API_URL}/api/services/status`);
+      const servicesData = await servicesRes.json();
+      if (servicesData.success) {
+        const mappedServices = {
+          mysql: servicesData.data.mysql,
+          php: servicesData.data.php,
+          node_integrador: servicesData.data['v1.js'],
+          node_itens: servicesData.data['v1-itens.js'],
+          sync: servicesData.data.sync
+        };
+        setServices(mappedServices);
+      }
     } catch (err) {
       console.error('Erro ao buscar dados de monitoramento:', err);
     }
