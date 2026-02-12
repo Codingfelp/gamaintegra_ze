@@ -1478,14 +1478,20 @@ async function itensScript(page) {
                 let entregador = await capturarEntregador(page);
                 console.log('Entregador:', entregador || '(não encontrado)');
 
-                let troco = await getTextFromShadowOrNormal(page, "#change-value");
-                troco = troco.replace("R$", "").replace(",", ".").trim();
+                // Troco - fallback via Shadow DOM se não veio da área de impressão
+                if (!troco) {
+                    troco = await getTextFromShadowOrNormal(page, "#change-value");
+                }
+                troco = troco ? troco.replace("R$", "").replace(",", ".").trim() : '';
 
                 let trocoCliente = await getTextFromShadowOrNormal(page, "#change-value-to-client");
-                trocoCliente = trocoCliente.replace("R$", "").replace(",", ".").trim();
+                trocoCliente = trocoCliente ? trocoCliente.replace("R$", "").replace(",", ".").trim() : '';
 
-                let taxaConveniencia = await getTextFromShadowOrNormal(page, "#serviceFee");
-                taxaConveniencia = taxaConveniencia.replace("R$", "").replace(",", ".").trim();
+                // Taxa de conveniência - fallback via Shadow DOM se não veio da área de impressão
+                if (!taxaConveniencia) {
+                    taxaConveniencia = await getTextFromShadowOrNormal(page, "#serviceFee");
+                }
+                taxaConveniencia = taxaConveniencia ? taxaConveniencia.replace("R$", "").replace(",", ".").trim() : '';
 
                 // subTotal já foi capturado anteriormente na seção de valores
 
