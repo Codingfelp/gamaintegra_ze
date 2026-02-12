@@ -1143,16 +1143,17 @@ async function itensScript(page) {
                             if (cpfMatch) return cpfMatch[0];
                         }
                     
-                    // Buscar em #print-content
-                    const printContent = document.querySelector('#print-content');
-                    if (printContent) {
-                        const texto = printContent.innerText || printContent.textContent || '';
-                        const cpfMatch = texto.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
-                        if (cpfMatch) return cpfMatch[0];
-                    }
+                        // Buscar em #print-content
+                        const printContent = document.querySelector('#print-content');
+                        if (printContent) {
+                            const texto = printContent.innerText || printContent.textContent || '';
+                            const cpfMatch = texto.match(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/);
+                            if (cpfMatch) return cpfMatch[0];
+                        }
                     
-                    return '';
-                });
+                        return '';
+                    });
+                }
                 
                 // ESTRATÉGIA 2: Se não encontrou, tentar via Shadow DOM
                 if (!cpfCliente || cpfCliente.length < 11) {
