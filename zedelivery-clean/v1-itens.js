@@ -910,42 +910,53 @@ async function itensScript(page) {
                 let frete = dadosPrintArea.frete;
                 let desconto = dadosPrintArea.desconto;
                 
-                // Continuar com captura de campos adicionais via Shadow DOM como fallback
-                let temProdutos = produtos.length > 0;
+                // Verificar se capturou produtos
+                let temProdutos = produtos.length > 0 && produtos.some(p => p.nome && p.nome.length > 2);
+                console.log(`📦 [ITENS] ${produtos.length} produto(s) da área de impressão, válidos: ${temProdutos}`);
 
-                // Já capturamos tipo de delivery, itens e valores da área de impressão acima
-                // Agora vamos capturar os campos restantes (CPF, telefone, etc)
-                if (temProdutos) {
-                    produtos = await page.$$eval('[data-testid="product"]', (produtos) => {
-                        return produtos.map(produto => {
-                            const nomeEl = produto.querySelector('[id^="info-title"]');
-                            const quantComp = produto.querySelector('[id^="info-quantity"]');
-                            const precoEl = produto.querySelector('[id^="info-cost"]');
-                            const imagemEl = produto.querySelector('img');
+                // Se NÃO tem produtos da área de impressão, tentar Shadow DOM como fallback
+                if (!temProdutos) {
+                    console.log('📦 [ITENS] Nenhum item na área de impressão, tentando Shadow DOM...');
+                    try {
+                        const produtosShadow = await page.$$eval('[data-testid="product"]', (produtos) => {
+                            return produtos.map(produto => {
+                                const nomeEl = produto.querySelector('[id^="info-title"]');
+                                const quantComp = produto.querySelector('[id^="info-quantity"]');
+                                const precoEl = produto.querySelector('[id^="info-cost"]');
+                                const imagemEl = produto.querySelector('img');
 
-                            const idMatch = nomeEl?.id?.match(/info-title-(\d+)/);
-                            const idProduto = idMatch ? idMatch[1] : '';
+                                const idMatch = nomeEl?.id?.match(/info-title-(\d+)/);
+                                const idProduto = idMatch ? idMatch[1] : '';
 
-                            const nomeSpan = nomeEl?.shadowRoot?.querySelector('span');
-                            const precoSpan = precoEl?.shadowRoot?.querySelector('span');
+                                const nomeSpan = nomeEl?.shadowRoot?.querySelector('span');
+                                const precoSpan = precoEl?.shadowRoot?.querySelector('span');
 
-                            let quantSpan = quantComp?.querySelector('hexa-v2-text')?.shadowRoot?.querySelector('span');
-                            const quantidadeTexto = quantSpan?.textContent.trim() || '';
-                            const quantidade = quantidadeTexto.replace(/^Qtd:\s*/, '');
+                                let quantSpan = quantComp?.querySelector('hexa-v2-text')?.shadowRoot?.querySelector('span');
+                                const quantidadeTexto = quantSpan?.textContent.trim() || '';
+                                const quantidade = quantidadeTexto.replace(/^Qtd:\s*/, '');
 
-                            return {
-                                id: idProduto,
-                                nome: nomeSpan?.textContent.trim() || '',
-                                quantidade: quantidade,
-                                preco: precoSpan?.textContent.replace('R$', '').replace('.', '').replace(',', '.').trim() || '',
-                                imagem: imagemEl?.src || ''
-                            };
+                                return {
+                                    id: idProduto,
+                                    nome: nomeSpan?.textContent.trim() || '',
+                                    quantidade: quantidade,
+                                    preco: precoSpan?.textContent.replace('R$', '').replace('.', '').replace(',', '.').trim() || '',
+                                    imagem: imagemEl?.src || ''
+                                };
+                            });
                         });
-                    });
+                        
+                        // Só usar se capturou produtos válidos
+                        if (produtosShadow.length > 0 && produtosShadow.some(p => p.nome && p.nome.length > 2)) {
+                            produtos = produtosShadow;
+                            temProdutos = true;
+                            console.log(`📦 [ITENS] ${produtos.length} produto(s) via Shadow DOM`);
+                        }
+                    } catch (e) {
+                        console.log('📦 [ITENS] Falha no Shadow DOM:', e.message);
+                    }
                 }
                 
-                // ESTRATÉGIA PRINCIPAL: Usar área de impressão #print-content (dados em texto plano)
-                // Se não encontrou produtos via Shadow DOM ou os produtos estão vazios
+                // Se AINDA não tem produtos, tentar área de impressão #bought-items
                 if (produtos.length === 0 || produtos.every(p => !p.nome)) {
                     console.log('📦 [ITENS] Capturando via área de impressão #bought-items...');
                     
