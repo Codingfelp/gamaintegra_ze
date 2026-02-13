@@ -1796,7 +1796,7 @@ async function itensScript(page) {
                     console.log('⚠️ [ITENS] Nenhum item encontrado, criando registro sem itens...');
                     pedidosData = [{
                         id: encodeURIComponent(id_pedido_info),
-                        tags: { id: '', nome: '', quantidade: '', preco: '', imagem: '' },
+                        tags: { id: '', nome: '', quantidade: '', preco: '', precoTotal: '', imagem: '' },
                         desconto: desconto,
                         frete: frete,
                         subTotal: subTotal,
