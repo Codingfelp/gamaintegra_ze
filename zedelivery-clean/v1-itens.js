@@ -1542,47 +1542,77 @@ async function itensScript(page) {
                 // =====================================================
                 console.log('🎟️ [CUPOM] Capturando descrição do cupom...');
                 
-                // Tentar capturar via Shadow DOM (elemento #discount-description)
-                cupomDescricao = await getTextFromShadowOrNormal(page, "#discount-description");
+                // Tentar capturar via Shadow DOM (elemento #discount-description é hexa-v2-text)
+                cupomDescricao = await page.evaluate(() => {
+                    // O elemento #discount-description é um hexa-v2-text com Shadow DOM
+                    const discountDescEl = document.querySelector('#discount-description');
+                    if (discountDescEl) {
+                        // Tentar pegar do Shadow DOM (hexa-v2-text tem span interno)
+                        if (discountDescEl.shadowRoot) {
+                            const span = discountDescEl.shadowRoot.querySelector('span');
+                            if (span && span.textContent.trim()) {
+                                return span.textContent.trim();
+                            }
+                        }
+                        // Fallback: texto direto do elemento
+                        if (discountDescEl.textContent.trim()) {
+                            return discountDescEl.textContent.trim();
+                        }
+                    }
+                    return '';
+                });
                 
-                // Se não encontrou, tentar buscar em elementos alternativos
+                console.log('🎟️ [CUPOM] Resultado #discount-description:', cupomDescricao || '(vazio)');
+                
+                // Se não encontrou, tentar buscar por texto que indica descrição de cupom na página
                 if (!cupomDescricao) {
                     cupomDescricao = await page.evaluate(() => {
-                        // Procurar em elementos com texto de cupom
-                        const possiveisSeletores = [
-                            '#coupon-description',
-                            '#cupom-description', 
-                            '[data-testid="discount-description"]',
-                            '[data-testid="coupon-description"]',
-                            '.coupon-info',
-                            '.discount-info'
-                        ];
+                        // Procurar em todo hexa-v2-text da área de descontos/pagamento
+                        const allHexaTexts = document.querySelectorAll('.css-iuyyuz hexa-v2-text, .eeuashx5 hexa-v2-text');
+                        for (const el of allHexaTexts) {
+                            let texto = '';
+                            if (el.shadowRoot) {
+                                const span = el.shadowRoot.querySelector('span');
+                                texto = span?.textContent.trim() || '';
+                            } else {
+                                texto = el.textContent.trim();
+                            }
+                            
+                            // Verificar se parece descrição de cupom
+                            if (texto && (
+                                texto.toLowerCase().includes('desconto de r$') ||
+                                texto.toLowerCase().includes('cupom') ||
+                                texto.toLowerCase().includes('zé compensa') ||
+                                texto.toLowerCase().includes('pedido mínimo') ||
+                                texto.toLowerCase().includes('válido para')
+                            )) {
+                                return texto;
+                            }
+                        }
                         
-                        for (const seletor of possiveisSeletores) {
-                            const el = document.querySelector(seletor);
-                            if (el) {
-                                // Tentar Shadow DOM
-                                if (el.shadowRoot) {
-                                    const innerEl = el.shadowRoot.querySelector('span, p, div');
-                                    if (innerEl && innerEl.textContent.trim()) {
-                                        return innerEl.textContent.trim();
+                        // Buscar texto visível na seção de desconto
+                        const descontoSection = document.querySelector('[color="#888888"]');
+                        if (descontoSection) {
+                            const nextSibling = descontoSection.nextElementSibling;
+                            if (nextSibling) {
+                                const hexaText = nextSibling.querySelector('hexa-v2-text');
+                                if (hexaText && hexaText.shadowRoot) {
+                                    const span = hexaText.shadowRoot.querySelector('span');
+                                    if (span && span.textContent.trim()) {
+                                        return span.textContent.trim();
                                     }
-                                }
-                                // Texto normal
-                                if (el.textContent.trim()) {
-                                    return el.textContent.trim();
                                 }
                             }
                         }
                         
-                        // Buscar na página texto que parece descrição de cupom
-                        // Padrão: "Válido para compras acima de R$XX" ou "Desconto limitado a R$XX"
+                        // Último fallback: buscar padrões de texto na página
                         const pageText = document.body.innerText || '';
                         const cupomPatterns = [
-                            /(Válido para compras[^.]+\.)/i,
-                            /(Desconto limitado[^.]+\.)/i,
-                            /(Limite de \d+[^.]+\.)/i,
-                            /(Cupom[^.]+usos[^.]+\.)/i
+                            /(Desconto de R\$\s*[\d,\.]+\s*com[^.!]+[.!])/i,
+                            /(Zé Compensa[^.!]+[.!])/i,
+                            /(Válido para compras[^.!]+[.!])/i,
+                            /(Pedido mínimo[^.!]+[.!])/i,
+                            /(Cupom[^.!]+[.!])/i
                         ];
                         
                         for (const pattern of cupomPatterns) {
