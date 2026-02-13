@@ -1,4 +1,15 @@
-2026/02/12-21:47:50.020 3086 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/MANIFEST-000001
-2026/02/12-21:47:50.024 3086 Recovering log #270
-2026/02/12-21:47:50.029 3086 (ignoring error) /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/000270.log: dropping 1008 bytes; Corruption: missing start of fragmented record(2)
-2026/02/12-21:47:50.029 3086 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/000270.log 
+2026/02/13-01:47:52.452 4166 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/MANIFEST-000001
+2026/02/13-01:47:52.457 4166 Recovering log #280
+2026/02/13-01:47:52.457 4166 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Local Storage/leveldb/000280.log 
+2026/02/13-01:50:53.378 4168 Level-0 table #284: started
+2026/02/13-01:50:53.380 4168 Level-0 table #284: 24359 bytes OK
+2026/02/13-01:50:53.382 4168 Delete type=0 #280
+2026/02/13-01:50:53.384 4168 Compacting 4@0 + 1@1 files
+2026/02/13-01:50:53.386 4168 Generated table #285@0: 38 keys, 4943 bytes
+2026/02/13-01:50:53.386 4168 Compacted 4@0 + 1@1 files => 4943 bytes
+2026/02/13-01:50:53.388 4168 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/02/13-01:50:53.389 4168 Delete type=2 #281
+2026/02/13-01:50:53.389 4168 Delete type=2 #272
+2026/02/13-01:50:53.389 4168 Delete type=2 #275
+2026/02/13-01:50:53.389 4168 Delete type=2 #284
+2026/02/13-01:50:53.389 4168 Delete type=2 #278
