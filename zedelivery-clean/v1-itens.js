@@ -1769,7 +1769,12 @@ async function itensScript(page) {
                 console.log('🚴 Entregador:', entregador || '(não encontrado)');
                 console.log('📦 Qtd Itens:', produtos.length);
                 if (produtos.length > 0) {
-                    console.log('   Itens:', produtos.map(p => `${p.quantidade}x ${p.nome}`).join(', '));
+                    console.log('   Itens:');
+                    produtos.forEach(p => {
+                        const precoUnit = p.preco || '?';
+                        const precoTotal = p.precoTotal || '?';
+                        console.log(`     ${p.quantidade}x ${p.nome} - Unit: R$${precoUnit} | Total: R$${precoTotal}`);
+                    });
                 } else {
                     console.log('   ❌ NENHUM ITEM CAPTURADO!');
                 }
