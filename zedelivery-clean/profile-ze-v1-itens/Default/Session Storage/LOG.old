@@ -1,3 +1,6 @@
-2026/02/13-01:27:46.433 270d Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Session Storage/MANIFEST-000001
-2026/02/13-01:27:46.435 270d Recovering log #4
-2026/02/13-01:27:46.438 270d Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Session Storage/000004.log 
+2026/02/13-01:54:31.246 27c2 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Session Storage/MANIFEST-000001
+2026/02/13-01:54:31.246 27c2 Recovering log #4
+2026/02/13-01:54:31.249 27c2 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Session Storage/000004.log 
+2026/02/13-01:54:46.913 27c2 Level-0 table #8: started
+2026/02/13-01:54:46.919 27c2 Level-0 table #8: 16863 bytes OK
+2026/02/13-01:54:46.926 27c2 Delete type=0 #4
