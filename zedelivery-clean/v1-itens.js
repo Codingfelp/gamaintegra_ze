@@ -1042,65 +1042,71 @@ async function itensScript(page) {
                 let troco = dadosPrintArea.troco;
                 let cupomDescricao = ''; // Será capturado via Shadow DOM
                 
-                // Verificar se capturou produtos
-                let temProdutos = produtos.length > 0 && produtos.some(p => p.nome && p.nome.length > 2);
-                console.log(`📦 [ITENS] ${produtos.length} produto(s) da área de impressão, válidos: ${temProdutos}`);
+                // =====================================================
+                // CAPTURA DE ITENS - SEMPRE VIA SHADOW DOM (UI PRINCIPAL)
+                // O preço no Shadow DOM é o PREÇO TOTAL DA LINHA
+                // Calculamos: precoUnitario = precoTotal / quantidade
+                // =====================================================
+                console.log('📦 [ITENS] Capturando itens via Shadow DOM (fonte principal)...');
+                
+                let temProdutos = false;
+                
+                try {
+                    const produtosShadow = await page.$$eval('[data-testid="product"]', (produtos) => {
+                        return produtos.map(produto => {
+                            const nomeEl = produto.querySelector('[id^="info-title"]');
+                            const quantComp = produto.querySelector('[id^="info-quantity"]');
+                            const precoEl = produto.querySelector('[id^="info-cost"]');
+                            const imagemEl = produto.querySelector('img');
 
-                // Se NÃO tem produtos da área de impressão, tentar Shadow DOM como fallback
-                if (!temProdutos) {
-                    console.log('📦 [ITENS] Nenhum item na área de impressão, tentando Shadow DOM...');
-                    try {
-                        const produtosShadow = await page.$$eval('[data-testid="product"]', (produtos) => {
-                            return produtos.map(produto => {
-                                const nomeEl = produto.querySelector('[id^="info-title"]');
-                                const quantComp = produto.querySelector('[id^="info-quantity"]');
-                                const precoEl = produto.querySelector('[id^="info-cost"]');
-                                const imagemEl = produto.querySelector('img');
+                            const idMatch = nomeEl?.id?.match(/info-title-(\d+)/);
+                            const idProduto = idMatch ? idMatch[1] : '';
 
-                                const idMatch = nomeEl?.id?.match(/info-title-(\d+)/);
-                                const idProduto = idMatch ? idMatch[1] : '';
+                            const nomeSpan = nomeEl?.shadowRoot?.querySelector('span');
+                            const precoSpan = precoEl?.shadowRoot?.querySelector('span');
 
-                                const nomeSpan = nomeEl?.shadowRoot?.querySelector('span');
-                                const precoSpan = precoEl?.shadowRoot?.querySelector('span');
+                            let quantSpan = quantComp?.querySelector('hexa-v2-text')?.shadowRoot?.querySelector('span');
+                            const quantidadeTexto = quantSpan?.textContent.trim() || '';
+                            const quantidadeStr = quantidadeTexto.replace(/^Qtd:\s*/, '') || '1';
+                            const quantidade = parseInt(quantidadeStr, 10) || 1;
 
-                                let quantSpan = quantComp?.querySelector('hexa-v2-text')?.shadowRoot?.querySelector('span');
-                                const quantidadeTexto = quantSpan?.textContent.trim() || '';
-                                const quantidadeStr = quantidadeTexto.replace(/^Qtd:\s*/, '');
-                                const quantidade = parseInt(quantidadeStr, 10) || 1;
+                            // PREÇO TOTAL DA LINHA (como mostrado na UI)
+                            // Formato: "R$ 76,32" -> 76.32
+                            let precoTotalTexto = precoSpan?.textContent || '0';
+                            precoTotalTexto = precoTotalTexto.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.').trim();
+                            const precoTotalLinha = parseFloat(precoTotalTexto) || 0;
+                            
+                            // PREÇO UNITÁRIO = TOTAL / QUANTIDADE
+                            const precoUnitario = quantidade > 0 ? (precoTotalLinha / quantidade) : 0;
 
-                                // Na área Shadow DOM, o preço mostrado é o PREÇO TOTAL DA LINHA
-                                // Precisamos dividir pela quantidade para obter o preço unitário
-                                let precoTotalTexto = precoSpan?.textContent.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.').trim() || '0';
-                                const precoTotalLinha = parseFloat(precoTotalTexto) || 0;
-                                const precoUnitario = quantidade > 0 ? (precoTotalLinha / quantidade).toFixed(2) : '0.00';
-
-                                return {
-                                    id: idProduto,
-                                    nome: nomeSpan?.textContent.trim() || '',
-                                    quantidade: quantidadeStr,
-                                    preco: precoUnitario,               // Preço unitário calculado
-                                    precoTotal: precoTotalLinha.toFixed(2),  // Preço total da linha original
-                                    imagem: imagemEl?.src || ''
-                                };
-                            });
+                            return {
+                                id: idProduto,
+                                nome: nomeSpan?.textContent.trim() || '',
+                                quantidade: quantidadeStr,
+                                preco: precoUnitario.toFixed(2),           // Preço UNITÁRIO calculado
+                                precoTotal: precoTotalLinha.toFixed(2),    // Preço TOTAL da linha (original)
+                                imagem: imagemEl?.src || ''
+                            };
                         });
-                        
-                        // Só usar se capturou produtos válidos
-                        if (produtosShadow.length > 0 && produtosShadow.some(p => p.nome && p.nome.length > 2)) {
-                            produtos = produtosShadow;
-                            temProdutos = true;
-                            console.log(`📦 [ITENS] ${produtos.length} produto(s) via Shadow DOM`);
-                            // Log detalhado para debug
-                            produtos.forEach(p => {
-                                console.log(`   📦 ${p.quantidade}x ${p.nome} - Unit: R$${p.preco} | Total: R$${p.precoTotal}`);
-                            });
-                        }
-                    } catch (e) {
-                        console.log('📦 [ITENS] Falha no Shadow DOM:', e.message);
+                    });
+                    
+                    // Usar se capturou produtos válidos
+                    if (produtosShadow.length > 0 && produtosShadow.some(p => p.nome && p.nome.length > 2)) {
+                        produtos = produtosShadow;
+                        temProdutos = true;
+                        console.log(`📦 [ITENS] ✅ ${produtos.length} produto(s) via Shadow DOM`);
+                        // Log detalhado para debug
+                        produtos.forEach(p => {
+                            console.log(`   📦 ${p.quantidade}x ${p.nome} - Unit: R$${p.preco} | Total: R$${p.precoTotal}`);
+                        });
+                    } else {
+                        console.log('📦 [ITENS] ⚠️ Shadow DOM não retornou itens válidos');
                     }
+                } catch (e) {
+                    console.log('📦 [ITENS] ❌ Falha no Shadow DOM:', e.message);
                 }
                 
-                // Se AINDA não tem produtos, tentar área de impressão #bought-items
+                // FALLBACK: Se Shadow DOM falhou, tentar área de impressão #bought-items
                 if (!temProdutos) {
                     console.log('📦 [ITENS] Capturando via área de impressão #bought-items...');
                     
