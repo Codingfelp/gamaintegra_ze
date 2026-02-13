@@ -1183,18 +1183,31 @@ async function itensScript(page) {
                             
                             // Procurar quantidade
                             const qtdEl = container.querySelector('[class*="quantity"], [class*="qtd"]');
-                            const quantidade = qtdEl ? qtdEl.textContent.replace(/\D/g, '') || '1' : '1';
+                            const quantidadeStr = qtdEl ? qtdEl.textContent.replace(/\D/g, '') || '1' : '1';
+                            const quantidade = parseInt(quantidadeStr, 10) || 1;
                             
                             // Procurar preço
                             const precoEl = container.querySelector('[class*="price"], [class*="preco"]');
-                            const preco = precoEl ? precoEl.textContent.replace(/[^\d,\.]/g, '').replace(',', '.') : '';
+                            const precoTexto = precoEl ? precoEl.textContent.replace(/[^\d,\.]/g, '').replace(',', '.') : '0';
+                            const precoCapturado = parseFloat(precoTexto) || 0;
+                            
+                            // Assumir que é preço unitário neste fallback
+                            const precoUnitario = precoCapturado;
+                            const precoTotal = (precoCapturado * quantidade).toFixed(2);
                             
                             // Procurar imagem
                             const imgEl = container.querySelector('img');
                             const imagem = imgEl ? imgEl.src : '';
                             
                             if (nome && nome.length > 2) {
-                                items.push({ id: '', nome, quantidade, preco, imagem });
+                                items.push({ 
+                                    id: '', 
+                                    nome, 
+                                    quantidade: quantidadeStr, 
+                                    preco: precoUnitario.toFixed(2),
+                                    precoTotal: precoTotal,
+                                    imagem 
+                                });
                             }
                         }
                         
