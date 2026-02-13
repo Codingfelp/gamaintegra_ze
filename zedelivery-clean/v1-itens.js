@@ -1064,13 +1064,21 @@ async function itensScript(page) {
 
                                 let quantSpan = quantComp?.querySelector('hexa-v2-text')?.shadowRoot?.querySelector('span');
                                 const quantidadeTexto = quantSpan?.textContent.trim() || '';
-                                const quantidade = quantidadeTexto.replace(/^Qtd:\s*/, '');
+                                const quantidadeStr = quantidadeTexto.replace(/^Qtd:\s*/, '');
+                                const quantidade = parseInt(quantidadeStr, 10) || 1;
+
+                                // Na área Shadow DOM, o preço mostrado é o PREÇO TOTAL DA LINHA
+                                // Precisamos dividir pela quantidade para obter o preço unitário
+                                let precoTotalTexto = precoSpan?.textContent.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.').trim() || '0';
+                                const precoTotalLinha = parseFloat(precoTotalTexto) || 0;
+                                const precoUnitario = quantidade > 0 ? (precoTotalLinha / quantidade).toFixed(2) : '0.00';
 
                                 return {
                                     id: idProduto,
                                     nome: nomeSpan?.textContent.trim() || '',
-                                    quantidade: quantidade,
-                                    preco: precoSpan?.textContent.replace('R$', '').replace('.', '').replace(',', '.').trim() || '',
+                                    quantidade: quantidadeStr,
+                                    preco: precoUnitario,               // Preço unitário calculado
+                                    precoTotal: precoTotalLinha.toFixed(2),  // Preço total da linha original
                                     imagem: imagemEl?.src || ''
                                 };
                             });
@@ -1081,6 +1089,10 @@ async function itensScript(page) {
                             produtos = produtosShadow;
                             temProdutos = true;
                             console.log(`📦 [ITENS] ${produtos.length} produto(s) via Shadow DOM`);
+                            // Log detalhado para debug
+                            produtos.forEach(p => {
+                                console.log(`   📦 ${p.quantidade}x ${p.nome} - Unit: R$${p.preco} | Total: R$${p.precoTotal}`);
+                            });
                         }
                     } catch (e) {
                         console.log('📦 [ITENS] Falha no Shadow DOM:', e.message);
