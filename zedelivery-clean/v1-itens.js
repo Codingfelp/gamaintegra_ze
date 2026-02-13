@@ -1131,12 +1131,18 @@ async function itensScript(page) {
                             const nomeEl = item.querySelector('#item-name');
                             const precoEl = item.querySelector('#item-price span');
                             
-                            const quantidade = quantEl ? quantEl.textContent.trim() : '1';
+                            const quantidadeStr = quantEl ? quantEl.textContent.trim() : '1';
+                            const quantidade = parseInt(quantidadeStr, 10) || 1;
                             const nome = nomeEl ? nomeEl.textContent.trim() : '';
-                            let preco = precoEl ? precoEl.textContent.trim() : '';
+                            let precoTexto = precoEl ? precoEl.textContent.trim() : '';
                             
                             // Limpar preço: "R$ 3.49" -> "3.49"
-                            preco = preco.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                            precoTexto = precoTexto.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                            const precoCapturado = parseFloat(precoTexto) || 0;
+                            
+                            // Na área de impressão, o preço é UNITÁRIO
+                            const precoUnitario = precoCapturado;
+                            const precoTotal = (precoCapturado * quantidade).toFixed(2);
                             
                             // Extrair ID do item do elemento pai (ex: id="item-10308")
                             const idMatch = item.id?.match(/item-(\d+)/);
@@ -1146,8 +1152,9 @@ async function itensScript(page) {
                                 items.push({
                                     id: idProduto,
                                     nome: nome,
-                                    quantidade: quantidade,
-                                    preco: preco,
+                                    quantidade: quantidadeStr,
+                                    preco: precoUnitario.toFixed(2),  // Preço unitário
+                                    precoTotal: precoTotal,           // Preço total da linha
                                     imagem: ''
                                 });
                             }
