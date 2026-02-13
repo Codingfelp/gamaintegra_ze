@@ -1031,7 +1031,8 @@ async function itensScript(page) {
                     id: item.id,
                     nome: item.nome,
                     quantidade: item.quantidade,
-                    preco: item.preco,
+                    preco: item.preco,           // Preço unitário
+                    precoTotal: item.precoTotal || item.preco,  // Preço total da linha
                     imagem: ''
                 }));
                 let subTotal = dadosPrintArea.subtotal;
