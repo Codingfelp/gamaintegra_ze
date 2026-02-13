@@ -886,22 +886,39 @@ async function itensScript(page) {
                     if (cpfMatch) resultado.cpf = cpfMatch[0];
                     
                     // 8. ITENS DO PEDIDO
+                    // NOTA: O preço mostrado na área de impressão é o PREÇO UNITÁRIO
+                    // Mas na área principal (Shadow DOM) é o PREÇO TOTAL DA LINHA
+                    // Vamos capturar e calcular ambos para garantir consistência
                     const itensContainer = document.querySelectorAll('#bought-items [data-testid="bought-items"]');
                     itensContainer.forEach(item => {
                         const qtdEl = item.querySelector('#item-quantity');
                         const nomeEl = item.querySelector('#item-name');
                         const precoEl = item.querySelector('#item-price span');
                         
-                        const quantidade = qtdEl ? qtdEl.textContent.trim() : '1';
+                        const quantidadeStr = qtdEl ? qtdEl.textContent.trim() : '1';
+                        const quantidade = parseInt(quantidadeStr, 10) || 1;
                         const nome = nomeEl ? nomeEl.textContent.trim() : '';
-                        let preco = precoEl ? precoEl.textContent.trim() : '';
-                        preco = preco.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                        let precoTexto = precoEl ? precoEl.textContent.trim() : '';
+                        precoTexto = precoTexto.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
+                        const precoCapturado = parseFloat(precoTexto) || 0;
+                        
+                        // Na área de impressão, o preço mostrado já é o preço UNITÁRIO
+                        // Então: precoUnitario = precoCapturado
+                        //        precoTotal = precoCapturado * quantidade
+                        const precoUnitario = precoCapturado;
+                        const precoTotal = (precoCapturado * quantidade).toFixed(2);
                         
                         const idMatch = item.id?.match(/item-(\d+)/);
                         const id = idMatch ? idMatch[1] : '';
                         
                         if (nome) {
-                            resultado.itens.push({ id, nome, quantidade, preco });
+                            resultado.itens.push({ 
+                                id, 
+                                nome, 
+                                quantidade: quantidadeStr, 
+                                preco: precoUnitario.toFixed(2),  // Preço unitário
+                                precoTotal: precoTotal            // Preço total da linha
+                            });
                         }
                     });
                     
