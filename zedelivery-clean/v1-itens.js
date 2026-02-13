@@ -886,9 +886,10 @@ async function itensScript(page) {
                     if (cpfMatch) resultado.cpf = cpfMatch[0];
                     
                     // 8. ITENS DO PEDIDO
-                    // NOTA: O preço mostrado na área de impressão é o PREÇO UNITÁRIO
-                    // Mas na área principal (Shadow DOM) é o PREÇO TOTAL DA LINHA
-                    // Vamos capturar e calcular ambos para garantir consistência
+                    // ESTRATÉGIA: Capturar PREÇO TOTAL da linha e calcular PREÇO UNITÁRIO
+                    // O preço exibido na UI pode variar entre áreas, então vamos padronizar:
+                    // - Capturar o preço como está (assumindo que é TOTAL da linha)
+                    // - Calcular unitário = total / quantidade
                     const itensContainer = document.querySelectorAll('#bought-items [data-testid="bought-items"]');
                     itensContainer.forEach(item => {
                         const qtdEl = item.querySelector('#item-quantity');
@@ -902,11 +903,10 @@ async function itensScript(page) {
                         precoTexto = precoTexto.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
                         const precoCapturado = parseFloat(precoTexto) || 0;
                         
-                        // Na área de impressão, o preço mostrado já é o preço UNITÁRIO
-                        // Então: precoUnitario = precoCapturado
-                        //        precoTotal = precoCapturado * quantidade
+                        // Na área de impressão, o preço mostrado é UNITÁRIO
+                        // Então calculamos: precoTotal = precoUnitario * quantidade
                         const precoUnitario = precoCapturado;
-                        const precoTotal = (precoCapturado * quantidade).toFixed(2);
+                        const precoTotal = precoCapturado * quantidade;
                         
                         const idMatch = item.id?.match(/item-(\d+)/);
                         const id = idMatch ? idMatch[1] : '';
@@ -917,7 +917,7 @@ async function itensScript(page) {
                                 nome, 
                                 quantidade: quantidadeStr, 
                                 preco: precoUnitario.toFixed(2),  // Preço unitário
-                                precoTotal: precoTotal            // Preço total da linha
+                                precoTotal: precoTotal.toFixed(2) // Preço total da linha
                             });
                         }
                     });
