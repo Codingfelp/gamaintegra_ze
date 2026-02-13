@@ -1107,8 +1107,9 @@ async function itensScript(page) {
                 }
                 
                 // FALLBACK: Se Shadow DOM falhou, tentar área de impressão #bought-items
+                // NOTA: Na área de impressão, o preço mostrado é UNITÁRIO (diferente do Shadow DOM)
                 if (!temProdutos) {
-                    console.log('📦 [ITENS] Capturando via área de impressão #bought-items...');
+                    console.log('📦 [ITENS] ⚠️ Usando FALLBACK: área de impressão (preço = unitário)...');
                     
                     // Debug: verificar se elementos existem
                     const debugInfo = await page.evaluate(() => {
