@@ -522,22 +522,54 @@ function App() {
 
             {/* Processos de Integração */}
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {/* Aceite Automático */}
-              <Card className="bg-white border-gray-200">
+              {/* Aceite Automático - COM ESTATÍSTICAS REAIS */}
+              <Card className={`border-2 ${aceiteStatus?.isActive ? 'border-green-500 bg-green-50' : 'border-red-300 bg-red-50'}`}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${services.node_integrador?.status === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
+                    <span className={`w-3 h-3 rounded-full ${aceiteStatus?.isActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></span>
                     🤖 Aceite Automático
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className={`text-xs ${services.node_integrador?.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
-                    {services.node_integrador?.status === 'online' ? 'Rodando' : 'Parado'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Aceita pedidos automaticamente
-                  </p>
-                  <div className="mt-2 space-y-2">
+                  <div className={`text-sm font-bold mb-2 ${aceiteStatus?.isActive ? 'text-green-700' : 'text-red-700'}`}>
+                    {aceiteStatus?.isActive ? '✅ FUNCIONANDO' : '❌ PARADO/INATIVO'}
+                  </div>
+                  <div className="text-xs text-gray-600 space-y-1">
+                    <p>Status: <span className="font-medium">{aceiteStatus?.status || 'N/A'}</span></p>
+                    <p>Aceitos hoje: <span className="font-bold text-green-600">{aceiteStatus?.totalAccepted || 0}</span></p>
+                    <p>Falhas: <span className={aceiteStatus?.totalFailed > 0 ? 'font-bold text-red-600' : ''}>{aceiteStatus?.totalFailed || 0}</span></p>
+                    {aceiteStatus?.successRate !== null && (
+                      <p>Taxa sucesso: <span className="font-bold">{aceiteStatus.successRate}%</span></p>
+                    )}
+                    {aceiteStatus?.lastAccept && (
+                      <p>Último aceite: <span className="font-medium">{new Date(aceiteStatus.lastAccept).toLocaleTimeString()}</span></p>
+                    )}
+                    {aceiteStatus?.lastAcceptedOrder && (
+                      <p>Último pedido: <span className="font-mono text-xs">#{aceiteStatus.lastAcceptedOrder}</span></p>
+                    )}
+                    {aceiteStatus?.secondsSinceLastCheck && (
+                      <p className={aceiteStatus.secondsSinceLastCheck > 30 ? 'text-red-600' : 'text-gray-500'}>
+                        Último check: {aceiteStatus.secondsSinceLastCheck}s atrás
+                      </p>
+                    )}
+                  </div>
+                  
+                  {/* Últimos aceites */}
+                  {aceiteStatus?.recentAccepts?.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <p className="text-xs font-medium text-gray-700 mb-1">Últimos aceites:</p>
+                      <div className="space-y-0.5 max-h-20 overflow-y-auto">
+                        {aceiteStatus.recentAccepts.slice(0, 5).map((accept, idx) => (
+                          <div key={idx} className="text-xs text-gray-600 flex justify-between">
+                            <span>#{accept.orderId}</span>
+                            <span className="text-green-600">{accept.elapsed}s</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="mt-3 space-y-2">
                     {services.node_integrador?.status !== 'online' ? (
                       <Button size="sm" variant="outline" className="text-xs h-6 w-full" onClick={() => controlService('integrador', 'start')}>
                         Iniciar
@@ -560,7 +592,7 @@ function App() {
                     <ScrollArea className="h-32 bg-gray-900 rounded-lg p-2 mt-2">
                       <div className="space-y-1 font-mono text-[10px]">
                         {logs.v1?.slice(-15).map((log, idx) => (
-                          <div key={idx} className={`py-0.5 ${log.type === 'error' ? 'text-red-300' : 'text-green-300'}`}>
+                          <div key={idx} className={`py-0.5 ${log.type === 'error' || log.message?.includes('❌') ? 'text-red-300' : log.message?.includes('✅') ? 'text-green-300' : 'text-gray-300'}`}>
                             {log.message}
                           </div>
                         ))}
