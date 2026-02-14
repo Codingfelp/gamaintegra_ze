@@ -1847,6 +1847,7 @@ async function itensScript(page) {
                         obsPedido: obsPedido,
                         statusPedido: statusPedido,
                         entregador: entregador,
+                        emailEntregador: '',  // Email do entregador (capturar se disponível)
                         tipoDelivery: tipoDelivery,
                         cupomDescricao: cupomDescricao
                     }];
@@ -1872,6 +1873,7 @@ async function itensScript(page) {
                         obsPedido: obsPedido,
                         statusPedido: statusPedido,
                         entregador: entregador,
+                        emailEntregador: '',  // Email do entregador (capturar se disponível)
                         tipoDelivery: tipoDelivery,
                         cupomDescricao: cupomDescricao
                     }));
