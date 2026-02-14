@@ -875,8 +875,42 @@ async function statusScript(page) {
         }
     }
 }
+// Estatísticas do auto-accept (salvas em arquivo para a API)
+const ACEITE_STATS_FILE = '/app/logs/aceite-stats.json';
+
+function saveAceiteStats(stats) {
+    try {
+        fs.writeFileSync(ACEITE_STATS_FILE, JSON.stringify(stats, null, 2));
+    } catch (e) {
+        console.error('Erro ao salvar stats:', e.message);
+    }
+}
+
+function loadAceiteStats() {
+    try {
+        if (fs.existsSync(ACEITE_STATS_FILE)) {
+            return JSON.parse(fs.readFileSync(ACEITE_STATS_FILE, 'utf8'));
+        }
+    } catch (e) {}
+    return {
+        status: 'starting',
+        lastCheck: null,
+        lastAccept: null,
+        totalAccepted: 0,
+        totalFailed: 0,
+        totalAttempts: 0,
+        errors: [],
+        recentAccepts: []
+    };
+}
+
 async function aceitaScript(browser, cookies) {
     console.log('🤖 [ACEITA] Iniciando script de aceite automático de pedidos...');
+    
+    let aceiteStats = loadAceiteStats();
+    aceiteStats.status = 'running';
+    aceiteStats.startTime = new Date().toISOString();
+    saveAceiteStats(aceiteStats);
     
     while (true) {
         let page = null;
@@ -895,12 +929,20 @@ async function aceitaScript(browser, cookies) {
             // Se redirecionou para login, sessão expirou
             if (page.url().includes('login')) {
                 console.log('🔑 [ACEITA] Sessão expirou, reiniciando...');
+                aceiteStats.status = 'session_expired';
+                aceiteStats.errors.push({ time: new Date().toISOString(), error: 'Session expired' });
+                saveAceiteStats(aceiteStats);
                 process.exit(1);
             }
+
+            aceiteStats.status = 'monitoring';
+            saveAceiteStats(aceiteStats);
 
             // Loop contínuo para verificar e aceitar pedidos - OTIMIZADO PARA ACEITE RÁPIDO
             while (true) {
                 try {
+                    aceiteStats.lastCheck = new Date().toISOString();
+                    
                     // Fechar modais de alerta se existirem (sem delay)
                     const closeButton = await page.$('#close-alert-modal');
                     if (closeButton) {
@@ -908,9 +950,8 @@ async function aceitaScript(browser, cookies) {
                         console.log('🔔 [ACEITA] Modal de alerta fechado');
                     }
 
-                    // Verificar se há pedidos pendentes na lista
+                    // Verificar se há pedidos pendentes na lista - MELHORIA NA CAPTURA DO ID
                     const pedidoPendente = await page.evaluate(() => {
-                        // Procurar na tabela de pedidos por status "Pendente"
                         const rows = document.querySelectorAll('hexa-v2-custom-table-row');
                         for (const row of rows) {
                             const badges = row.querySelectorAll('hexa-v2-badge-status');
@@ -921,26 +962,47 @@ async function aceitaScript(browser, cookies) {
                                     statusText = span ? span.textContent.trim().toLowerCase() : '';
                                 }
                                 if (statusText.includes('pendente')) {
-                                    // Pegar ID do pedido
-                                    const idEl = row.querySelector('hexa-v2-text');
+                                    // MELHOR CAPTURA DO ID - tentar múltiplas formas
                                     let orderId = '';
-                                    if (idEl && idEl.shadowRoot) {
-                                        const span = idEl.shadowRoot.querySelector('span');
-                                        orderId = span ? span.textContent.trim() : '';
+                                    
+                                    // 1. Tentar via id^="order-number"
+                                    const orderNumEl = row.querySelector('[id^="order-number"]');
+                                    if (orderNumEl) {
+                                        orderId = orderNumEl.textContent.trim().replace(/\s+/g, '');
                                     }
-                                    return { found: true, orderId: orderId };
+                                    
+                                    // 2. Fallback: hexa-v2-text com shadowRoot
+                                    if (!orderId) {
+                                        const idEl = row.querySelector('hexa-v2-text');
+                                        if (idEl && idEl.shadowRoot) {
+                                            const span = idEl.shadowRoot.querySelector('span');
+                                            orderId = span ? span.textContent.trim().replace(/\s+/g, '') : '';
+                                        }
+                                    }
+                                    
+                                    // 3. Fallback: primeiro texto numérico da row
+                                    if (!orderId) {
+                                        const allText = row.innerText || '';
+                                        const match = allText.match(/(\d{3}\s*\d{3}\s*\d{3})/);
+                                        if (match) {
+                                            orderId = match[1].replace(/\s+/g, '');
+                                        }
+                                    }
+                                    
+                                    return { found: true, orderId: orderId || 'N/A', status: statusText };
                                 }
                             }
                         }
-                        return { found: false, orderId: null };
+                        return { found: false, orderId: null, status: null };
                     });
 
                     // Aguardar botão de aceite aparecer (timeout curto para resposta rápida)
                     const buttonExists = await waitForSafe(page, '#accept-button', 2000);
                     
                     if (!buttonExists && !pedidoPendente.found) {
-                        // Sem pedidos pendentes - recarregar rápido
-                        console.log('⏳ [ACEITA] Aguardando novos pedidos...');
+                        // Sem pedidos pendentes - status OK
+                        aceiteStats.status = 'waiting';
+                        saveAceiteStats(aceiteStats);
                         await sleep(2);
                         await page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
                         continue;
@@ -963,9 +1025,13 @@ async function aceitaScript(browser, cookies) {
                         }, button);
 
                         if (!isDisabled) {
-                            const orderId = pedidoPendente.orderId || 'desconhecido';
-                            console.log(`🚀 [ACEITA] PEDIDO ${orderId} DETECTADO! Aceitando...`);
+                            const orderId = pedidoPendente.orderId || 'N/A';
+                            console.log(`🚀 [ACEITA] PEDIDO #${orderId} DETECTADO! Aceitando...`);
                             const startTime = performance.now();
+                            
+                            aceiteStats.status = 'accepting';
+                            aceiteStats.totalAttempts++;
+                            saveAceiteStats(aceiteStats);
                             
                             // Clicar no botão de aceitar
                             await page.evaluate(el => {
@@ -979,12 +1045,16 @@ async function aceitaScript(browser, cookies) {
                                 el.click();
                             }, button);
                             
-                            // Aguardar modal de confirmação
-                            const modalButtonExists = await waitForSafe(page, '#orders-details-modal-button-accept', 2000);
+                            console.log(`⏳ [ACEITA] Aguardando modal de confirmação...`);
+                            
+                            // Aguardar modal de confirmação (até 4 segundos como o usuário pediu)
+                            const modalButtonExists = await waitForSafe(page, '#orders-details-modal-button-accept', 4000);
                             
                             if (modalButtonExists) {
                                 const aceitarPedidoButton = await page.$('#orders-details-modal-button-accept');
                                 if (aceitarPedidoButton) {
+                                    console.log(`🖱️ [ACEITA] Modal aberto! Clicando em confirmar...`);
+                                    
                                     // Clicar no botão de confirmar
                                     await page.evaluate(el => {
                                         if (el.shadowRoot) {
@@ -997,8 +1067,8 @@ async function aceitaScript(browser, cookies) {
                                         el.click();
                                     }, aceitarPedidoButton);
                                     
-                                    // Aguardar um momento para o status atualizar
-                                    await sleep(1);
+                                    // Aguardar 1-2 segundos para verificar (como o usuário pediu)
+                                    await sleep(2);
                                     
                                     // VERIFICAR SE O STATUS REALMENTE MUDOU
                                     await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
@@ -1006,16 +1076,22 @@ async function aceitaScript(browser, cookies) {
                                     const statusVerificado = await page.evaluate((targetOrderId) => {
                                         const rows = document.querySelectorAll('hexa-v2-custom-table-row');
                                         for (const row of rows) {
-                                            // Verificar se é o pedido que tentamos aceitar
-                                            const idEl = row.querySelector('hexa-v2-text');
+                                            // Capturar ID da row atual
                                             let rowOrderId = '';
-                                            if (idEl && idEl.shadowRoot) {
-                                                const span = idEl.shadowRoot.querySelector('span');
-                                                rowOrderId = span ? span.textContent.trim() : '';
+                                            const orderNumEl = row.querySelector('[id^="order-number"]');
+                                            if (orderNumEl) {
+                                                rowOrderId = orderNumEl.textContent.trim().replace(/\s+/g, '');
+                                            }
+                                            if (!rowOrderId) {
+                                                const idEl = row.querySelector('hexa-v2-text');
+                                                if (idEl && idEl.shadowRoot) {
+                                                    const span = idEl.shadowRoot.querySelector('span');
+                                                    rowOrderId = span ? span.textContent.trim().replace(/\s+/g, '') : '';
+                                                }
                                             }
                                             
                                             // Se encontrou o pedido, verificar status
-                                            if (!targetOrderId || rowOrderId.includes(targetOrderId)) {
+                                            if (!targetOrderId || targetOrderId === 'N/A' || rowOrderId.includes(targetOrderId) || targetOrderId.includes(rowOrderId)) {
                                                 const badges = row.querySelectorAll('hexa-v2-badge-status');
                                                 for (const badge of badges) {
                                                     let statusText = '';
@@ -1024,28 +1100,51 @@ async function aceitaScript(browser, cookies) {
                                                         statusText = span ? span.textContent.trim().toLowerCase() : '';
                                                     }
                                                     if (statusText.includes('aceito') || statusText.includes('preparo') || statusText.includes('caminho')) {
-                                                        return { success: true, newStatus: statusText };
+                                                        return { success: true, newStatus: statusText, orderId: rowOrderId };
                                                     }
                                                     if (statusText.includes('pendente')) {
-                                                        return { success: false, newStatus: 'pendente' };
+                                                        return { success: false, newStatus: 'pendente', orderId: rowOrderId };
                                                     }
                                                 }
                                             }
                                         }
-                                        return { success: null, newStatus: 'não encontrado' };
+                                        return { success: null, newStatus: 'não encontrado', orderId: targetOrderId };
                                     }, orderId);
                                     
                                     const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
                                     
                                     if (statusVerificado.success === true) {
-                                        console.log(`✅ [ACEITA] PEDIDO ${orderId} ACEITO COM SUCESSO em ${elapsed}s!`);
-                                        console.log(`   Status atual: ${statusVerificado.newStatus}`);
+                                        console.log(`✅✅✅ [ACEITA] PEDIDO #${orderId} ACEITO COM SUCESSO em ${elapsed}s!`);
+                                        console.log(`   Status atual: ${statusVerificado.newStatus.toUpperCase()}`);
+                                        
+                                        aceiteStats.totalAccepted++;
+                                        aceiteStats.lastAccept = new Date().toISOString();
+                                        aceiteStats.lastAcceptedOrder = orderId;
+                                        aceiteStats.lastElapsed = elapsed;
+                                        aceiteStats.status = 'success';
+                                        
+                                        // Manter últimos 10 aceites
+                                        aceiteStats.recentAccepts.unshift({
+                                            orderId: orderId,
+                                            time: new Date().toISOString(),
+                                            elapsed: elapsed,
+                                            status: 'success'
+                                        });
+                                        if (aceiteStats.recentAccepts.length > 10) {
+                                            aceiteStats.recentAccepts.pop();
+                                        }
                                     } else if (statusVerificado.success === false) {
-                                        console.log(`❌ [ACEITA] FALHA! Pedido ${orderId} ainda está PENDENTE após ${elapsed}s`);
+                                        console.log(`❌ [ACEITA] FALHA! Pedido #${orderId} ainda está PENDENTE após ${elapsed}s`);
                                         console.log(`   Tentando novamente...`);
+                                        
+                                        aceiteStats.totalFailed++;
+                                        aceiteStats.status = 'failed';
                                     } else {
-                                        console.log(`⚠️ [ACEITA] Pedido ${orderId} não encontrado na lista após ${elapsed}s`);
+                                        console.log(`⚠️ [ACEITA] Pedido #${orderId} processado em ${elapsed}s (status: ${statusVerificado.newStatus})`);
+                                        aceiteStats.status = 'processed';
                                     }
+                                    
+                                    saveAceiteStats(aceiteStats);
                                 }
                             } else {
                                 // Fallback: procurar qualquer botão de aceitar
@@ -1072,10 +1171,13 @@ async function aceitaScript(browser, cookies) {
                                 
                                 if (anyAcceptButton) {
                                     const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-                                    console.log(`⚠️ [ACEITA] Tentativa via fallback em ${elapsed}s - verificar se funcionou`);
+                                    console.log(`⚠️ [ACEITA] Tentativa via fallback em ${elapsed}s - verificando...`);
+                                    await sleep(2);
                                 } else {
                                     console.log('❌ [ACEITA] Nenhum botão de aceitar encontrado!');
+                                    aceiteStats.status = 'no_button';
                                 }
+                                saveAceiteStats(aceiteStats);
                             }
 
                             // Pequena pausa antes de continuar
@@ -1086,10 +1188,17 @@ async function aceitaScript(browser, cookies) {
                         }
                     }
                     
+                    aceiteStats.status = 'monitoring';
+                    saveAceiteStats(aceiteStats);
                     await sleep(2);
                     
                 } catch (innerErr) {
                     console.error("❌ [ACEITA] Erro no loop interno:", innerErr.message);
+                    aceiteStats.status = 'error';
+                    aceiteStats.errors.push({ time: new Date().toISOString(), error: innerErr.message });
+                    if (aceiteStats.errors.length > 20) aceiteStats.errors.shift();
+                    saveAceiteStats(aceiteStats);
+                    
                     try { 
                         await page.reload({ waitUntil: "networkidle2", timeout: 30000 }); 
                     } catch (reloadErr) {
@@ -1102,6 +1211,9 @@ async function aceitaScript(browser, cookies) {
 
         } catch (error) {
             console.error("❌ [ACEITA] Erro crítico:", error.message);
+            aceiteStats.status = 'critical_error';
+            aceiteStats.errors.push({ time: new Date().toISOString(), error: error.message });
+            saveAceiteStats(aceiteStats);
         } finally {
             if (page) {
                 try { await page.close(); } catch (e) { }
