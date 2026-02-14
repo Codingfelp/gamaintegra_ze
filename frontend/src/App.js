@@ -317,7 +317,7 @@ function App() {
 
   const fetchPedidosSemItens = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/pedidos/sem-itens?limit=50`);
+      const res = await fetch(`${API_URL}/api/reprocessar/pedidos-sem-itens?limit=50`);
       const data = await res.json();
       if (data.success) setPedidosSemItens(data.data || []);
     } catch (err) {
