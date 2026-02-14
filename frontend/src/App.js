@@ -83,6 +83,9 @@ function App() {
   const [sessionsData, setSessionsData] = useState(null);
   const [errorLogs, setErrorLogs] = useState([]);
   const [backupStatus, setBackupStatus] = useState(null);
+  const [aceiteStatus, setAceiteStatus] = useState(null);
+  const [reprocessStatus, setReprocessStatus] = useState(null);
+  const [pedidosSemItens, setPedidosSemItens] = useState([]);
   
   // Estados para expandir logs de cada processo
   const [showLogsAceite, setShowLogsAceite] = useState(false);
