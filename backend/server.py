@@ -556,6 +556,8 @@ async def reprocessar_pedido(delivery_code: str):
         if not pedido:
             raise HTTPException(status_code=404, detail="Pedido não encontrado")
         
+        delivery_id = pedido['delivery_id']
+        
         # Resetar flags para permitir reprocessamento
         cursor.execute("""
             UPDATE ze_pedido SET pedido_st_validacao = 0 
@@ -567,13 +569,19 @@ async def reprocessar_pedido(delivery_code: str):
             WHERE delivery_code = %s
         """, (delivery_code,))
         
-        # Deletar itens antigos para evitar duplicação
+        # Deletar itens antigos de ze_itens_pedido para evitar duplicação
         cursor.execute("""
             DELETE FROM ze_itens_pedido 
             WHERE itens_pedido_id_pedido IN (
                 SELECT pedido_id FROM ze_pedido WHERE pedido_code = %s
             )
         """, (delivery_code,))
+        
+        # Deletar itens antigos de delivery_itens também
+        cursor.execute("""
+            DELETE FROM delivery_itens 
+            WHERE delivery_itens_id_delivery = %s
+        """, (delivery_id,))
         
         conn.commit()
         cursor.close()
@@ -582,7 +590,7 @@ async def reprocessar_pedido(delivery_code: str):
         return {
             "success": True, 
             "message": f"Pedido {delivery_code} marcado para reprocessamento",
-            "delivery_id": pedido['delivery_id']
+            "delivery_id": delivery_id
         }
     except HTTPException:
         raise
