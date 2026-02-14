@@ -1196,7 +1196,7 @@ async def get_aceite_status():
 
 # ============= REPROCESSAMENTO EM MASSA =============
 
-@app.post("/api/pedidos/reprocessar-todos")
+@app.post("/api/reprocessar/todos")
 async def reprocessar_todos_pedidos(background_tasks: BackgroundTasks):
     """
     Marca TODOS os pedidos que precisam de reprocessamento para serem capturados novamente.
