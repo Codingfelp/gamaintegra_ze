@@ -1165,8 +1165,8 @@ async function itensScript(page) {
                                     id: idProduto,
                                     nome: nome,
                                     quantidade: quantidadeStr,
-                                    preco: precoUnitario.toFixed(2),  // Preço unitário
-                                    precoTotal: precoTotal,           // Preço total da linha
+                                    preco: precoUnitario.toFixed(2),      // Preço UNITÁRIO (calculado)
+                                    precoTotal: precoTotalLinha.toFixed(2), // Preço TOTAL da linha (original)
                                     imagem: ''
                                 });
                             }
