@@ -237,19 +237,28 @@ async function atualizarPedido(orderData) {
 
 /**
  * Busca próximo pedido para processar
- * @returns {Promise<string|null>}
+ * @returns {Promise<{id: string|null, prioridade: string|null}>}
  */
 async function pegarProximoPedido() {
     try {
         const result = await execPhp('ze_pedido_id.php', { ide: TOKEN }, {}, 10000);
         const cleanResult = result.replace(/^\uFEFF/, '').trim();
-        if (!cleanResult) return null;
+        if (!cleanResult) return { id: null, prioridade: null };
         
         const parsed = JSON.parse(cleanResult);
-        return parsed.id_pedido || null;
+        
+        // Retornar objeto com id e prioridade para melhor controle
+        if (parsed.id_pedido && parsed.id_pedido !== 0 && parsed.id_pedido !== '0') {
+            console.log(`📋 Pedido encontrado: ${parsed.id_pedido} (${parsed.prioridade || 'novo'})`);
+            return { 
+                id: parsed.id_pedido, 
+                prioridade: parsed.prioridade || 'novo' 
+            };
+        }
+        return { id: null, prioridade: null };
     } catch (error) {
         console.error('Erro ao pegar próximo pedido:', error.message);
-        return null;
+        return { id: null, prioridade: null };
     }
 }
 

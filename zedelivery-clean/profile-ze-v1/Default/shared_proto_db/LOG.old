@@ -1,4 +1,4 @@
-2026/02/14-20:57:57.409 2f25 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/MANIFEST-000001
-2026/02/14-20:57:57.409 2f25 Recovering log #4
-2026/02/14-20:57:57.411 2f25 (ignoring error) /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/000004.log: dropping 626 bytes; Corruption: missing start of fragmented record(2)
-2026/02/14-20:57:57.414 2f25 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/000004.log 
+2026/02/14-21:02:35.940 29ac Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/MANIFEST-000001
+2026/02/14-21:02:35.940 29ac Recovering log #4
+2026/02/14-21:02:35.940 29ac (ignoring error) /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/000004.log: dropping 626 bytes; Corruption: missing start of fragmented record(2)
+2026/02/14-21:02:35.946 29ac Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/000004.log 
