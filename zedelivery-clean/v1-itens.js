@@ -1151,9 +1151,10 @@ async function itensScript(page) {
                             precoTexto = precoTexto.replace('R$', '').replace(/\s/g, '').replace(',', '.').trim();
                             const precoCapturado = parseFloat(precoTexto) || 0;
                             
-                            // Na área de impressão, o preço é UNITÁRIO
-                            const precoUnitario = precoCapturado;
-                            const precoTotal = (precoCapturado * quantidade).toFixed(2);
+                            // CORREÇÃO: Na área de impressão, o preço mostrado é o TOTAL DA LINHA!
+                            // Exemplo: 4x Guaraná → R$ 7.04 (total), unitário = 7.04/4 = 1.76
+                            const precoTotalLinha = precoCapturado;
+                            const precoUnitario = quantidade > 0 ? (precoTotalLinha / quantidade) : precoCapturado;
                             
                             // Extrair ID do item do elemento pai (ex: id="item-10308")
                             const idMatch = item.id?.match(/item-(\d+)/);
