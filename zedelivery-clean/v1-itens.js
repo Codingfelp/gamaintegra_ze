@@ -5,6 +5,43 @@ const { performance } = require('perf_hooks');
 const phpBridge = require('./php-bridge');
 const sessionManager = require('./session-manager');
 
+// ============== CONFIGURAÇÃO DE OPERAÇÃO 24/7 ==============
+// Estratégia: Reiniciar automaticamente a cada 4 horas para evitar memory leaks
+// Horário de operação: 09:00 - 00:00 (se fora desse horário, aguarda)
+const MAX_RUNTIME_MS = 4 * 60 * 60 * 1000; // 4 horas
+const HORA_INICIO = 9;  // 09:00
+const HORA_FIM = 24;    // 00:00 (meia-noite)
+const START_TIME = Date.now();
+
+function isHorarioOperacao() {
+    const now = new Date();
+    const hora = now.getHours();
+    return hora >= HORA_INICIO && hora < HORA_FIM;
+}
+
+function shouldRestart() {
+    const runtime = Date.now() - START_TIME;
+    if (runtime >= MAX_RUNTIME_MS) {
+        console.log(`🔄 [v1-itens] Tempo de execução (${(runtime/1000/60/60).toFixed(2)}h) excedeu limite. Reiniciando...`);
+        return true;
+    }
+    return false;
+}
+
+function logMemoryUsage() {
+    const used = process.memoryUsage();
+    console.log(`📊 [v1-itens MEMÓRIA] Heap: ${Math.round(used.heapUsed / 1024 / 1024)}MB / ${Math.round(used.heapTotal / 1024 / 1024)}MB | RSS: ${Math.round(used.rss / 1024 / 1024)}MB`);
+}
+
+// Log de memória a cada 30 minutos
+setInterval(() => {
+    logMemoryUsage();
+    if (shouldRestart()) {
+        console.log('🔄 [v1-itens] Iniciando reinício preventivo para evitar problemas de memória...');
+        process.exit(0); // Supervisor irá reiniciar automaticamente
+    }
+}, 30 * 60 * 1000);
+
 // Funções utilitárias compartilhadas
 function readConfig() {
     const data = fs.readFileSync('configuracao.json', 'utf8');
