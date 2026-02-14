@@ -272,6 +272,11 @@ function App() {
       const sessionsJson = await sessionsRes.json();
       setSessionsData(sessionsJson);
 
+      // Status do aceite automático
+      const aceiteRes = await fetch(`${API_URL}/api/aceite/status`);
+      const aceiteJson = await aceiteRes.json();
+      if (aceiteJson.success) setAceiteStatus(aceiteJson.data);
+
       // Logs de erro
       const errorsRes = await fetch(`${API_URL}/api/logs/errors?limit=20`);
       const errorsJson = await errorsRes.json();
@@ -292,6 +297,31 @@ function App() {
       }
     } catch (err) {
       console.error('Erro ao buscar dados de monitoramento:', err);
+    }
+  };
+
+  const reprocessarTodos = async () => {
+    if (!window.confirm('Tem certeza que deseja reprocessar todos os pedidos sem itens? Isso pode demorar.')) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/pedidos/reprocessar-todos`, { method: 'POST' });
+      const data = await res.json();
+      setReprocessStatus(data);
+      setTimeout(() => setReprocessStatus(null), 10000);
+    } catch (err) {
+      console.error('Erro ao reprocessar:', err);
+      setReprocessStatus({ success: false, error: err.message });
+    }
+    setLoading(false);
+  };
+
+  const fetchPedidosSemItens = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/pedidos/sem-itens?limit=50`);
+      const data = await res.json();
+      if (data.success) setPedidosSemItens(data.data || []);
+    } catch (err) {
+      console.error('Erro ao buscar pedidos sem itens:', err);
     }
   };
 
