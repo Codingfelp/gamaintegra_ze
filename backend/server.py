@@ -347,14 +347,40 @@ def get_db():
 @app.get("/api/services/status")
 async def get_services_status():
     """Retorna status dos serviços - versão simplificada sem bloqueio"""
+    import asyncio
+    import concurrent.futures
+    
     status = {"success": True, "data": {}}
     
-    # 1. MySQL - apenas verifica se o host está configurado (não conecta para não travar)
+    # 1. MySQL - teste rápido com timeout curto (não bloqueia)
+    def do_mysql_test():
+        try:
+            test_config = {**DB_CONFIG, 'connection_timeout': 2}
+            conn = mysql.connector.connect(**test_config)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            cursor.close()
+            conn.close()
+            return "online"
+        except Exception as e:
+            return "offline"
+    
+    # Executar teste MySQL em thread separada com timeout
+    try:
+        loop = asyncio.get_event_loop()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = loop.run_in_executor(executor, do_mysql_test)
+            mysql_status = await asyncio.wait_for(future, timeout=3.0)
+    except asyncio.TimeoutError:
+        mysql_status = "offline"
+    except Exception:
+        mysql_status = "offline"
+    
     status["data"]["mysql"] = {
-        "status": "unknown",  # Não testamos em tempo real para evitar timeout
+        "status": mysql_status,
         "host": DB_CONFIG.get('host', 'N/A'),
-        "database": DB_CONFIG.get('database', 'N/A'),
-        "note": "Status verificado via teste direto"
+        "database": DB_CONFIG.get('database', 'N/A')
     }
     
     # 2. PHP - verifica se o comando existe
