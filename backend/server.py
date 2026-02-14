@@ -1293,7 +1293,7 @@ async def reprocessar_todos_pedidos(background_tasks: BackgroundTasks):
         return {"success": False, "error": str(e)}
 
 
-@app.get("/api/pedidos/sem-itens")
+@app.get("/api/reprocessar/pedidos-sem-itens")
 async def get_pedidos_sem_itens(limit: int = 100):
     """
     Lista pedidos que estão sem itens e precisam de reprocessamento.
