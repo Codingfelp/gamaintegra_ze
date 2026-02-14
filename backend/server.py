@@ -539,6 +539,56 @@ async def get_pedido(pedido_id: int):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@app.post("/api/pedidos/{delivery_code}/reprocessar")
+async def reprocessar_pedido(delivery_code: str):
+    """
+    Marca um pedido para reprocessamento pelo scraper v1-itens.
+    Reseta pedido_st_validacao para 0 e delivery_tem_itens para NULL.
+    """
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Verificar se o pedido existe
+        cursor.execute("SELECT delivery_id, delivery_code FROM delivery WHERE delivery_code = %s", (delivery_code,))
+        pedido = cursor.fetchone()
+        
+        if not pedido:
+            raise HTTPException(status_code=404, detail="Pedido não encontrado")
+        
+        # Resetar flags para permitir reprocessamento
+        cursor.execute("""
+            UPDATE ze_pedido SET pedido_st_validacao = 0 
+            WHERE pedido_code = %s
+        """, (delivery_code,))
+        
+        cursor.execute("""
+            UPDATE delivery SET delivery_tem_itens = NULL 
+            WHERE delivery_code = %s
+        """, (delivery_code,))
+        
+        # Deletar itens antigos para evitar duplicação
+        cursor.execute("""
+            DELETE FROM ze_itens_pedido 
+            WHERE itens_pedido_id_pedido IN (
+                SELECT pedido_id FROM ze_pedido WHERE pedido_code = %s
+            )
+        """, (delivery_code,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return {
+            "success": True, 
+            "message": f"Pedido {delivery_code} marcado para reprocessamento",
+            "delivery_id": pedido['delivery_id']
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @app.get("/api/services/logs")
 async def get_logs():
     """Retorna últimas linhas dos logs"""
