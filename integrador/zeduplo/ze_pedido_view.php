@@ -75,111 +75,143 @@ if (is_array($json) && count($json) > 0) {
             }
         }
 
+        // CORREÇÃO: O scraper envia:
+        // - tags.preco = preço UNITÁRIO
+        // - tags.precoTotal = preço TOTAL da linha (quantidade * unitário)
+        // Não precisamos recalcular, apenas usar os valores corretos
         $produto_form['itens_pedido_qtd'] = trim($json[$x]['tags']['quantidade']);
-        $produto_form['itens_pedido_valor_total'] = trim($json[$x]['tags']['preco']);
+        
+        // Pegar preço unitário e total separadamente
+        $precoUnitario = trim($json[$x]['tags']['preco'] ?? '0');
+        $precoTotal = trim($json[$x]['tags']['precoTotal'] ?? '0');
+        
+        // Se precoTotal não foi enviado ou é 0, calcular a partir do unitário
+        if (empty($precoTotal) || $precoTotal == '0' || $precoTotal == '') {
+            $precoTotal = floatval($precoUnitario) * intval($produto_form['itens_pedido_qtd']);
+        }
+        
+        // Armazenar valores corretamente
+        $produto_form['itens_pedido_valor_total'] = $precoTotal;
+        
         $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($json[$x]['id']) . "' ORDER BY pedido_id DESC LIMIT 1");
         if ($DB->NumQuery($read_pedido) > '0') {
-            if (trim($json[$x]['desconto']) == '') {
+            // Processar valores financeiros - garantir que são numéricos
+            $desconto = trim($json[$x]['desconto'] ?? '');
+            if ($desconto == '' || $desconto == '-') {
                 $desconto = 0;
             } else {
-                $desconto = trim($json[$x]['desconto']);
+                $desconto = floatval(str_replace(',', '.', str_replace('R$ ', '', $desconto)));
             }
-            if (trim($json[$x]['frete']) == '') {
+            
+            $frete = trim($json[$x]['frete'] ?? '');
+            if ($frete == '' || $frete == '-') {
                 $frete = 0;
             } else {
-                $frete = trim($json[$x]['frete']);
+                $frete = floatval(str_replace(',', '.', str_replace('R$ ', '', $frete)));
             }
-            if (trim($json[$x]['cpfCliente']) == '') {
-                $cpfCliente = 0;
-            } else {
-                $cpfCliente = trim($json[$x]['cpfCliente']);
+            
+            $cpfCliente = trim($json[$x]['cpfCliente'] ?? '');
+            if ($cpfCliente == '' || $cpfCliente == '-') {
+                $cpfCliente = '';
             }
+            
             // Telefone do cliente
-            if (empty(trim($json[$x]['telefoneCliente'] ?? ''))) {
+            $telefoneCliente = trim($json[$x]['telefoneCliente'] ?? '');
+            if ($telefoneCliente == '' || $telefoneCliente == '-') {
                 $telefoneCliente = '';
-            } else {
-                $telefoneCliente = trim($json[$x]['telefoneCliente']);
             }
+            
             // Email do entregador
-            if (empty(trim($json[$x]['emailEntregador'] ?? ''))) {
+            $emailEntregador = trim($json[$x]['emailEntregador'] ?? '');
+            if ($emailEntregador == '' || $emailEntregador == '-') {
                 $emailEntregador = '';
-            } else {
-                $emailEntregador = trim($json[$x]['emailEntregador']);
             }
+            
             // Nome do entregador
-            if (empty(trim($json[$x]['entregador'] ?? ''))) {
+            $nomeEntregador = trim($json[$x]['entregador'] ?? '');
+            if ($nomeEntregador == '' || $nomeEntregador == '-') {
                 $nomeEntregador = '';
-            } else {
-                $nomeEntregador = trim($json[$x]['entregador']);
             }
-            if (trim($json[$x]['enderecoRota']) == '') {
-                $enderecoRota = 0;
-            } else {
-                $enderecoRota = trim($json[$x]['enderecoRota']);
+            
+            $enderecoRota = trim($json[$x]['enderecoRota'] ?? '');
+            if ($enderecoRota == '' || $enderecoRota == '-') {
+                $enderecoRota = '';
             }
-            if (trim($json[$x]['enderecoComplemento']) == '') {
-                $enderecoComplemento = 0;
-            } else {
-                $enderecoComplemento = trim($json[$x]['enderecoComplemento']);
+            
+            $enderecoComplemento = trim($json[$x]['enderecoComplemento'] ?? '');
+            if ($enderecoComplemento == '' || $enderecoComplemento == '-') {
+                $enderecoComplemento = '';
             }
-            if (trim($json[$x]['enderecoCidadeUF']) == '') {
-                $enderecoCidadeUF = 0;
-            } else {
-                $enderecoCidadeUF = trim($json[$x]['enderecoCidadeUF']);
+            
+            $enderecoCidadeUF = trim($json[$x]['enderecoCidadeUF'] ?? '');
+            if ($enderecoCidadeUF == '' || $enderecoCidadeUF == '-') {
+                $enderecoCidadeUF = '';
             }
-            if (trim($json[$x]['enderecoCep']) == '') {
-                $enderecoCep = 0;
-            } else {
-                $enderecoCep = trim($json[$x]['enderecoCep']);
+            
+            $enderecoCep = trim($json[$x]['enderecoCep'] ?? '');
+            if ($enderecoCep == '' || $enderecoCep == '-') {
+                $enderecoCep = '';
             }
-            if (trim($json[$x]['enderecoBairro']) == '') {
-                $enderecoBairro = 0;
-            } else {
-                $enderecoBairro = trim($json[$x]['enderecoBairro']);
+            
+            $enderecoBairro = trim($json[$x]['enderecoBairro'] ?? '');
+            if ($enderecoBairro == '' || $enderecoBairro == '-') {
+                $enderecoBairro = '';
             }
-            if (trim($json[$x]['troco']) == '') {
+            
+            // Troco - converter para número
+            $troco = trim($json[$x]['troco'] ?? '');
+            if ($troco == '' || $troco == '-') {
                 $troco = 0;
             } else {
-                $troco = trim($json[$x]['troco']);
+                $troco = floatval(str_replace(',', '.', str_replace('R$ ', '', $troco)));
             }
-            if (trim($json[$x]['trocoCliente']) == '') {
+            
+            $trocoCliente = trim($json[$x]['trocoCliente'] ?? '');
+            if ($trocoCliente == '' || $trocoCliente == '-') {
                 $trocoCliente = 0;
             } else {
-                $trocoCliente = trim($json[$x]['trocoCliente']);
+                $trocoCliente = floatval(str_replace(',', '.', str_replace('R$ ', '', $trocoCliente)));
             }
-            if (trim($json[$x]['taxaConveniencia']) == '') {
+            
+            // Taxa de conveniência - converter para número
+            $taxaConveniencia = trim($json[$x]['taxaConveniencia'] ?? '');
+            if ($taxaConveniencia == '' || $taxaConveniencia == '-') {
                 $taxaConveniencia = 0;
             } else {
-                $taxaConveniencia = trim($json[$x]['taxaConveniencia']);
+                $taxaConveniencia = floatval(str_replace(',', '.', str_replace('R$ ', '', $taxaConveniencia)));
             }
-            if (trim($json[$x]['subTotal']) == '') {
+            
+            // Subtotal - converter para número
+            $subTotal = trim($json[$x]['subTotal'] ?? '');
+            if ($subTotal == '' || $subTotal == '-') {
                 $subTotal = 0;
             } else {
-                $subTotal = trim($json[$x]['subTotal']);
+                $subTotal = floatval(str_replace(',', '.', str_replace('R$ ', '', $subTotal)));
             }
-            if (trim($json[$x]['codigoEntrega']) == '') {
-                $codigoEntrega = 0;
-            } else {
-                $codigoEntrega = trim($json[$x]['codigoEntrega']);
+            
+            $codigoEntrega = trim($json[$x]['codigoEntrega'] ?? '');
+            if ($codigoEntrega == '' || $codigoEntrega == '-') {
+                $codigoEntrega = '';
             }
-            if (trim($json[$x]['obsPedido']) == '') {
-                $obsPedido = 0;
-            } else {
-                $obsPedido = trim($json[$x]['obsPedido']);
+            
+            $obsPedido = trim($json[$x]['obsPedido'] ?? '');
+            if ($obsPedido == '' || $obsPedido == '-') {
+                $obsPedido = '';
             }
-            if (trim($json[$x]['statusPedido']) == '') {
-                $statusPedido = 0;
-            } else {
-                $statusPedido = trim($json[$x]['statusPedido']);
+            
+            $statusPedido = trim($json[$x]['statusPedido'] ?? '');
+            if ($statusPedido == '' || $statusPedido == '-') {
+                $statusPedido = '';
             }
             $statusPedidoNovo = explode('-', $statusPedido);
             $statusPed = trim($statusPedidoNovo['0']);
+            
             // Tipo de delivery (Comum, Turbo, Retirada)
-            if (empty(trim($json[$x]['tipoDelivery'] ?? ''))) {
+            $tipoDelivery = trim($json[$x]['tipoDelivery'] ?? '');
+            if ($tipoDelivery == '' || $tipoDelivery == '-') {
                 $tipoDelivery = '';
-            } else {
-                $tipoDelivery = trim($json[$x]['tipoDelivery']);
             }
+            
             $up['pedido_st_validacao'] = '1';
             $up['pedido_desconto'] = $desconto;
             $up['pedido_frete'] = $frete;
@@ -194,30 +226,29 @@ if (is_array($json) && count($json) > 0) {
 
             $DB->Update('ze_pedido', $up, "WHERE pedido_code = '" . trim($json[$x]['id']) . "' AND pedido_st_validacao = '0' LIMIT 1");
 
-
-
-
             foreach ($read_pedido as $read_pedido_view) {
-                // Só atualizar campos se o novo valor não for vazio/0 OU se o valor atual for vazio
-                // Isso preserva os dados que já foram capturados antes do pedido ser entregue
+                // Inicializar array de atualização
+                $upDev = [];
                 
-                if ($cpfCliente != '' && $cpfCliente != '0') {
+                // Só atualizar campos se o novo valor não for vazio
+                // Isso preserva os dados que já foram capturados antes
+                
+                if ($cpfCliente != '') {
                     $upDev['delivery_cpf_cliente'] = $cpfCliente;
                 }
                 
                 // Telefone do cliente
-                if ($telefoneCliente != '' && $telefoneCliente != '0') {
+                if ($telefoneCliente != '') {
                     $upDev['delivery_telefone'] = $telefoneCliente;
                 }
                 
                 // Email do entregador
-                if ($emailEntregador != '' && $emailEntregador != '0') {
+                if ($emailEntregador != '') {
                     $upDev['delivery_email_entregador'] = $emailEntregador;
                 }
-                // Nome do entregador (salvo no campo email temporariamente até criar campo próprio)
-                if ($nomeEntregador != '' && $nomeEntregador != '0') {
-                    // Se já tem email, concatena. Se não, salva só o nome
-                    if ($emailEntregador != '' && $emailEntregador != '0') {
+                // Nome do entregador (concatena com email se existir)
+                if ($nomeEntregador != '') {
+                    if ($emailEntregador != '') {
                         $upDev['delivery_email_entregador'] = $nomeEntregador . ' | ' . $emailEntregador;
                     } else {
                         $upDev['delivery_email_entregador'] = $nomeEntregador;
@@ -225,23 +256,24 @@ if (is_array($json) && count($json) > 0) {
                 }
                 
                 // Preservar endereço se já existir no banco
-                if ($enderecoRota != '' && $enderecoRota != '0') {
+                if ($enderecoRota != '') {
                     $upDev['delivery_endereco_rota'] = $enderecoRota;
                 }
-                if ($enderecoComplemento != '' && $enderecoComplemento != '0') {
+                if ($enderecoComplemento != '') {
                     $upDev['delivery_endereco_complemento'] = $enderecoComplemento;
                 }
-                if ($enderecoCidadeUF != '' && $enderecoCidadeUF != '0') {
+                if ($enderecoCidadeUF != '') {
                     $upDev['delivery_endereco_cidade_uf'] = $enderecoCidadeUF;
                 }
-                if ($enderecoCep != '' && $enderecoCep != '0') {
+                if ($enderecoCep != '') {
                     $upDev['delivery_endereco_cep'] = $enderecoCep;
                 }
-                if ($enderecoBairro != '' && $enderecoBairro != '0') {
+                if ($enderecoBairro != '') {
                     $upDev['delivery_endereco_bairro'] = $enderecoBairro;
                 }
                 
-                // Valores financeiros - sempre atualizar
+                // VALORES FINANCEIROS - SEMPRE ATUALIZAR (mesmo se zero, para registrar)
+                // Usar valores numéricos já convertidos
                 $upDev['delivery_desconto'] = $desconto;
                 $upDev['delivery_frete'] = $frete;
                 $upDev['delivery_troco_para'] = $troco;
@@ -250,20 +282,20 @@ if (is_array($json) && count($json) > 0) {
                 $upDev['delivery_subtotal'] = $subTotal;
                 
                 // Observações
-                if ($obsPedido != '' && $obsPedido != '0') {
+                if ($obsPedido != '') {
                     $upDev['delivery_obs'] = $obsPedido;
                 }
                 
                 // Tipo de pedido (priorizar tipoDelivery se disponível)
-                if ($tipoDelivery != '' && $tipoDelivery != '0') {
+                if ($tipoDelivery != '') {
                     $upDev['delivery_tipo_pedido'] = $tipoDelivery;
-                } elseif ($statusPed != '' && $statusPed != '0') {
+                } elseif ($statusPed != '') {
                     $upDev['delivery_tipo_pedido'] = $statusPed;
                 }
                 
-                // Código de entrega - só atualizar se não existir
-                if ($read_pedido_view['delivery_codigo_entrega'] == '' || $read_pedido_view['delivery_codigo_entrega'] == '0') {
-                    if ($codigoEntrega != '' && $codigoEntrega != '0') {
+                // Código de entrega - só atualizar se não existir ou estiver vazio
+                if ($read_pedido_view['delivery_codigo_entrega'] == '' || $read_pedido_view['delivery_codigo_entrega'] == '0' || $read_pedido_view['delivery_codigo_entrega'] == null) {
+                    if ($codigoEntrega != '') {
                         $upDev['delivery_codigo_entrega'] = $codigoEntrega;
                     }
                 }
@@ -271,13 +303,20 @@ if (is_array($json) && count($json) > 0) {
                 $cdPedidoNovo = trim($json[$x]['id']);
                 $idPedidoNovo = $read_pedido_view['pedido_id'];
 
-                // Corrigido: usar apenas delivery_code para o UPDATE (delivery_id é diferente de pedido_id)
+                // Atualizar delivery
                 $DB->Update('delivery', $upDev, "WHERE delivery_code = '" . trim($json[$x]['id']) . "' LIMIT 1");
 
+                // CORREÇÃO: Usar preço unitário e total corretamente
+                // O scraper envia tags.preco = unitário, tags.precoTotal = total
                 $produto_form['itens_pedido_id_pedido'] = $read_pedido_view['pedido_id'];
                 $produto_form['itens_pedido_id_produto'] = $id_produto;
                 $produto_form['itens_pedido_descricao_produto'] = trim($descricaoProduto);
-                $produto_form['itens_pedido_valor_unitario'] = ($produto_form['itens_pedido_valor_total'] / $produto_form['itens_pedido_qtd']);
+                
+                // Usar o preço unitário diretamente (não recalcular)
+                $produto_form['itens_pedido_valor_unitario'] = floatval($precoUnitario);
+                // Usar o preço total diretamente
+                $produto_form['itens_pedido_valor_total'] = floatval($precoTotal);
+                
                 $produto_form['itens_pedido_st'] = '0';
                 $DB->Create('ze_itens_pedido', $produto_form);
                 unset($produto_form);
@@ -285,7 +324,6 @@ if (is_array($json) && count($json) > 0) {
         }
     }
     $uppedido['delivery_tem_itens'] = '1';
-    // Corrigido: usar apenas delivery_code
     $DB->Update('delivery', $uppedido, "WHERE delivery_code = '" . $cdPedidoNovo . "' LIMIT 1");
 }
 // Retornar resposta JSON para o cliente Node.js
@@ -296,58 +334,3 @@ echo json_encode([
     'timestamp' => date('Y-m-d H:i:s')
 ]);
 exit;
-/*
-$explode_dados = explode("\n", $tags);
-if (count($explode_dados) > 0) {
-    $countInfo = 0;
-    for ($x = 0; $x < count($explode_dados); $x++) {
-        $countInfo++;
-        if ($countInfo == 1) {
-            $produto_form['itens_pedido_descricao_produto'] = trim($explode_dados[$x]);
-            $read_produto = $DB->ReadComposta("SELECT * FROM produto WHERE produto_descricao = '" . $produto_form['itens_pedido_descricao_produto'] . "' AND produto_tipo = 'zedelivery' LIMIT 1");
-            if ($DB->NumQuery($read_produto) > '0') {
-                foreach ($read_produto as $read_produto_view) {
-                    $id_produto = $read_produto_view['produto_id'];
-                }
-            } else {
-                $create_produto_form['produto_descricao'] = $produto_form['itens_pedido_descricao_produto'];
-                $create_produto_form['produto_tipo'] = 'zedelivery';
-                $DB->Create('produto', $create_produto_form);
-                $read_produto_ult = $DB->ReadComposta("SELECT * FROM produto WHERE produto_descricao = '" . $produto_form['itens_pedido_descricao_produto'] . "' AND produto_tipo = 'zedelivery' ORDER BY produto_id DESC LIMIT 1");
-                if ($DB->NumQuery($read_produto_ult) > '0') {
-                    foreach ($read_produto_ult as $read_produto_ult_view) {
-                        $id_produto = $read_produto_ult_view['produto_id'];
-                    }
-                }
-            }
-        }
-        if ($countInfo == 2) {
-            $produto_form['itens_pedido_qtd'] = str_replace('QTD: ', '', trim($explode_dados[$x]));
-        }
-        if ($countInfo == 3) {
-            $produto_form['itens_pedido_valor_total'] = str_replace('R$ ', '', trim($explode_dados[$x]));
-            $produto_form['itens_pedido_valor_total'] = str_replace(',', '.', trim($produto_form['itens_pedido_valor_total']));
-            $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_code = '" . trim($id) . "' ORDER BY pedido_id DESC LIMIT 1");
-            if ($DB->NumQuery($read_pedido) > '0') {
-                $up['pedido_st'] = '1';
-                $up['pedido_desconto'] = $desconto;
-                //$up['pedido_endereco'] = $endereco;
-                //$up['pedido_app'] = 'ze';
-                $DB->Update('ze_pedido', $up, "WHERE pedido_code = '" . trim($id) . "' AND pedido_st = '0' LIMIT 1");
-                foreach ($read_pedido as $read_pedido_view) {
-                    $read_itens_pedido = $DB->ReadComposta("SELECT * FROM ze_itens_pedido WHERE itens_pedido_id_pedido = '" . $read_pedido_view['pedido_id'] . "' AND itens_pedido_id_produto = '" . $id_produto . "'");
-                    if ($DB->NumQuery($read_itens_pedido) == '0') {
-                        $produto_form['itens_pedido_id_pedido'] = $read_pedido_view['pedido_id'];
-                        $produto_form['itens_pedido_id_produto'] = $id_produto;
-                        $produto_form['itens_pedido_valor_unitario'] = ($produto_form['itens_pedido_valor_total'] / $produto_form['itens_pedido_qtd']);
-                        $produto_form['itens_pedido_st'] = '0';
-                        $DB->Create('ze_itens_pedido', $produto_form);
-                        unset($produto_form);
-                    }
-                }
-            }
-            $countInfo = 0;
-        }
-    }
-}
-*/
