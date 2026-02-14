@@ -120,8 +120,12 @@ async function view_pedido(idOrder) {
 async function pegar_id_pedido() {
     try {
         const result = await phpBridge.pegarProximoPedido();
-        console.log('Próximo pedido:', result);
-        return result || 0;
+        // O php-bridge agora retorna {id, prioridade}
+        if (result && result.id) {
+            console.log(`📋 Próximo pedido: ${result.id} (${result.prioridade})`);
+            return result.id;
+        }
+        return 0;
     } catch (error) {
         console.error("Erro ao pegar ID do pedido:", error.message);
         return 0;
