@@ -304,7 +304,7 @@ function App() {
     if (!window.confirm('Tem certeza que deseja reprocessar todos os pedidos sem itens? Isso pode demorar.')) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/pedidos/reprocessar-todos`, { method: 'POST' });
+      const res = await fetch(`${API_URL}/api/reprocessar/todos`, { method: 'POST' });
       const data = await res.json();
       setReprocessStatus(data);
       setTimeout(() => setReprocessStatus(null), 10000);
