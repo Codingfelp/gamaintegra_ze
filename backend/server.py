@@ -1134,6 +1134,210 @@ async def restore_session_backup(backup_name: str):
 
 # ============= MÉTRICAS EM TEMPO REAL =============
 
+# ============= AUTO-ACCEPT STATUS =============
+
+@app.get("/api/aceite/status")
+async def get_aceite_status():
+    """
+    Retorna status em tempo real do auto-accept de pedidos.
+    O script v1.js salva estatísticas em /app/logs/aceite-stats.json
+    """
+    stats_file = "/app/logs/aceite-stats.json"
+    
+    try:
+        if os.path.exists(stats_file):
+            with open(stats_file, 'r') as f:
+                stats = json.load(f)
+            
+            # Calcular tempo desde último check
+            last_check = stats.get('lastCheck')
+            if last_check:
+                try:
+                    last_dt = datetime.fromisoformat(last_check.replace('Z', '+00:00'))
+                    seconds_ago = (datetime.now() - last_dt.replace(tzinfo=None)).total_seconds()
+                    stats['secondsSinceLastCheck'] = int(seconds_ago)
+                    stats['isActive'] = seconds_ago < 30  # Considerado ativo se checou nos últimos 30s
+                except:
+                    stats['secondsSinceLastCheck'] = None
+                    stats['isActive'] = False
+            else:
+                stats['secondsSinceLastCheck'] = None
+                stats['isActive'] = False
+            
+            # Calcular taxa de sucesso
+            total = stats.get('totalAttempts', 0)
+            accepted = stats.get('totalAccepted', 0)
+            if total > 0:
+                stats['successRate'] = round((accepted / total) * 100, 1)
+            else:
+                stats['successRate'] = None
+            
+            return {"success": True, "data": stats}
+        else:
+            # Verificar se o script está rodando
+            ok, out = run_shell("pgrep -f 'v1.js'", timeout=5)
+            is_running = ok and out.strip()
+            
+            return {
+                "success": True,
+                "data": {
+                    "status": "running" if is_running else "stopped",
+                    "isActive": is_running,
+                    "message": "Script rodando, aguardando primeiro check" if is_running else "Script não está rodando",
+                    "totalAccepted": 0,
+                    "totalFailed": 0,
+                    "totalAttempts": 0,
+                    "recentAccepts": []
+                }
+            }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# ============= REPROCESSAMENTO EM MASSA =============
+
+@app.post("/api/pedidos/reprocessar-todos")
+async def reprocessar_todos_pedidos(background_tasks: BackgroundTasks):
+    """
+    Marca TODOS os pedidos que precisam de reprocessamento para serem capturados novamente.
+    Isso inclui pedidos sem itens ou com dados financeiros faltando.
+    CUIDADO: Esta operação pode demorar dependendo do volume de pedidos.
+    """
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # 1. Encontrar pedidos que precisam de reprocessamento
+        # Critérios: sem itens, ou com delivery_tem_itens = NULL, ou pedido_st_validacao = 0
+        cursor.execute("""
+            SELECT d.delivery_id, d.delivery_code, zp.pedido_id, zp.pedido_st_validacao,
+                   (SELECT COUNT(*) FROM delivery_itens di WHERE di.delivery_itens_id_delivery = d.delivery_id) as qtd_itens
+            FROM delivery d
+            LEFT JOIN ze_pedido zp ON zp.pedido_code = d.delivery_code
+            WHERE d.delivery_trash = 0
+            AND (
+                d.delivery_tem_itens IS NULL
+                OR d.delivery_tem_itens = 0
+                OR (SELECT COUNT(*) FROM delivery_itens di WHERE di.delivery_itens_id_delivery = d.delivery_id) = 0
+            )
+            ORDER BY d.delivery_date_time DESC
+            LIMIT 500
+        """)
+        
+        pedidos_para_reprocessar = cursor.fetchall()
+        total = len(pedidos_para_reprocessar)
+        
+        if total == 0:
+            cursor.close()
+            conn.close()
+            return {
+                "success": True,
+                "message": "Nenhum pedido precisa de reprocessamento",
+                "total_checked": 0,
+                "total_marked": 0
+            }
+        
+        # 2. Marcar cada pedido para reprocessamento
+        marked = 0
+        errors = []
+        
+        for pedido in pedidos_para_reprocessar:
+            try:
+                delivery_code = pedido['delivery_code']
+                delivery_id = pedido['delivery_id']
+                
+                # Resetar flag de validação
+                cursor.execute("""
+                    UPDATE ze_pedido SET pedido_st_validacao = 0 
+                    WHERE pedido_code = %s
+                """, (delivery_code,))
+                
+                # Resetar flag de tem_itens
+                cursor.execute("""
+                    UPDATE delivery SET delivery_tem_itens = NULL 
+                    WHERE delivery_code = %s
+                """, (delivery_code,))
+                
+                # Deletar itens antigos de ze_itens_pedido
+                cursor.execute("""
+                    DELETE FROM ze_itens_pedido 
+                    WHERE itens_pedido_id_pedido IN (
+                        SELECT pedido_id FROM ze_pedido WHERE pedido_code = %s
+                    )
+                """, (delivery_code,))
+                
+                # Deletar itens antigos de delivery_itens
+                cursor.execute("""
+                    DELETE FROM delivery_itens 
+                    WHERE delivery_itens_id_delivery = %s
+                """, (delivery_id,))
+                
+                marked += 1
+                
+            except Exception as e:
+                errors.append({"code": delivery_code, "error": str(e)[:50]})
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return {
+            "success": True,
+            "message": f"{marked} pedidos marcados para reprocessamento",
+            "total_checked": total,
+            "total_marked": marked,
+            "errors": errors[:10] if errors else []
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/pedidos/sem-itens")
+async def get_pedidos_sem_itens(limit: int = 100):
+    """
+    Lista pedidos que estão sem itens e precisam de reprocessamento.
+    """
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("""
+            SELECT d.delivery_id, d.delivery_code, d.delivery_name_cliente, 
+                   d.delivery_date_time, d.delivery_status, d.delivery_total,
+                   d.delivery_tem_itens, zp.pedido_st_validacao,
+                   (SELECT COUNT(*) FROM delivery_itens di WHERE di.delivery_itens_id_delivery = d.delivery_id) as qtd_itens
+            FROM delivery d
+            LEFT JOIN ze_pedido zp ON zp.pedido_code = d.delivery_code
+            WHERE d.delivery_trash = 0
+            AND (
+                d.delivery_tem_itens IS NULL
+                OR d.delivery_tem_itens = 0
+                OR (SELECT COUNT(*) FROM delivery_itens di WHERE di.delivery_itens_id_delivery = d.delivery_id) = 0
+            )
+            ORDER BY d.delivery_date_time DESC
+            LIMIT %s
+        """, (limit,))
+        
+        pedidos = cursor.fetchall()
+        
+        # Converter datetime
+        for p in pedidos:
+            if p.get('delivery_date_time'):
+                p['delivery_date_time'] = p['delivery_date_time'].isoformat()
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            "success": True,
+            "total": len(pedidos),
+            "data": pedidos
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @app.get("/api/metrics/realtime")
 async def get_realtime_metrics():
     """
