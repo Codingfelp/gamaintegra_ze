@@ -537,8 +537,8 @@ function App() {
                   <div className="text-xs text-gray-600 space-y-1">
                     <p>Status: <span className="font-medium">{aceiteStatus?.status || 'N/A'}</span></p>
                     <p>Aceitos hoje: <span className="font-bold text-green-600">{aceiteStatus?.totalAccepted || 0}</span></p>
-                    <p>Falhas: <span className={aceiteStatus?.totalFailed > 0 ? 'font-bold text-red-600' : ''}>{aceiteStatus?.totalFailed || 0}</span></p>
-                    {aceiteStatus?.successRate !== null && (
+                    <p>Falhas: <span className={(aceiteStatus?.totalFailed || 0) > 0 ? 'font-bold text-red-600' : ''}>{aceiteStatus?.totalFailed || 0}</span></p>
+                    {aceiteStatus && aceiteStatus.successRate !== null && aceiteStatus.successRate !== undefined && (
                       <p>Taxa sucesso: <span className="font-bold">{aceiteStatus.successRate}%</span></p>
                     )}
                     {aceiteStatus?.lastAccept && (
@@ -548,7 +548,7 @@ function App() {
                       <p>Último pedido: <span className="font-mono text-xs">#{aceiteStatus.lastAcceptedOrder}</span></p>
                     )}
                     {aceiteStatus?.secondsSinceLastCheck && (
-                      <p className={aceiteStatus.secondsSinceLastCheck > 30 ? 'text-red-600' : 'text-gray-500'}>
+                      <p className={(aceiteStatus?.secondsSinceLastCheck || 0) > 30 ? 'text-red-600' : 'text-gray-500'}>
                         Último check: {aceiteStatus.secondsSinceLastCheck}s atrás
                       </p>
                     )}
