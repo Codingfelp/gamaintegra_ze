@@ -1176,13 +1176,13 @@ async def get_aceite_status():
         else:
             # Verificar se o script está rodando
             ok, out = run_shell("pgrep -f 'v1.js'", timeout=5)
-            is_running = ok and out.strip()
+            is_running = ok and out.strip() != ""
             
             return {
                 "success": True,
                 "data": {
                     "status": "running" if is_running else "stopped",
-                    "isActive": is_running,
+                    "isActive": bool(is_running),
                     "message": "Script rodando, aguardando primeiro check" if is_running else "Script não está rodando",
                     "totalAccepted": 0,
                     "totalFailed": 0,
