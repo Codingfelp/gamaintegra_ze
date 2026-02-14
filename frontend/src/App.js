@@ -889,6 +889,73 @@ function App() {
                 )}
               </CardContent>
             </Card>
+            
+            {/* Seção de Reprocessamento */}
+            <Card className="bg-white border-gray-200 mb-6 border-2 border-orange-300">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-medium text-gray-900">🔄 Reprocessamento de Pedidos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600 mb-4">
+                  Reprocessar pedidos que estão sem itens ou com dados incorretos. 
+                  Esta ação marca os pedidos para serem capturados novamente pelo integrador.
+                </p>
+                
+                <div className="flex gap-3 mb-4">
+                  <Button 
+                    onClick={reprocessarTodos} 
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                    disabled={loading}
+                    data-testid="reprocess-all-btn"
+                  >
+                    {loading ? '⏳ Processando...' : '🔄 Reprocessar Todos os Pedidos Sem Itens'}
+                  </Button>
+                  <Button 
+                    onClick={fetchPedidosSemItens} 
+                    variant="outline"
+                    disabled={loading}
+                    data-testid="view-pending-btn"
+                  >
+                    📋 Ver Pedidos Pendentes
+                  </Button>
+                </div>
+                
+                {reprocessStatus && (
+                  <div className={`p-3 rounded-lg mb-4 ${reprocessStatus.success ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {reprocessStatus.success ? (
+                      <div>
+                        <p className="font-medium">✅ {reprocessStatus.message}</p>
+                        <p className="text-sm">Total verificado: {reprocessStatus.total_checked} | Marcados: {reprocessStatus.total_marked}</p>
+                        {reprocessStatus.errors?.length > 0 && (
+                          <p className="text-sm text-red-600 mt-1">Erros: {reprocessStatus.errors.length}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="font-medium">❌ Erro: {reprocessStatus.error}</p>
+                    )}
+                  </div>
+                )}
+                
+                {pedidosSemItens.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Pedidos sem itens ({pedidosSemItens.length}):</p>
+                    <ScrollArea className="h-40 border rounded-lg p-2">
+                      <div className="space-y-1">
+                        {pedidosSemItens.map((p, idx) => (
+                          <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0 text-sm">
+                            <span className="font-mono">{p.delivery_code}</span>
+                            <span className="text-gray-600">{p.delivery_name_cliente?.substring(0, 20)}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded ${p.qtd_itens === 0 ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {p.qtd_itens} itens
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Pedidos */}
