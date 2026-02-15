@@ -1034,8 +1034,34 @@ async function aceitaScript(browser, cookies) {
                     });
 
                     // Aguardar botão de aceite aparecer (timeout curto para resposta rápida)
-                    // CORREÇÃO: O seletor correto é #acceptOrderBtn (não #accept-button)
-                    const buttonExists = await waitForSafe(page, '#acceptOrderBtn', 2000);
+                    // NOTA: Na página poc-orders, o botão pode ter diferentes IDs
+                    // Tentamos múltiplos seletores para maior compatibilidade
+                    let buttonExists = await waitForSafe(page, '#accept-button', 1500);
+                    let buttonSelector = '#accept-button';
+                    
+                    if (!buttonExists) {
+                        buttonExists = await waitForSafe(page, '#acceptOrderBtn', 1500);
+                        buttonSelector = '#acceptOrderBtn';
+                    }
+                    
+                    // Fallback: procurar hexa-v2-button com texto "Aceitar"
+                    if (!buttonExists) {
+                        buttonExists = await page.evaluate(() => {
+                            const buttons = document.querySelectorAll('hexa-v2-button');
+                            for (const btn of buttons) {
+                                let texto = btn.innerText || btn.textContent || '';
+                                if (btn.shadowRoot) {
+                                    const inner = btn.shadowRoot.querySelector('button');
+                                    texto = inner ? (inner.innerText || inner.textContent || '') : texto;
+                                }
+                                if (texto.toLowerCase().includes('aceitar')) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        });
+                        if (buttonExists) buttonSelector = 'hexa-v2-button:accept-text';
+                    }
                     
                     if (!buttonExists && !pedidoPendente.found) {
                         // Sem pedidos pendentes - status OK
@@ -1046,7 +1072,9 @@ async function aceitaScript(browser, cookies) {
                         continue;
                     }
 
-                    const button = await page.$('#acceptOrderBtn');
+                    // Tentar pegar o botão com os seletores conhecidos
+                    let button = await page.$('#accept-button');
+                    if (!button) button = await page.$('#acceptOrderBtn');
                     if (button) {
                         // Verificar se o botão está habilitado (considerando Shadow DOM)
                         const isDisabled = await page.evaluate(el => {
