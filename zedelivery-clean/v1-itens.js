@@ -1967,11 +1967,40 @@ async function itensScript(page) {
                     // Enviar pedidos como array completo para o PHP
                     const result = await view_pedido(pedidosData);
                     console.log("Resposta do PHP:", result);
+                    
+                    // Log de integração - sucesso
+                    await integrationLogger.completeProcess(
+                        processId,
+                        `Pedido #${id_pedido_info} capturado com sucesso`,
+                        { 
+                            orderId: id_pedido_info,
+                            itemsCount: produtos.length,
+                            hasPhone: !!telefoneCliente
+                        }
+                    );
                 } catch (error) {
                     console.error("Erro ao enviar pedidos:", error);
+                    
+                    // Log de integração - falha no envio
+                    await integrationLogger.cancelProcess(
+                        processId,
+                        `Erro ao salvar pedido #${id_pedido_info}`,
+                        error.message,
+                        { orderId: id_pedido_info }
+                    );
                 }
             } catch (error) {
                 console.error("Erro ao processar pedido:", error);
+                
+                // Log de integração - erro geral
+                if (processId) {
+                    await integrationLogger.cancelProcess(
+                        processId,
+                        `Erro ao capturar pedido #${id_pedido_info}`,
+                        error.message,
+                        { orderId: id_pedido_info }
+                    );
+                }
 
                 // Redirecionar para uma tela genérica ou inicial
                 await page.goto("https://seu.ze.delivery/home", {
