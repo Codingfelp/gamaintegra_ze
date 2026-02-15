@@ -290,6 +290,11 @@ if (is_array($json) && count($json) > 0) {
                 $upDev['delivery_taxa_conveniencia'] = $taxaConveniencia;
                 $upDev['delivery_subtotal'] = $subTotal;
                 
+                // Descrição do cupom/desconto
+                if ($cupomDescricao != '') {
+                    $upDev['delivery_desconto_descricao'] = $cupomDescricao;
+                }
+                
                 // Observações
                 if ($obsPedido != '') {
                     $upDev['delivery_obs'] = $obsPedido;
