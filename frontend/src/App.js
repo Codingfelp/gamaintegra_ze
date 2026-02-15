@@ -535,11 +535,21 @@ function App() {
                     {aceiteStatus?.isActive ? '✅ FUNCIONANDO' : '❌ PARADO/INATIVO'}
                   </div>
                   <div className="text-xs text-gray-600 space-y-1">
-                    <p>Status: <span className="font-medium">{aceiteStatus?.status || 'N/A'}</span></p>
-                    <p>Aceitos hoje: <span className="font-bold text-green-600">{aceiteStatus?.totalAccepted || 0}</span></p>
+                    <p>Status: <span className={`font-medium ${aceiteStatus?.status === 'monitoring' ? 'text-blue-600' : aceiteStatus?.status === 'success' ? 'text-green-600' : aceiteStatus?.status === 'accepting' ? 'text-yellow-600' : 'text-gray-600'}`}>
+                      {aceiteStatus?.status === 'monitoring' ? '👁️ Monitorando' : 
+                       aceiteStatus?.status === 'waiting' ? '⏳ Aguardando' :
+                       aceiteStatus?.status === 'accepting' ? '🔄 Aceitando...' :
+                       aceiteStatus?.status === 'success' ? '✅ Sucesso' :
+                       aceiteStatus?.status === 'processed' ? '📦 Processado' :
+                       aceiteStatus?.status || 'N/A'}
+                    </span></p>
+                    <p>Tentativas: <span className="font-medium text-blue-600">{aceiteStatus?.totalAttempts || 0}</span></p>
+                    <p>Aceitos: <span className="font-bold text-green-600">{aceiteStatus?.totalAccepted || 0}</span></p>
                     <p>Falhas: <span className={(aceiteStatus?.totalFailed || 0) > 0 ? 'font-bold text-red-600' : ''}>{aceiteStatus?.totalFailed || 0}</span></p>
-                    {aceiteStatus && aceiteStatus.successRate !== null && aceiteStatus.successRate !== undefined && (
-                      <p>Taxa sucesso: <span className="font-bold">{aceiteStatus.successRate}%</span></p>
+                    {aceiteStatus && aceiteStatus.totalAttempts > 0 && (
+                      <p>Taxa de cliques: <span className="font-bold">
+                        {(((aceiteStatus.totalAccepted || 0) / aceiteStatus.totalAttempts) * 100).toFixed(0)}%
+                      </span></p>
                     )}
                     {aceiteStatus?.lastAccept && (
                       <p>Último aceite: <span className="font-medium">{new Date(aceiteStatus.lastAccept).toLocaleTimeString()}</span></p>
@@ -547,9 +557,10 @@ function App() {
                     {aceiteStatus?.lastAcceptedOrder && (
                       <p>Último pedido: <span className="font-mono text-xs">#{aceiteStatus.lastAcceptedOrder}</span></p>
                     )}
-                    {aceiteStatus?.secondsSinceLastCheck && (
-                      <p className={(aceiteStatus?.secondsSinceLastCheck || 0) > 30 ? 'text-red-600' : 'text-gray-500'}>
-                        Último check: {aceiteStatus.secondsSinceLastCheck}s atrás
+                    {aceiteStatus?.secondsSinceLastCheck !== undefined && aceiteStatus?.secondsSinceLastCheck !== null && (
+                      <p className={(aceiteStatus?.secondsSinceLastCheck || 0) > 30 ? 'text-red-600 font-bold' : 'text-gray-500'}>
+                        Check: {aceiteStatus.secondsSinceLastCheck}s atrás
+                        {(aceiteStatus?.secondsSinceLastCheck || 0) > 30 && ' ⚠️'}
                       </p>
                     )}
                   </div>
