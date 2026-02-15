@@ -1075,6 +1075,29 @@ async function aceitaScript(browser, cookies) {
                     // Tentar pegar o botão com os seletores conhecidos
                     let button = await page.$('#accept-button');
                     if (!button) button = await page.$('#acceptOrderBtn');
+                    
+                    // FALLBACK: Se não encontrou por ID, buscar hexa-v2-button com texto "Aceitar"
+                    if (!button && pedidoPendente.found) {
+                        console.log('⚠️ [ACEITA] Botão por ID não encontrado, buscando por texto...');
+                        button = await page.evaluateHandle(() => {
+                            const buttons = document.querySelectorAll('hexa-v2-button');
+                            for (const btn of buttons) {
+                                let texto = btn.innerText || btn.textContent || '';
+                                if (btn.shadowRoot) {
+                                    const inner = btn.shadowRoot.querySelector('button');
+                                    texto = inner ? (inner.innerText || inner.textContent || '') : texto;
+                                }
+                                if (texto.toLowerCase().includes('aceitar')) {
+                                    return btn;
+                                }
+                            }
+                            return null;
+                        });
+                        // Verificar se retornou null
+                        const isNull = await button.evaluate(el => el === null);
+                        if (isNull) button = null;
+                    }
+                    
                     if (button) {
                         // Verificar se o botão está habilitado (considerando Shadow DOM)
                         const isDisabled = await page.evaluate(el => {
