@@ -1,3 +1,4 @@
-2026/02/14-23:19:06.722 4e8e Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
-2026/02/14-23:19:06.722 4e8e Recovering log #29
-2026/02/14-23:19:06.724 4e8e Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000029.log 
+2026/02/14-23:56:01.975 7536 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
+2026/02/14-23:56:01.978 7536 Recovering log #29
+2026/02/14-23:56:01.979 7536 (ignoring error) /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000029.log: dropping 7 bytes; Corruption: missing start of fragmented record(2)
+2026/02/14-23:56:01.980 7536 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000029.log 
