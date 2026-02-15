@@ -817,6 +817,12 @@ async function itensScript(page) {
             console.log("⏳ [CAPTURA] Aguardando novos pedidos para capturar detalhes...");
             await sleep(5);
         } else {
+            // Iniciar log de integração para captura de pedido
+            let processId = await integrationLogger.log.orderScrape.start(
+                `Iniciando captura do pedido #${id_pedido_info}`,
+                { orderId: id_pedido_info }
+            );
+            
             try {
                 /**ABRIR TODOS OS PEDIDOS */
                 await page.goto(
