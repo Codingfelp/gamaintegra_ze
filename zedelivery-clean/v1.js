@@ -1026,12 +1026,33 @@ async function aceitaScript(browser, cookies) {
                                         }
                                     }
                                     
+                                    // 4. Fallback: procurar data-testid ou data-order-id
+                                    if (!orderId) {
+                                        const dataOrderId = row.getAttribute('data-order-id') || row.querySelector('[data-order-id]')?.getAttribute('data-order-id');
+                                        if (dataOrderId) orderId = dataOrderId.replace(/\s+/g, '');
+                                    }
+                                    
+                                    // 5. Fallback: extrair do innerHTML
+                                    if (!orderId) {
+                                        const html = row.innerHTML || '';
+                                        const orderMatch = html.match(/order[^\d]*(\d{9,12})/i);
+                                        if (orderMatch) orderId = orderMatch[1];
+                                    }
+                                    
                                     return { found: true, orderId: orderId || 'N/A', status: statusText };
                                 }
                             }
                         }
                         return { found: false, orderId: null, status: null };
                     });
+                    
+                    // DEBUG: Salvar screenshot quando encontra pendente (apenas ocasionalmente)
+                    if (pedidoPendente.found && Math.random() < 0.1) {
+                        try {
+                            await page.screenshot({ path: '/app/logs/poc-orders-pendente.png', fullPage: false });
+                            console.log('📸 [ACEITA] Screenshot salva: /app/logs/poc-orders-pendente.png');
+                        } catch (e) {}
+                    }
 
                     // Aguardar botão de aceite aparecer (timeout curto para resposta rápida)
                     // NOTA: Na página poc-orders, o botão pode ter diferentes IDs
