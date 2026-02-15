@@ -212,6 +212,12 @@ if (is_array($json) && count($json) > 0) {
                 $tipoDelivery = '';
             }
             
+            // Descrição do cupom/desconto
+            $cupomDescricao = trim($json[$x]['cupomDescricao'] ?? '');
+            if ($cupomDescricao == '' || $cupomDescricao == '-') {
+                $cupomDescricao = '';
+            }
+            
             $up['pedido_st_validacao'] = '1';
             $up['pedido_desconto'] = $desconto;
             $up['pedido_frete'] = $frete;
@@ -223,6 +229,9 @@ if (is_array($json) && count($json) > 0) {
             $up['pedido_endereco_bairro'] = $enderecoBairro;
             $up['pedido_troco_para'] = $troco;
             $up['pedido_taxa_conveniencia'] = $taxaConveniencia;
+            if ($cupomDescricao != '') {
+                $up['pedido_desconto_descricao'] = $cupomDescricao;
+            }
 
             $DB->Update('ze_pedido', $up, "WHERE pedido_code = '" . trim($json[$x]['id']) . "' AND pedido_st_validacao = '0' LIMIT 1");
 
