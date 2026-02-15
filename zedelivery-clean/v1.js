@@ -1229,8 +1229,47 @@ async function aceitaScript(browser, cookies) {
                                         aceiteStats.totalFailed++;
                                         aceiteStats.status = 'failed';
                                     } else {
-                                        console.log(`⚠️ [ACEITA] Pedido #${orderId} processado em ${elapsed}s (status: ${statusVerificado.newStatus})`);
-                                        aceiteStats.status = 'processed';
+                                        // MELHORIA: Se clicou no botão e o status é "não encontrado",
+                                        // provavelmente o pedido foi aceito e saiu da lista de pendentes
+                                        // Vamos considerar como aceito se não há mais pedidos pendentes visíveis
+                                        const pendentesAposAceite = await page.evaluate(() => {
+                                            const badges = document.querySelectorAll('hexa-v2-badge-status');
+                                            let pendentesCount = 0;
+                                            for (const badge of badges) {
+                                                let statusText = '';
+                                                if (badge.shadowRoot) {
+                                                    const span = badge.shadowRoot.querySelector('span');
+                                                    statusText = span ? span.textContent.trim().toLowerCase() : '';
+                                                }
+                                                if (statusText.includes('pendente')) {
+                                                    pendentesCount++;
+                                                }
+                                            }
+                                            return pendentesCount;
+                                        });
+                                        
+                                        if (pendentesAposAceite === 0) {
+                                            // Não há mais pendentes - aceite provavelmente funcionou
+                                            console.log(`✅ [ACEITA] Pedido #${orderId} provavelmente aceito em ${elapsed}s (nenhum pendente visível)`);
+                                            aceiteStats.totalAccepted++;
+                                            aceiteStats.lastAccept = new Date().toISOString();
+                                            aceiteStats.lastAcceptedOrder = orderId;
+                                            aceiteStats.lastElapsed = elapsed;
+                                            aceiteStats.status = 'success';
+                                            
+                                            aceiteStats.recentAccepts.unshift({
+                                                orderId: orderId || 'auto',
+                                                time: new Date().toISOString(),
+                                                elapsed: elapsed,
+                                                status: 'inferred'
+                                            });
+                                            if (aceiteStats.recentAccepts.length > 10) {
+                                                aceiteStats.recentAccepts.pop();
+                                            }
+                                        } else {
+                                            console.log(`⚠️ [ACEITA] Pedido #${orderId} processado em ${elapsed}s (status: ${statusVerificado.newStatus}, ${pendentesAposAceite} pendentes)`);
+                                            aceiteStats.status = 'processed';
+                                        }
                                     }
                                     
                                     saveAceiteStats(aceiteStats);
