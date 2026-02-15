@@ -3,6 +3,7 @@ require('dotenv').config();
 const mysql = require('mysql2/promise');
 const fetch = require('node-fetch');
 const fs = require('fs');
+const integrationLogger = require('./integration-logger');
 
 const SYNC_INTERVAL = 3 * 1000; // 3 segundos - quase instantâneo
 
