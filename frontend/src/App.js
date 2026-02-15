@@ -120,6 +120,11 @@ function App() {
         setServices(mappedServices);
       }
 
+      // Status do aceite automático (buscar sempre para indicador geral)
+      const aceiteRes = await fetch(`${API_URL}/api/aceite/status`);
+      const aceiteJson = await aceiteRes.json();
+      if (aceiteJson.success) setAceiteStatus(aceiteJson.data);
+
       // Logs separados - converter strings em arrays de objetos
       const logsRes = await fetch(`${API_URL}/api/services/logs`);
       const logsData = await logsRes.json();
