@@ -1,18 +1,24 @@
-2026/02/15-00:12:31.174 29ba Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
-2026/02/15-00:12:31.180 29ba Recovering log #177
-2026/02/15-00:12:31.232 29ba Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/000177.log 
-2026/02/15-00:14:32.649 29c4 Level-0 table #181: started
-2026/02/15-00:14:32.653 29c4 Level-0 table #181: 21010 bytes OK
-2026/02/15-00:14:32.657 29c4 Delete type=0 #177
-2026/02/15-00:35:12.003 29c4 Level-0 table #183: started
-2026/02/15-00:35:12.008 29c4 Level-0 table #183: 20635 bytes OK
-2026/02/15-00:35:12.020 29c4 Delete type=0 #180
-2026/02/15-00:35:12.020 29c4 Compacting 4@0 + 1@1 files
-2026/02/15-00:35:12.027 29c4 Generated table #184@0: 45 keys, 5026 bytes
-2026/02/15-00:35:12.027 29c4 Compacted 4@0 + 1@1 files => 5026 bytes
-2026/02/15-00:35:12.031 29c4 compacted to: files[ 0 1 1 0 0 0 0 ]
-2026/02/15-00:35:12.032 29c4 Delete type=2 #181
-2026/02/15-00:35:12.032 29c4 Delete type=2 #173
-2026/02/15-00:35:12.032 29c4 Delete type=2 #183
-2026/02/15-00:35:12.032 29c4 Delete type=2 #175
-2026/02/15-00:35:12.032 29c4 Delete type=2 #178
+2026/02/15-00:47:37.630 29a5 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
+2026/02/15-00:47:37.634 29a5 Recovering log #182
+2026/02/15-00:47:37.635 29a5 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/000182.log 
+2026/02/15-01:00:38.884 29a5 Level-0 table #187: started
+2026/02/15-01:00:38.890 29a5 Level-0 table #187: 20752 bytes OK
+2026/02/15-01:00:38.905 29a5 Delete type=0 #182
+2026/02/15-01:21:38.882 29ae Level-0 table #189: started
+2026/02/15-01:21:38.886 29ae Level-0 table #189: 20488 bytes OK
+2026/02/15-01:21:38.890 29ae Delete type=0 #186
+2026/02/15-01:48:02.820 29ae Level-0 table #191: started
+2026/02/15-01:48:02.826 29ae Level-0 table #191: 20852 bytes OK
+2026/02/15-01:48:02.830 29ae Delete type=0 #188
+2026/02/15-02:17:13.148 29ae Level-0 table #193: started
+2026/02/15-02:17:13.151 29ae Level-0 table #193: 21105 bytes OK
+2026/02/15-02:17:13.153 29ae Delete type=0 #190
+2026/02/15-02:17:13.154 29ae Compacting 4@0 + 1@1 files
+2026/02/15-02:17:13.156 29ae Generated table #194@0: 45 keys, 5006 bytes
+2026/02/15-02:17:13.157 29ae Compacted 4@0 + 1@1 files => 5006 bytes
+2026/02/15-02:17:13.158 29ae compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/02/15-02:17:13.159 29ae Delete type=2 #187
+2026/02/15-02:17:13.159 29ae Delete type=2 #189
+2026/02/15-02:17:13.159 29ae Delete type=2 #193
+2026/02/15-02:17:13.159 29ae Delete type=2 #184
+2026/02/15-02:17:13.159 29ae Delete type=2 #191
