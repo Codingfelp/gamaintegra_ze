@@ -945,6 +945,12 @@ function loadAceiteStats() {
 async function aceitaScript(browser, cookies) {
     console.log('🤖 [ACEITA] Iniciando script de aceite automático de pedidos...');
     
+    // Iniciar log de integração
+    let currentProcessId = await integrationLogger.log.orderAccept.start(
+        'Iniciando monitoramento de aceite automático',
+        { hostname: require('os').hostname() }
+    );
+    
     let aceiteStats = loadAceiteStats();
     aceiteStats.status = 'running';
     aceiteStats.startTime = new Date().toISOString();
