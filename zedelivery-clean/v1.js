@@ -886,8 +886,26 @@ async function statusScript(page) {
                         order.entregador || ''
                     );
                     console.log("Resultado da atualização:", result ? result.substring(0, 100) : 'OK');
+                    
+                    // Log de integração - apenas para status significativos
+                    if (statusCode === '1' || statusCode === '4') {
+                        integrationLogger.logEvent(
+                            integrationLogger.PROCESS_TYPES.STATUS_UPDATE,
+                            integrationLogger.STATUS.COMPLETED,
+                            `Pedido #${orderNumberWithoutSpaces} atualizado para ${statusPed}`,
+                            { orderId: orderNumberWithoutSpaces, status: statusPed, statusCode }
+                        );
+                    }
                 } catch (error) {
                     console.log('Erro ao atualizar status:', error.message);
+                    
+                    // Log de integração - erro
+                    integrationLogger.logEvent(
+                        integrationLogger.PROCESS_TYPES.STATUS_UPDATE,
+                        integrationLogger.STATUS.CANCELLED,
+                        `Erro ao atualizar pedido #${orderNumberWithoutSpaces}`,
+                        { orderId: orderNumberWithoutSpaces, error: error.message }
+                    );
                 }
 
                 await sleep(1);
