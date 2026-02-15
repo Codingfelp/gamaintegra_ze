@@ -337,13 +337,38 @@ async function syncToLovable() {
     if (response.ok) {
       const result = await response.json();
       console.log(`✅ Sincronização concluída:`, JSON.stringify(result));
+      
+      // Log de integração - sucesso
+      await integrationLogger.completeProcess(
+        processId,
+        `${pedidosFormatados.length} pedidos sincronizados com Supabase`,
+        { pedidosCount: pedidosFormatados.length, result }
+      );
     } else {
       const error = await response.text();
       console.error(`❌ Erro na sincronização: ${response.status} - ${error}`);
+      
+      // Log de integração - falha
+      await integrationLogger.cancelProcess(
+        processId,
+        `Erro na sincronização com Supabase: ${response.status}`,
+        error,
+        { statusCode: response.status }
+      );
     }
 
   } catch (err) {
     console.error(`❌ Erro: ${err.message}`);
+    
+    // Log de integração - erro
+    if (processId) {
+      await integrationLogger.cancelProcess(
+        processId,
+        'Erro durante sincronização com Supabase',
+        err.message,
+        {}
+      );
+    }
   }
 }
 
