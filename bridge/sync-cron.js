@@ -129,6 +129,12 @@ async function syncToLovable() {
   const timestamp = new Date().toISOString();
   console.log(`\n[${timestamp}] 🔄 Iniciando sincronização...`);
   
+  // Iniciar log de integração
+  let processId = await integrationLogger.log.supabaseSync.start(
+    'Iniciando sincronização com Supabase',
+    { timestamp }
+  );
+  
   try {
     // Buscar pedidos ÚNICOS (por delivery_code) priorizando os que têm itens
     // Usa subquery para pegar o registro com mais itens de cada código
