@@ -1234,6 +1234,14 @@ async function aceitaScript(browser, cookies) {
                                         console.log(`✅✅✅ [ACEITA] PEDIDO #${orderId} ACEITO COM SUCESSO em ${elapsed}s!`);
                                         console.log(`   Status atual: ${statusVerificado.newStatus.toUpperCase()}`);
                                         
+                                        // Enviar log de integração - sucesso
+                                        integrationLogger.logEvent(
+                                            integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
+                                            integrationLogger.STATUS.COMPLETED,
+                                            `Pedido #${orderId} aceito com sucesso em ${elapsed}s`,
+                                            { orderId, elapsed, newStatus: statusVerificado.newStatus }
+                                        );
+                                        
                                         aceiteStats.totalAccepted++;
                                         aceiteStats.lastAccept = new Date().toISOString();
                                         aceiteStats.lastAcceptedOrder = orderId;
@@ -1253,6 +1261,14 @@ async function aceitaScript(browser, cookies) {
                                     } else if (statusVerificado.success === false) {
                                         console.log(`❌ [ACEITA] FALHA! Pedido #${orderId} ainda está PENDENTE após ${elapsed}s`);
                                         console.log(`   Tentando novamente...`);
+                                        
+                                        // Enviar log de integração - falha
+                                        integrationLogger.logEvent(
+                                            integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
+                                            integrationLogger.STATUS.CANCELLED,
+                                            `Falha ao aceitar pedido #${orderId} - ainda pendente`,
+                                            { orderId, elapsed, error: 'Pedido ainda pendente após tentativa' }
+                                        );
                                         
                                         aceiteStats.totalFailed++;
                                         aceiteStats.status = 'failed';
