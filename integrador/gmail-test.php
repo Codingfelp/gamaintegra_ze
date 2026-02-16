@@ -6,8 +6,8 @@
 header('Content-Type: application/json');
 
 $GMAIL_CONFIG = [
-    'client_id'     => '187165168994-bn629eu6t7rb601v54i5j4q258hpcacm.apps.googleusercontent.com',
-    'client_secret' => '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',
+    'client_id'     => '471842038254-rp7fom0ns0vg9b15r4dp5llr8itp429s.apps.googleusercontent.com',
+    'client_secret' => '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',
     'refresh_token' => '1//04cbFI2AH2EsKCgYIARAAGAQSNwF-L9IrMzwQhnCX8g9bkNsFS-fMZAAYFrkpoi-vBqWv_bhY9VEhl-sajsM1UuArZ_ibCTzQFdU',
     'token_url'     => 'https://oauth2.googleapis.com/token',
     'gmail_api_url' => 'https://gmail.googleapis.com/gmail/v1/users/me'
