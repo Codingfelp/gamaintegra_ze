@@ -220,10 +220,24 @@ async function applyCookies(page, cookies) {
     }
     
     try {
+        // IMPORTANTE: Navegar primeiro para o domínio antes de aplicar cookies
+        const currentUrl = page.url();
+        if (!currentUrl.includes('ze.delivery')) {
+            console.log('🌐 [SESSION] Navegando para domínio antes de aplicar cookies...');
+            await page.goto('https://seu.ze.delivery/', {
+                waitUntil: 'domcontentloaded',
+                timeout: 30000
+            });
+        }
+        
         // Filtrar cookies válidos
         const validCookies = cookies.filter(c => {
             // Remover cookies expirados
-            if (c.expires && c.expires < Date.now() / 1000) {
+            if (c.expires && c.expires > 0 && c.expires < Date.now() / 1000) {
+                return false;
+            }
+            // Também verificar expirationDate (formato diferente)
+            if (c.expirationDate && c.expirationDate > 0 && c.expirationDate < Date.now() / 1000) {
                 return false;
             }
             return c.name && c.value;
@@ -234,8 +248,20 @@ async function applyCookies(page, cookies) {
             return false;
         }
         
-        await page.setCookie(...validCookies);
-        console.log(`✅ [SESSION] ${validCookies.length} cookies aplicados`);
+        // Normalizar cookies para formato Puppeteer
+        const puppeteerCookies = validCookies.map(c => ({
+            name: c.name,
+            value: c.value,
+            domain: c.domain || '.ze.delivery',
+            path: c.path || '/',
+            expires: c.expires || c.expirationDate || -1,
+            httpOnly: c.httpOnly || false,
+            secure: c.secure !== false,
+            sameSite: c.sameSite === 'no_restriction' ? 'None' : (c.sameSite || 'Lax')
+        }));
+        
+        await page.setCookie(...puppeteerCookies);
+        console.log(`✅ [SESSION] ${puppeteerCookies.length} cookies aplicados`);
         return true;
     } catch (error) {
         console.error('❌ [SESSION] Erro ao aplicar cookies:', error.message);
