@@ -694,6 +694,22 @@ async function fazerLogin(page) {
     }
     
     console.log('✅ [fazerLogin] Login verificado com sucesso!');
+    
+    // IMPORTANTE: Salvar cookies após login bem sucedido
+    try {
+        const cookies = await page.cookies();
+        if (cookies && cookies.length > 0) {
+            // Salvar no arquivo local
+            const cookiesPath = require('path').join(__dirname, 'cookies.json');
+            require('fs').writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
+            console.log(`💾 [fazerLogin] ${cookies.length} cookies salvos em cookies.json`);
+            
+            // Também salvar no banco via session-manager
+            await sessionManager.saveCookiesToDB('profile-ze-v1-itens', cookies);
+        }
+    } catch (saveError) {
+        console.error('⚠️ [fazerLogin] Erro ao salvar cookies:', saveError.message);
+    }
 }
 
 // Funções principais de cada script. Você pode expandir conforme queira mais detalhes de cada um.
