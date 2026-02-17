@@ -1,24 +1,14 @@
 /**
- * Integration Logger - Envia logs de integração para Supabase Edge Function
+ * Integration Logger - Envia logs para Supabase REST API
  * 
- * Endpoint: POST https://uppkjvovtvlgwfciqrbt.supabase.co/functions/v1/integration-log-webhook
- * Autenticação: Header x-webhook-secret
- * 
- * Processos:
- * - product_sync: Sincronização de produtos
- * - order_accept: Aceite automático de pedidos
- * - order_scrape: Scraping de detalhes do pedido
- * - supabase_sync: Sincronização com Supabase
- * - status_update: Atualização de status de pedidos
+ * Endpoint: POST https://uppkjvovtvlgwfciqrbt.supabase.co/rest/v1/integration_logs
  */
 
 const https = require('https');
-const http = require('http');
-const url = require('url');
 
-// Configuração do webhook
-const WEBHOOK_URL = 'https://uppkjvovtvlgwfciqrbt.supabase.co/functions/v1/integration-log-webhook';
-const WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET || 'webhook_secret';
+// Configuração do Supabase
+const SUPABASE_URL = 'https://uppkjvovtvlgwfciqrbt.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwcGtqdm92dHZsZ3dmY2lxcmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMjU2NTksImV4cCI6MjA4NTkwMTY1OX0.JdCNg4RQBCdGslv1xVytXYp8mA347sTHp0RROqRqEiU';
 
 // Status possíveis
 const STATUS = {
@@ -34,205 +24,157 @@ const PROCESS_TYPES = {
     ORDER_ACCEPT: 'order_accept',
     ORDER_SCRAPE: 'order_scrape',
     SUPABASE_SYNC: 'supabase_sync',
-    STATUS_UPDATE: 'status_update'
+    STATUS_UPDATE: 'status_update',
+    ORDER_UPDATE: 'order_update',
+    ORDER_CREATED: 'order_created'
 };
 
 /**
- * Envia log para o webhook do Supabase
- * @param {Object} payload - Dados do log
- * @returns {Promise<Object>} Resposta do webhook (inclui process_id para atualizações)
+ * Envia requisição para Supabase REST API
  */
-async function sendLog(payload) {
+function supabaseRequest(method, endpoint, data = null) {
     return new Promise((resolve, reject) => {
-        const parsedUrl = url.parse(WEBHOOK_URL);
-        const data = JSON.stringify(payload);
+        const url = new URL(endpoint, SUPABASE_URL);
         
         const options = {
-            hostname: parsedUrl.hostname,
-            port: parsedUrl.port || 443,
-            path: parsedUrl.path,
-            method: 'POST',
+            hostname: url.hostname,
+            port: 443,
+            path: url.pathname + url.search,
+            method: method,
             headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                 'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(data),
-                'x-webhook-secret': WEBHOOK_SECRET,
-                'x-api-key': WEBHOOK_SECRET
+                'Prefer': 'return=representation'
             },
             timeout: 10000
         };
         
-        const protocol = parsedUrl.protocol === 'https:' ? https : http;
-        
-        const req = protocol.request(options, (res) => {
+        const req = https.request(options, (res) => {
             let responseData = '';
-            
-            res.on('data', (chunk) => {
-                responseData += chunk;
-            });
-            
+            res.on('data', chunk => responseData += chunk);
             res.on('end', () => {
                 try {
-                    const parsed = JSON.parse(responseData);
+                    const parsed = responseData ? JSON.parse(responseData) : {};
                     if (res.statusCode >= 200 && res.statusCode < 300) {
-                        resolve(parsed);
+                        resolve(Array.isArray(parsed) ? parsed[0] : parsed);
                     } else {
-                        console.error(`[INTEGRATION-LOG] Webhook retornou ${res.statusCode}:`, responseData);
-                        resolve({ success: false, error: responseData, statusCode: res.statusCode });
+                        console.error(`[LOG] Supabase error ${res.statusCode}:`, responseData.substring(0, 200));
+                        resolve(null);
                     }
                 } catch (e) {
-                    resolve({ success: false, raw: responseData, statusCode: res.statusCode });
+                    resolve(null);
                 }
             });
         });
         
         req.on('error', (e) => {
-            console.error('[INTEGRATION-LOG] Erro ao enviar log:', e.message);
-            resolve({ success: false, error: e.message });
+            console.error('[LOG] Request error:', e.message);
+            resolve(null);
         });
         
         req.on('timeout', () => {
             req.destroy();
-            console.error('[INTEGRATION-LOG] Timeout ao enviar log');
-            resolve({ success: false, error: 'timeout' });
+            resolve(null);
         });
         
-        req.write(data);
+        if (data) {
+            req.write(JSON.stringify(data));
+        }
         req.end();
     });
 }
 
 /**
- * Inicia um novo processo de integração
- * @param {string} processType - Tipo do processo (usar PROCESS_TYPES)
- * @param {string} message - Mensagem descritiva
- * @param {Object} metadata - Dados extras opcionais
- * @returns {Promise<string|null>} process_id para atualizações futuras
+ * Cria novo log de integração
+ * @returns {string|null} process_id para atualizações
  */
-async function startProcess(processType, message, metadata = {}) {
-    console.log(`[INTEGRATION-LOG] Iniciando processo: ${processType} - ${message}`);
-    
-    const payload = {
+async function createLog(processType, status, message, errorMessage = null, metadata = {}) {
+    const data = {
         process_type: processType,
-        status: STATUS.IN_PROGRESS,
+        status: status,
         message: message,
-        error_message: null,
-        metadata: {
-            ...metadata,
-            started_at: new Date().toISOString(),
-            hostname: require('os').hostname()
-        }
+        error_message: errorMessage,
+        metadata: metadata,
+        started_at: new Date().toISOString()
     };
     
-    const response = await sendLog(payload);
-    
-    if (response && response.process_id) {
-        console.log(`[INTEGRATION-LOG] Processo criado: ${response.process_id}`);
-        return response.process_id;
+    if (status === STATUS.COMPLETED) {
+        data.completed_at = new Date().toISOString();
     }
     
+    const result = await supabaseRequest('POST', '/rest/v1/integration_logs', data);
+    
+    if (result && result.process_id) {
+        console.log(`[LOG] Processo criado: ${result.process_id}`);
+        return result.process_id;
+    }
     return null;
 }
 
 /**
- * Atualiza um processo existente
- * @param {string} processId - ID do processo retornado por startProcess
- * @param {string} status - Novo status (usar STATUS)
- * @param {string} message - Mensagem atualizada
- * @param {string|null} errorMessage - Mensagem de erro (se status = cancelled)
- * @param {Object} metadata - Dados extras opcionais
+ * Atualiza log existente
  */
-async function updateProcess(processId, status, message, errorMessage = null, metadata = {}) {
-    if (!processId) {
-        console.warn('[INTEGRATION-LOG] Tentativa de atualizar processo sem ID');
-        return;
-    }
+async function updateLog(processId, status, message, errorMessage = null, metadata = {}) {
+    if (!processId) return;
     
-    console.log(`[INTEGRATION-LOG] Atualizando processo ${processId}: ${status} - ${message}`);
-    
-    const payload = {
-        process_id: processId,
+    const data = {
         status: status,
         message: message,
         error_message: errorMessage,
-        metadata: {
-            ...metadata,
-            updated_at: new Date().toISOString()
-        }
+        metadata: metadata
     };
     
-    await sendLog(payload);
+    if (status === STATUS.COMPLETED || status === STATUS.CANCELLED) {
+        data.completed_at = new Date().toISOString();
+    }
+    
+    await supabaseRequest('PATCH', `/rest/v1/integration_logs?process_id=eq.${processId}`, data);
 }
 
 /**
- * Marca processo como concluído
- * @param {string} processId - ID do processo
- * @param {string} message - Mensagem de sucesso
- * @param {Object} metadata - Dados extras opcionais
+ * Inicia processo
+ */
+async function startProcess(processType, message, metadata = {}) {
+    console.log(`[LOG] Iniciando: ${processType} - ${message}`);
+    return await createLog(processType, STATUS.IN_PROGRESS, message, null, metadata);
+}
+
+/**
+ * Conclui processo
  */
 async function completeProcess(processId, message, metadata = {}) {
-    await updateProcess(processId, STATUS.COMPLETED, message, null, {
-        ...metadata,
-        completed_at: new Date().toISOString()
-    });
+    console.log(`[LOG] Concluído: ${message}`);
+    await updateLog(processId, STATUS.COMPLETED, message, null, metadata);
 }
 
 /**
- * Marca processo como cancelado/erro
- * @param {string} processId - ID do processo
- * @param {string} message - Mensagem de erro resumida
- * @param {string} errorMessage - Mensagem detalhada do erro
- * @param {Object} metadata - Dados extras opcionais
+ * Cancela processo
  */
 async function cancelProcess(processId, message, errorMessage, metadata = {}) {
-    await updateProcess(processId, STATUS.CANCELLED, message, errorMessage, {
-        ...metadata,
-        cancelled_at: new Date().toISOString()
-    });
+    console.log(`[LOG] Cancelado: ${message} - ${errorMessage}`);
+    await updateLog(processId, STATUS.CANCELLED, message, errorMessage, metadata);
 }
 
 /**
- * Helper para logar um evento simples (sem criar processo)
- * @param {string} processType - Tipo do processo
- * @param {string} status - Status
- * @param {string} message - Mensagem
- * @param {Object} metadata - Dados extras
+ * Log rápido (evento único)
  */
 async function logEvent(processType, status, message, metadata = {}) {
-    const payload = {
-        process_type: processType,
-        status: status,
-        message: message,
-        error_message: null,
-        metadata: {
-            ...metadata,
-            timestamp: new Date().toISOString()
-        }
-    };
-    
-    await sendLog(payload);
+    await createLog(processType, status, message, null, metadata);
 }
 
-// Exportar módulo
 module.exports = {
-    // Constantes
     STATUS,
     PROCESS_TYPES,
-    
-    // Funções principais
-    sendLog,
     startProcess,
-    updateProcess,
     completeProcess,
     cancelProcess,
     logEvent,
+    createLog,
+    updateLog,
     
-    // Atalhos convenientes
+    // Atalhos
     log: {
-        productSync: {
-            start: (msg, meta) => startProcess(PROCESS_TYPES.PRODUCT_SYNC, msg, meta),
-            complete: (id, msg, meta) => completeProcess(id, msg, meta),
-            cancel: (id, msg, err, meta) => cancelProcess(id, msg, err, meta)
-        },
         orderAccept: {
             start: (msg, meta) => startProcess(PROCESS_TYPES.ORDER_ACCEPT, msg, meta),
             complete: (id, msg, meta) => completeProcess(id, msg, meta),
@@ -250,6 +192,11 @@ module.exports = {
         },
         statusUpdate: {
             start: (msg, meta) => startProcess(PROCESS_TYPES.STATUS_UPDATE, msg, meta),
+            complete: (id, msg, meta) => completeProcess(id, msg, meta),
+            cancel: (id, msg, err, meta) => cancelProcess(id, msg, err, meta)
+        },
+        productSync: {
+            start: (msg, meta) => startProcess(PROCESS_TYPES.PRODUCT_SYNC, msg, meta),
             complete: (id, msg, meta) => completeProcess(id, msg, meta),
             cancel: (id, msg, err, meta) => cancelProcess(id, msg, err, meta)
         }
