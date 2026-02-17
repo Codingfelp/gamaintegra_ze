@@ -260,13 +260,25 @@ async function fazerLogin(page) {
     // Debug: salvar screenshot após login
     try {
         await page.screenshot({ path: '/app/logs/debug-after-login-click.png' });
-        console.log('📸 [fazerLogin] Screenshot salvo em /app/logs/debug-after-login-click.png');
+        console.log('📸 [fazerLogin] Screenshot salvo');
     } catch (e) {}
     
     // Verificar se há erro na página
     const pageContent = await page.content();
     if (pageContent.includes('limite') || pageContent.includes('bloqueado') || pageContent.includes('tentativas')) {
         console.log('⚠️ [fazerLogin] Possível bloqueio detectado na página');
+    }
+    
+    // Verificar mensagens de erro visíveis
+    const errorMessages = await page.evaluate(() => {
+        const errors = [];
+        document.querySelectorAll('[class*="error"], [class*="alert"], [class*="message"]').forEach(el => {
+            if (el.textContent.trim()) errors.push(el.textContent.trim().substring(0, 100));
+        });
+        return errors;
+    });
+    if (errorMessages.length > 0) {
+        console.log('⚠️ [fazerLogin] Mensagens na página:', errorMessages.slice(0, 3).join(' | '));
     }
 
     const btnSendEmail = await page.$("#send-email-button");
