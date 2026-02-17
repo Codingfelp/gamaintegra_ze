@@ -638,6 +638,38 @@ async def start_services():
     threading.Thread(target=setup_services, daemon=True).start()
     return {"success": True, "message": "Serviços sendo iniciados"}
 
+@app.post("/api/services/{service}/{action}")
+async def control_service(service: str, action: str):
+    """Controla serviços individuais"""
+    try:
+        service_map = {
+            "integrador": "ze-v1",
+            "itens": "ze-v1-itens",
+            "sync": "ze-sync",
+            "all": None
+        }
+        
+        if service not in service_map:
+            return {"success": False, "error": f"Serviço desconhecido: {service}"}
+        
+        if action not in ["start", "stop", "restart"]:
+            return {"success": False, "error": f"Ação inválida: {action}"}
+        
+        if service == "all":
+            services_to_control = ["ze-v1", "ze-v1-itens", "ze-sync"]
+        else:
+            services_to_control = [service_map[service]]
+        
+        results = []
+        for svc in services_to_control:
+            cmd = f"supervisorctl {action} {svc}"
+            result = run_shell(cmd, timeout=15)
+            results.append({"service": svc, "result": result or "OK"})
+        
+        return {"success": True, "action": action, "results": results}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 
 # ============= PRODUTOS =============
 
