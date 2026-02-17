@@ -256,6 +256,18 @@ async function fazerLogin(page) {
 
     // Aguardar resposta do servidor
     await sleep(10);
+    
+    // Debug: salvar screenshot após login
+    try {
+        await page.screenshot({ path: '/app/logs/debug-after-login-click.png' });
+        console.log('📸 [fazerLogin] Screenshot salvo em /app/logs/debug-after-login-click.png');
+    } catch (e) {}
+    
+    // Verificar se há erro na página
+    const pageContent = await page.content();
+    if (pageContent.includes('limite') || pageContent.includes('bloqueado') || pageContent.includes('tentativas')) {
+        console.log('⚠️ [fazerLogin] Possível bloqueio detectado na página');
+    }
 
     const btnSendEmail = await page.$("#send-email-button");
     if (btnSendEmail) {
