@@ -18,7 +18,7 @@ const url = require('url');
 
 // Configuração do webhook
 const WEBHOOK_URL = 'https://uppkjvovtvlgwfciqrbt.supabase.co/functions/v1/integration-log-webhook';
-const WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET || 'ze-integration-webhook-secret';
+const WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET || 'webhook_secret';
 
 // Status possíveis
 const STATUS = {
