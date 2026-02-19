@@ -1,3 +1,3 @@
-2026/02/14-03:37:45.550 259f Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/IndexedDB/https_seu.ze.delivery_0.indexeddb.leveldb/MANIFEST-000001
-2026/02/14-03:37:45.551 259f Recovering log #3
-2026/02/14-03:37:45.552 259f Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/IndexedDB/https_seu.ze.delivery_0.indexeddb.leveldb/000003.log 
+2026/02/18-21:56:12.393 2965 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/IndexedDB/https_seu.ze.delivery_0.indexeddb.leveldb/MANIFEST-000001
+2026/02/18-21:56:12.393 2965 Recovering log #3
+2026/02/18-21:56:12.394 2965 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/IndexedDB/https_seu.ze.delivery_0.indexeddb.leveldb/000003.log 
