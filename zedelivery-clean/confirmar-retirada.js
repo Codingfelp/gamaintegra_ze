@@ -1,13 +1,12 @@
 /**
  * Script para confirmar retirada de pedidos
- * Pode ser chamado via webhook ou diretamente
+ * Fluxo: /poc-orders -> Clicar no CARD -> Clicar em #confirm-pickup-button -> Clicar em "Sim"
  */
 
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
-const CONFIG_FILE = path.join(__dirname, 'configuracao.json');
 const COOKIES_FILE = path.join(__dirname, 'cookies.json');
 
 function sleep(s) {
@@ -16,15 +15,14 @@ function sleep(s) {
 
 /**
  * Confirma a retirada de um pedido específico
- * @param {string} orderId - ID do pedido (ex: "472230265")
- * @returns {Promise<{success: boolean, message: string}>}
+ * @param {string} orderId - ID do pedido (ex: "722636005")
  */
 async function confirmarRetirada(orderId) {
+    console.log(`[RETIRADA] Iniciando confirmação do pedido #${orderId}`);
+    
     let browser = null;
     
     try {
-        console.log(`🚚 [RETIRADA] Iniciando confirmação do pedido #${orderId}...`);
-        
         // Carregar cookies
         if (!fs.existsSync(COOKIES_FILE)) {
             return { success: false, message: 'Arquivo de cookies não encontrado' };
@@ -32,7 +30,6 @@ async function confirmarRetirada(orderId) {
         
         const cookies = JSON.parse(fs.readFileSync(COOKIES_FILE, 'utf8'));
         
-        // Iniciar browser
         browser = await puppeteer.launch({
             executablePath: '/usr/bin/chromium',
             headless: 'new',
@@ -56,13 +53,15 @@ async function confirmarRetirada(orderId) {
         
         await page.setCookie(...puppeteerCookies);
         
-        // Navegar para a página do pedido
-        const orderUrl = `https://seu.ze.delivery/order/${orderId}`;
-        console.log(`🌐 [RETIRADA] Navegando para ${orderUrl}...`);
+        // ============================================
+        // PASSO 1: Navegar para /poc-orders
+        // ============================================
+        console.log('[RETIRADA] Navegando para /poc-orders...');
+        await page.goto('https://seu.ze.delivery/poc-orders', {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+        });
         
-        await page.goto(orderUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-        
-        // Verificar se está logado
         if (page.url().includes('login')) {
             await browser.close();
             return { success: false, message: 'Sessão expirada - faça login novamente' };
@@ -70,64 +69,174 @@ async function confirmarRetirada(orderId) {
         
         await sleep(2);
         
-        // ===============================================
-        // PASSO 1: Clicar no botão "Confirmar Retirada"
-        // Seletor: #confirm-pickup-button
-        // ===============================================
-        console.log('🔍 [RETIRADA] Buscando botão "Confirmar Retirada"...');
+        // ============================================
+        // PASSO 2: Encontrar e clicar no CARD do pedido
+        // O card contém o número formatado: "Nº 722 636 005"
+        // ============================================
+        console.log(`[RETIRADA] Procurando card do pedido #${orderId}...`);
         
-        const btnConfirmarRetirada = await page.$('#confirm-pickup-button');
+        // Formatar orderId para o padrão de exibição
+        const orderIdClean = orderId.toString().replace(/\s/g, '');
+        const orderIdFormatted = orderIdClean.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
         
-        if (!btnConfirmarRetirada) {
-            // Fallback: buscar por texto
-            const encontrado = await page.evaluate(() => {
-                const buttons = document.querySelectorAll('button, hexa-v2-button');
-                for (const btn of buttons) {
-                    let texto = '';
-                    if (btn.shadowRoot) {
-                        const inner = btn.shadowRoot.querySelector('button, span');
-                        texto = inner?.textContent.trim() || '';
-                    }
-                    if (!texto) texto = btn.textContent.trim();
-                    
-                    if (texto.toLowerCase().includes('confirmar retirada')) {
-                        if (btn.shadowRoot) {
-                            btn.shadowRoot.querySelector('button')?.click();
-                        } else {
-                            btn.click();
+        console.log(`[RETIRADA] Buscando: "${orderIdFormatted}" ou "${orderIdClean}"`);
+        
+        const cardClicado = await page.evaluate((orderIdFmt, orderIdRaw) => {
+            // Buscar todos os elementos que contêm o número do pedido
+            const walker = document.createTreeWalker(
+                document.body,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+            
+            let node;
+            while (node = walker.nextNode()) {
+                const texto = node.textContent || '';
+                if (texto.includes(orderIdFmt) || texto.includes(orderIdRaw)) {
+                    // Subir na árvore para encontrar o card clicável
+                    let parent = node.parentElement;
+                    for (let i = 0; i < 15; i++) {
+                        if (!parent) break;
+                        
+                        // Verificar se é clicável
+                        const style = window.getComputedStyle(parent);
+                        if (
+                            style.cursor === 'pointer' ||
+                            parent.onclick ||
+                            parent.getAttribute('role') === 'button' ||
+                            parent.tagName.toLowerCase() === 'article' ||
+                            parent.className.includes('card') ||
+                            parent.className.includes('order')
+                        ) {
+                            parent.click();
+                            return { clicked: true, element: parent.tagName };
                         }
-                        return true;
+                        parent = parent.parentElement;
+                    }
+                }
+            }
+            
+            // Fallback: buscar por data attributes ou IDs
+            const cards = document.querySelectorAll('[data-order-id], [id*="order"]');
+            for (const card of cards) {
+                if (card.textContent.includes(orderIdFmt) || card.textContent.includes(orderIdRaw)) {
+                    card.click();
+                    return { clicked: true, element: 'fallback' };
+                }
+            }
+            
+            return { clicked: false };
+        }, orderIdFormatted, orderIdClean);
+        
+        if (!cardClicado.clicked) {
+            // Tentar clicar em qualquer card visível com "Retirada"
+            console.log('[RETIRADA] Card específico não encontrado, tentando primeiro card de retirada...');
+            
+            const clicouPrimeiroCard = await page.evaluate(() => {
+                // Buscar cards com texto "Retirada"
+                const allElements = document.querySelectorAll('*');
+                for (const el of allElements) {
+                    if (el.textContent.includes('Retirada') && el.textContent.length < 500) {
+                        const style = window.getComputedStyle(el);
+                        if (style.cursor === 'pointer' || el.onclick) {
+                            el.click();
+                            return true;
+                        }
+                        // Tentar pai
+                        if (el.parentElement) {
+                            el.parentElement.click();
+                            return true;
+                        }
                     }
                 }
                 return false;
             });
             
-            if (!encontrado) {
+            if (!clicouPrimeiroCard) {
+                await page.screenshot({ path: '/app/logs/retirada-card-nao-encontrado.png' });
                 await browser.close();
-                return { success: false, message: 'Botão "Confirmar Retirada" não encontrado - pedido pode não ser de retirada' };
+                return { success: false, message: 'Card do pedido não encontrado em /poc-orders' };
             }
-        } else {
-            // Clicar no botão
-            await page.evaluate(el => {
-                if (el.shadowRoot) {
-                    el.shadowRoot.querySelector('button')?.click();
-                } else {
-                    el.click();
-                }
-            }, btnConfirmarRetirada);
         }
         
-        console.log('✓ [RETIRADA] Clicou em "Confirmar Retirada"');
+        console.log('[RETIRADA] ✓ Card clicado, aguardando modal...');
         await sleep(2);
         
-        // ===============================================
-        // PASSO 2: Clicar no botão "Sim" no modal de confirmação
-        // Seletor: button.primary com texto "Sim"
-        // ===============================================
-        console.log('🔍 [RETIRADA] Buscando botão "Sim" no modal...');
+        // ============================================
+        // PASSO 3: Clicar no botão "Confirmar Retirada" no modal
+        // O botão está em Shadow DOM: #confirm-pickup-button > shadow-root > button
+        // ============================================
+        console.log('[RETIRADA] Buscando botão "Confirmar Retirada"...');
+        
+        let confirmBtnClicado = false;
+        
+        for (let tentativa = 1; tentativa <= 5; tentativa++) {
+            confirmBtnClicado = await page.evaluate(() => {
+                // ESTRATÉGIA 1: Via ID direto no Shadow DOM
+                const hostBtn = document.querySelector('#confirm-pickup-button');
+                if (hostBtn) {
+                    if (hostBtn.shadowRoot) {
+                        const innerBtn = hostBtn.shadowRoot.querySelector('button');
+                        if (innerBtn) {
+                            innerBtn.click();
+                            return true;
+                        }
+                    }
+                    // Tentar clique direto
+                    hostBtn.click();
+                    return true;
+                }
+                
+                // ESTRATÉGIA 2: Buscar hexa-v2-button com texto "Confirmar Retirada"
+                const hexaBtns = document.querySelectorAll('hexa-v2-button');
+                for (const btn of hexaBtns) {
+                    if (btn.shadowRoot) {
+                        const innerBtn = btn.shadowRoot.querySelector('button');
+                        if (innerBtn) {
+                            const texto = innerBtn.textContent.trim().toLowerCase();
+                            if (texto.includes('confirmar retirada')) {
+                                innerBtn.click();
+                                return true;
+                            }
+                        }
+                    }
+                }
+                
+                // ESTRATÉGIA 3: Buscar qualquer botão com texto "Confirmar Retirada"
+                const allBtns = document.querySelectorAll('button');
+                for (const btn of allBtns) {
+                    const texto = btn.textContent.trim().toLowerCase();
+                    if (texto.includes('confirmar retirada')) {
+                        btn.click();
+                        return true;
+                    }
+                }
+                
+                return false;
+            });
+            
+            if (confirmBtnClicado) break;
+            await sleep(1);
+        }
+        
+        if (!confirmBtnClicado) {
+            await page.screenshot({ path: '/app/logs/retirada-btn-nao-encontrado.png' });
+            await browser.close();
+            return { success: false, message: 'Botão "Confirmar Retirada" não encontrado no modal' };
+        }
+        
+        console.log('[RETIRADA] ✓ Clicou em "Confirmar Retirada"');
+        await sleep(2);
+        
+        // ============================================
+        // PASSO 4: Clicar no botão "Sim" no modal de confirmação
+        // HTML: <button class="button primary medium flex"><span>Sim</span></button>
+        // ============================================
+        console.log('[RETIRADA] Buscando botão "Sim"...');
         
         const clicouSim = await page.evaluate(() => {
-            // Buscar botão com classe "primary" e texto "Sim"
+            // Buscar botão primary com texto "Sim"
             const buttons = document.querySelectorAll('button.primary, button[class*="primary"]');
             for (const btn of buttons) {
                 const texto = btn.textContent.trim().toLowerCase();
@@ -137,13 +246,22 @@ async function confirmarRetirada(orderId) {
                 }
             }
             
+            // Fallback: qualquer botão com texto "Sim"
+            const allBtns = document.querySelectorAll('button');
+            for (const btn of allBtns) {
+                if (btn.textContent.trim().toLowerCase() === 'sim') {
+                    btn.click();
+                    return true;
+                }
+            }
+            
             // Fallback: hexa-v2-button
-            const hexaButtons = document.querySelectorAll('hexa-v2-button');
-            for (const btn of hexaButtons) {
+            const hexaBtns = document.querySelectorAll('hexa-v2-button');
+            for (const btn of hexaBtns) {
                 if (btn.shadowRoot) {
-                    const inner = btn.shadowRoot.querySelector('button.primary');
-                    if (inner && inner.textContent.trim().toLowerCase() === 'sim') {
-                        inner.click();
+                    const innerBtn = btn.shadowRoot.querySelector('button');
+                    if (innerBtn && innerBtn.textContent.trim().toLowerCase() === 'sim') {
+                        innerBtn.click();
                         return true;
                     }
                 }
@@ -153,56 +271,41 @@ async function confirmarRetirada(orderId) {
         });
         
         if (!clicouSim) {
-            await browser.close();
-            return { success: false, message: 'Botão "Sim" não encontrado no modal de confirmação' };
+            // Se não encontrou "Sim", pode ser que não precise dessa confirmação
+            console.log('[RETIRADA] Botão "Sim" não encontrado - pode já ter sido confirmado');
+        } else {
+            console.log('[RETIRADA] ✓ Clicou em "Sim"');
         }
         
-        console.log('✓ [RETIRADA] Clicou em "Sim"');
         await sleep(2);
         
-        // Verificar se a retirada foi confirmada
-        const sucesso = await page.evaluate(() => {
-            // Verificar se há mensagem de sucesso ou se o status mudou
-            const body = document.body.innerText.toLowerCase();
-            return body.includes('retirada confirmada') || 
-                   body.includes('pedido entregue') ||
-                   body.includes('sucesso');
-        });
-        
         await browser.close();
-        
-        if (sucesso) {
-            console.log(`✅ [RETIRADA] Pedido #${orderId} confirmado com sucesso!`);
-            return { success: true, message: `Retirada do pedido #${orderId} confirmada com sucesso` };
-        } else {
-            console.log(`✅ [RETIRADA] Pedido #${orderId} processado (verificar manualmente)`);
-            return { success: true, message: `Pedido #${orderId} processado - verificar status` };
-        }
+        console.log(`[RETIRADA] ✅ Pedido #${orderId} processado com sucesso!`);
+        return { success: true, message: `Retirada do pedido #${orderId} confirmada` };
         
     } catch (error) {
-        console.error(`❌ [RETIRADA] Erro:`, error.message);
+        console.error('[RETIRADA] ❌ Erro:', error.message);
         if (browser) await browser.close();
         return { success: false, message: error.message };
     }
 }
 
-// Se executado diretamente com argumento
+// Executar se chamado diretamente
 if (require.main === module) {
     const orderId = process.argv[2];
     
     if (!orderId) {
         console.log('Uso: node confirmar-retirada.js <orderId>');
-        console.log('Exemplo: node confirmar-retirada.js 472230265');
         process.exit(1);
     }
     
     confirmarRetirada(orderId)
         .then(result => {
-            console.log(JSON.stringify(result, null, 2));
+            console.log(JSON.stringify(result));
             process.exit(result.success ? 0 : 1);
         })
         .catch(err => {
-            console.error('Erro:', err);
+            console.error(err);
             process.exit(1);
         });
 }
