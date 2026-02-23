@@ -671,6 +671,93 @@ async def control_service(service: str, action: str):
         return {"success": False, "error": str(e)}
 
 
+# ============= WEBHOOK CONFIRMAR RETIRADA =============
+
+class ConfirmarRetiradaRequest(BaseModel):
+    order_id: str
+    webhook_secret: Optional[str] = None
+
+@app.post("/api/webhook/confirmar-retirada")
+async def webhook_confirmar_retirada(request: ConfirmarRetiradaRequest, background_tasks: BackgroundTasks):
+    """
+    Webhook para confirmar retirada de pedido
+    
+    Exemplo de chamada:
+    POST /api/webhook/confirmar-retirada
+    {
+        "order_id": "472230265",
+        "webhook_secret": "sua-secret-opcional"
+    }
+    """
+    try:
+        order_id = request.order_id.strip()
+        
+        if not order_id or not order_id.isdigit():
+            return {"success": False, "error": "order_id inválido"}
+        
+        # Executar confirmação em background para não bloquear
+        def executar_confirmacao():
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['node', '/app/zedelivery-clean/confirmar-retirada.js', order_id],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    cwd='/app/zedelivery-clean'
+                )
+                print(f"[WEBHOOK] Retirada {order_id}: {result.stdout}")
+                if result.stderr:
+                    print(f"[WEBHOOK] Erro: {result.stderr}")
+            except Exception as e:
+                print(f"[WEBHOOK] Erro ao confirmar retirada {order_id}: {e}")
+        
+        background_tasks.add_task(executar_confirmacao)
+        
+        return {
+            "success": True, 
+            "message": f"Confirmação de retirada do pedido #{order_id} iniciada",
+            "order_id": order_id
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/pedidos/{order_id}/confirmar-retirada")
+async def confirmar_retirada_pedido(order_id: str, background_tasks: BackgroundTasks):
+    """
+    Endpoint direto para confirmar retirada de pedido (usado pelo frontend)
+    """
+    try:
+        if not order_id or not order_id.isdigit():
+            return {"success": False, "error": "order_id inválido"}
+        
+        # Executar em background
+        def executar_confirmacao():
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['node', '/app/zedelivery-clean/confirmar-retirada.js', order_id],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    cwd='/app/zedelivery-clean'
+                )
+                print(f"[RETIRADA] Pedido {order_id}: {result.stdout}")
+            except Exception as e:
+                print(f"[RETIRADA] Erro: {e}")
+        
+        background_tasks.add_task(executar_confirmacao)
+        
+        return {
+            "success": True,
+            "message": f"Confirmação de retirada iniciada para pedido #{order_id}"
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # ============= PRODUTOS =============
 
 @app.get("/api/produtos")
