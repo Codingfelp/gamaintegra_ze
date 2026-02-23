@@ -1002,6 +1002,7 @@ function loadAceiteStats() {
 
 async function aceitaScript(browser, cookies) {
     console.log('🤖 [ACEITA] Iniciando script de aceite automático de pedidos...');
+    console.log('🔄 [ACEITA] FLUXO CORRETO: /poc-orders -> Clicar CARD -> Modal -> Botão "Aceitar"');
     
     // Iniciar log de integração
     let currentProcessId = await integrationLogger.log.orderAccept.start(
@@ -1014,7 +1015,7 @@ async function aceitaScript(browser, cookies) {
     aceiteStats.startTime = new Date().toISOString();
     saveAceiteStats(aceiteStats);
     
-    while (true) {
+    while (true) { // Loop externo: reabre aba se necessário
         let page = null;
         try {
             page = await browser.newPage();
@@ -1040,20 +1041,23 @@ async function aceitaScript(browser, cookies) {
             aceiteStats.status = 'monitoring';
             saveAceiteStats(aceiteStats);
 
-            // Loop contínuo para verificar e aceitar pedidos - OTIMIZADO PARA ACEITE RÁPIDO
+            // Loop interno: monitora continuamente sem limite de iterações
             while (true) {
                 try {
                     aceiteStats.lastCheck = new Date().toISOString();
                     
-                    // Fechar modais de alerta se existirem (sem delay)
+                    // Fechar modais de alerta se existirem
                     const closeButton = await page.$('#close-alert-modal');
                     if (closeButton) {
                         await closeButton.click();
                         console.log('🔔 [ACEITA] Modal de alerta fechado');
                     }
 
-                    // Verificar se há pedidos pendentes na lista - MELHORIA NA CAPTURA DO ID
+                    // =======================================================
+                    // PASSO 1: Procurar CARD de pedido pendente em "Novos"
+                    // =======================================================
                     const pedidoPendente = await page.evaluate(() => {
+                        // Buscar cards na seção "Novos" ou com status "Pendente"
                         const rows = document.querySelectorAll('hexa-v2-custom-table-row');
                         for (const row of rows) {
                             const badges = row.querySelectorAll('hexa-v2-badge-status');
@@ -1063,17 +1067,13 @@ async function aceitaScript(browser, cookies) {
                                     const span = badge.shadowRoot.querySelector('span');
                                     statusText = span ? span.textContent.trim().toLowerCase() : '';
                                 }
-                                if (statusText.includes('pendente')) {
-                                    // MELHOR CAPTURA DO ID - tentar múltiplas formas
+                                if (statusText.includes('pendente') || statusText.includes('novo')) {
+                                    // Capturar ID do pedido
                                     let orderId = '';
-                                    
-                                    // 1. Tentar via id^="order-number"
                                     const orderNumEl = row.querySelector('[id^="order-number"]');
                                     if (orderNumEl) {
                                         orderId = orderNumEl.textContent.trim().replace(/\s+/g, '');
                                     }
-                                    
-                                    // 2. Fallback: hexa-v2-text com shadowRoot
                                     if (!orderId) {
                                         const idEl = row.querySelector('hexa-v2-text');
                                         if (idEl && idEl.shadowRoot) {
@@ -1081,76 +1081,21 @@ async function aceitaScript(browser, cookies) {
                                             orderId = span ? span.textContent.trim().replace(/\s+/g, '') : '';
                                         }
                                     }
-                                    
-                                    // 3. Fallback: primeiro texto numérico da row
                                     if (!orderId) {
                                         const allText = row.innerText || '';
                                         const match = allText.match(/(\d{3}\s*\d{3}\s*\d{3})/);
-                                        if (match) {
-                                            orderId = match[1].replace(/\s+/g, '');
-                                        }
+                                        if (match) orderId = match[1].replace(/\s+/g, '');
                                     }
                                     
-                                    // 4. Fallback: procurar data-testid ou data-order-id
-                                    if (!orderId) {
-                                        const dataOrderId = row.getAttribute('data-order-id') || row.querySelector('[data-order-id]')?.getAttribute('data-order-id');
-                                        if (dataOrderId) orderId = dataOrderId.replace(/\s+/g, '');
-                                    }
-                                    
-                                    // 5. Fallback: extrair do innerHTML
-                                    if (!orderId) {
-                                        const html = row.innerHTML || '';
-                                        const orderMatch = html.match(/order[^\d]*(\d{9,12})/i);
-                                        if (orderMatch) orderId = orderMatch[1];
-                                    }
-                                    
-                                    return { found: true, orderId: orderId || 'N/A', status: statusText };
+                                    return { found: true, orderId: orderId || 'N/A', status: statusText, rowIndex: Array.from(rows).indexOf(row) };
                                 }
                             }
                         }
                         return { found: false, orderId: null, status: null };
                     });
                     
-                    // DEBUG: Salvar screenshot quando encontra pendente (apenas ocasionalmente)
-                    if (pedidoPendente.found && Math.random() < 0.1) {
-                        try {
-                            await page.screenshot({ path: '/app/logs/poc-orders-pendente.png', fullPage: false });
-                            console.log('📸 [ACEITA] Screenshot salva: /app/logs/poc-orders-pendente.png');
-                        } catch (e) {}
-                    }
-
-                    // Aguardar botão de aceite aparecer (timeout curto para resposta rápida)
-                    // NOTA: Na página poc-orders, o botão pode ter diferentes IDs
-                    // Tentamos múltiplos seletores para maior compatibilidade
-                    let buttonExists = await waitForSafe(page, '#accept-button', 1500);
-                    let buttonSelector = '#accept-button';
-                    
-                    if (!buttonExists) {
-                        buttonExists = await waitForSafe(page, '#acceptOrderBtn', 1500);
-                        buttonSelector = '#acceptOrderBtn';
-                    }
-                    
-                    // Fallback: procurar hexa-v2-button com texto "Aceitar"
-                    if (!buttonExists) {
-                        buttonExists = await page.evaluate(() => {
-                            const buttons = document.querySelectorAll('hexa-v2-button');
-                            for (const btn of buttons) {
-                                let texto = btn.innerText || btn.textContent || '';
-                                if (btn.shadowRoot) {
-                                    const inner = btn.shadowRoot.querySelector('button');
-                                    texto = inner ? (inner.innerText || inner.textContent || '') : texto;
-                                }
-                                if (texto.toLowerCase().includes('aceitar')) {
-                                    return true;
-                                }
-                            }
-                            return false;
-                        });
-                        if (buttonExists) buttonSelector = 'hexa-v2-button:accept-text';
-                    }
-                    
-                    if (!buttonExists && !pedidoPendente.found) {
-                        // Sem pedidos pendentes - status OK
+                    if (!pedidoPendente.found) {
+                        // Sem pedidos pendentes - aguardar e recarregar
                         aceiteStats.status = 'waiting';
                         saveAceiteStats(aceiteStats);
                         await sleep(2);
@@ -1158,269 +1103,270 @@ async function aceitaScript(browser, cookies) {
                         continue;
                     }
 
-                    // Tentar pegar o botão com os seletores conhecidos
-                    let button = await page.$('#accept-button');
-                    if (!button) button = await page.$('#acceptOrderBtn');
+                    const orderId = pedidoPendente.orderId;
+                    console.log(`🚀 [ACEITA] PEDIDO #${orderId} PENDENTE DETECTADO!`);
+                    const startTime = performance.now();
                     
-                    // FALLBACK: Se não encontrou por ID, buscar hexa-v2-button com texto "Aceitar"
-                    if (!button && pedidoPendente.found) {
-                        console.log('⚠️ [ACEITA] Botão por ID não encontrado, buscando por texto...');
-                        button = await page.evaluateHandle(() => {
-                            const buttons = document.querySelectorAll('hexa-v2-button');
-                            for (const btn of buttons) {
-                                let texto = btn.innerText || btn.textContent || '';
-                                if (btn.shadowRoot) {
-                                    const inner = btn.shadowRoot.querySelector('button');
-                                    texto = inner ? (inner.innerText || inner.textContent || '') : texto;
-                                }
-                                if (texto.toLowerCase().includes('aceitar')) {
-                                    return btn;
-                                }
-                            }
-                            return null;
-                        });
-                        // Verificar se retornou null
-                        const isNull = await button.evaluate(el => el === null);
-                        if (isNull) button = null;
-                    }
+                    aceiteStats.status = 'accepting';
+                    aceiteStats.totalAttempts++;
+                    saveAceiteStats(aceiteStats);
+
+                    // =======================================================
+                    // PASSO 2: CLICAR NO CARD para abrir o modal
+                    // O card é um hexa-v2-custom-table-row clicável
+                    // =======================================================
+                    console.log(`🖱️ [ACEITA] Clicando no CARD do pedido #${orderId}...`);
                     
-                    if (button) {
-                        // Verificar se o botão está habilitado (considerando Shadow DOM)
-                        const isDisabled = await page.evaluate(el => {
-                            if (el.disabled || el.classList.contains('disabled') || el.getAttribute('aria-disabled') === 'true') {
-                                return true;
-                            }
-                            if (el.shadowRoot) {
-                                const innerBtn = el.shadowRoot.querySelector('button');
-                                if (innerBtn && (innerBtn.disabled || innerBtn.classList.contains('disabled'))) {
+                    const cardClicado = await page.evaluate((rowIdx) => {
+                        const rows = document.querySelectorAll('hexa-v2-custom-table-row');
+                        if (rows[rowIdx]) {
+                            rows[rowIdx].click();
+                            return true;
+                        }
+                        // Fallback: clicar no primeiro card com status pendente
+                        for (const row of rows) {
+                            const badges = row.querySelectorAll('hexa-v2-badge-status');
+                            for (const badge of badges) {
+                                let statusText = '';
+                                if (badge.shadowRoot) {
+                                    const span = badge.shadowRoot.querySelector('span');
+                                    statusText = span ? span.textContent.trim().toLowerCase() : '';
+                                }
+                                if (statusText.includes('pendente') || statusText.includes('novo')) {
+                                    row.click();
                                     return true;
                                 }
                             }
-                            return false;
-                        }, button);
+                        }
+                        return false;
+                    }, pedidoPendente.rowIndex);
 
-                        if (!isDisabled) {
-                            const orderId = pedidoPendente.orderId || 'N/A';
-                            console.log(`🚀 [ACEITA] PEDIDO #${orderId} DETECTADO! Aceitando...`);
-                            const startTime = performance.now();
+                    if (!cardClicado) {
+                        console.log('❌ [ACEITA] Não conseguiu clicar no card do pedido');
+                        await sleep(1);
+                        continue;
+                    }
+
+                    console.log('✓ [ACEITA] Card clicado, aguardando modal...');
+                    await sleep(2); // Aguardar modal abrir
+
+                    // =======================================================
+                    // PASSO 3: Localizar e clicar no botão "Aceitar" DENTRO DO MODAL
+                    // HTML: <button class="button primary medium flex" part="button" type="submit">
+                    //         <span class="text" part="text" data-testid="text">Aceitar</span>
+                    //       </button>
+                    // =======================================================
+                    console.log('🔍 [ACEITA] Buscando botão "Aceitar" no modal...');
+                    
+                    let botaoAceitarClicado = false;
+                    
+                    for (let tentativa = 1; tentativa <= 5; tentativa++) {
+                        botaoAceitarClicado = await page.evaluate(() => {
+                            // ESTRATÉGIA 1: Buscar o botão com data-testid="text" contendo "Aceitar"
+                            const spansAceitar = document.querySelectorAll('span[data-testid="text"]');
+                            for (const span of spansAceitar) {
+                                if (span.textContent.trim() === 'Aceitar') {
+                                    // O botão é o parent (button.primary)
+                                    const btn = span.closest('button');
+                                    if (btn && btn.classList.contains('primary')) {
+                                        btn.click();
+                                        return true;
+                                    }
+                                }
+                            }
                             
-                            aceiteStats.status = 'accepting';
-                            aceiteStats.totalAttempts++;
-                            saveAceiteStats(aceiteStats);
+                            // ESTRATÉGIA 2: Buscar button.primary com texto "Aceitar"
+                            const primaryButtons = document.querySelectorAll('button.primary');
+                            for (const btn of primaryButtons) {
+                                const texto = btn.textContent.trim();
+                                if (texto === 'Aceitar') {
+                                    btn.click();
+                                    return true;
+                                }
+                            }
                             
-                            // Clicar no botão de aceitar
-                            await page.evaluate(el => {
-                                if (el.shadowRoot) {
-                                    const innerBtn = el.shadowRoot.querySelector('button');
+                            // ESTRATÉGIA 3: Buscar em hexa-v2-button com shadowRoot
+                            const hexaBtns = document.querySelectorAll('hexa-v2-button');
+                            for (const hexaBtn of hexaBtns) {
+                                if (hexaBtn.shadowRoot) {
+                                    const innerBtn = hexaBtn.shadowRoot.querySelector('button.primary');
                                     if (innerBtn) {
-                                        innerBtn.click();
-                                        return;
-                                    }
-                                }
-                                el.click();
-                            }, button);
-                            
-                            console.log(`⏳ [ACEITA] Aguardando modal de confirmação...`);
-                            
-                            // Aguardar modal de confirmação (até 4 segundos como o usuário pediu)
-                            const modalButtonExists = await waitForSafe(page, '#orders-details-modal-button-accept', 4000);
-                            
-                            if (modalButtonExists) {
-                                const aceitarPedidoButton = await page.$('#orders-details-modal-button-accept');
-                                if (aceitarPedidoButton) {
-                                    console.log(`🖱️ [ACEITA] Modal aberto! Clicando em confirmar...`);
-                                    
-                                    // Clicar no botão de confirmar
-                                    await page.evaluate(el => {
-                                        if (el.shadowRoot) {
-                                            const innerBtn = el.shadowRoot.querySelector('button');
-                                            if (innerBtn) {
-                                                innerBtn.click();
-                                                return;
-                                            }
-                                        }
-                                        el.click();
-                                    }, aceitarPedidoButton);
-                                    
-                                    // Aguardar 1-2 segundos para verificar (como o usuário pediu)
-                                    await sleep(2);
-                                    
-                                    // VERIFICAR SE O STATUS REALMENTE MUDOU
-                                    await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
-                                    
-                                    const statusVerificado = await page.evaluate((targetOrderId) => {
-                                        const rows = document.querySelectorAll('hexa-v2-custom-table-row');
-                                        for (const row of rows) {
-                                            // Capturar ID da row atual
-                                            let rowOrderId = '';
-                                            const orderNumEl = row.querySelector('[id^="order-number"]');
-                                            if (orderNumEl) {
-                                                rowOrderId = orderNumEl.textContent.trim().replace(/\s+/g, '');
-                                            }
-                                            if (!rowOrderId) {
-                                                const idEl = row.querySelector('hexa-v2-text');
-                                                if (idEl && idEl.shadowRoot) {
-                                                    const span = idEl.shadowRoot.querySelector('span');
-                                                    rowOrderId = span ? span.textContent.trim().replace(/\s+/g, '') : '';
-                                                }
-                                            }
-                                            
-                                            // Se encontrou o pedido, verificar status
-                                            if (!targetOrderId || targetOrderId === 'N/A' || rowOrderId.includes(targetOrderId) || targetOrderId.includes(rowOrderId)) {
-                                                const badges = row.querySelectorAll('hexa-v2-badge-status');
-                                                for (const badge of badges) {
-                                                    let statusText = '';
-                                                    if (badge.shadowRoot) {
-                                                        const span = badge.shadowRoot.querySelector('span');
-                                                        statusText = span ? span.textContent.trim().toLowerCase() : '';
-                                                    }
-                                                    if (statusText.includes('aceito') || statusText.includes('preparo') || statusText.includes('caminho')) {
-                                                        return { success: true, newStatus: statusText, orderId: rowOrderId };
-                                                    }
-                                                    if (statusText.includes('pendente')) {
-                                                        return { success: false, newStatus: 'pendente', orderId: rowOrderId };
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        return { success: null, newStatus: 'não encontrado', orderId: targetOrderId };
-                                    }, orderId);
-                                    
-                                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-                                    
-                                    if (statusVerificado.success === true) {
-                                        console.log(`✅✅✅ [ACEITA] PEDIDO #${orderId} ACEITO COM SUCESSO em ${elapsed}s!`);
-                                        console.log(`   Status atual: ${statusVerificado.newStatus.toUpperCase()}`);
-                                        
-                                        // Enviar log de integração - sucesso
-                                        integrationLogger.logEvent(
-                                            integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
-                                            integrationLogger.STATUS.COMPLETED,
-                                            `Pedido #${orderId} aceito com sucesso em ${elapsed}s`,
-                                            { orderId, elapsed, newStatus: statusVerificado.newStatus }
-                                        );
-                                        
-                                        aceiteStats.totalAccepted++;
-                                        aceiteStats.lastAccept = new Date().toISOString();
-                                        aceiteStats.lastAcceptedOrder = orderId;
-                                        aceiteStats.lastElapsed = elapsed;
-                                        aceiteStats.status = 'success';
-                                        
-                                        // Manter últimos 10 aceites
-                                        aceiteStats.recentAccepts.unshift({
-                                            orderId: orderId,
-                                            time: new Date().toISOString(),
-                                            elapsed: elapsed,
-                                            status: 'success'
-                                        });
-                                        if (aceiteStats.recentAccepts.length > 10) {
-                                            aceiteStats.recentAccepts.pop();
-                                        }
-                                    } else if (statusVerificado.success === false) {
-                                        console.log(`❌ [ACEITA] FALHA! Pedido #${orderId} ainda está PENDENTE após ${elapsed}s`);
-                                        console.log(`   Tentando novamente...`);
-                                        
-                                        // Enviar log de integração - falha
-                                        integrationLogger.logEvent(
-                                            integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
-                                            integrationLogger.STATUS.CANCELLED,
-                                            `Falha ao aceitar pedido #${orderId} - ainda pendente`,
-                                            { orderId, elapsed, error: 'Pedido ainda pendente após tentativa' }
-                                        );
-                                        
-                                        aceiteStats.totalFailed++;
-                                        aceiteStats.status = 'failed';
-                                    } else {
-                                        // MELHORIA: Se clicou no botão e o status é "não encontrado",
-                                        // provavelmente o pedido foi aceito e saiu da lista de pendentes
-                                        // Vamos considerar como aceito se não há mais pedidos pendentes visíveis
-                                        const pendentesAposAceite = await page.evaluate(() => {
-                                            const badges = document.querySelectorAll('hexa-v2-badge-status');
-                                            let pendentesCount = 0;
-                                            for (const badge of badges) {
-                                                let statusText = '';
-                                                if (badge.shadowRoot) {
-                                                    const span = badge.shadowRoot.querySelector('span');
-                                                    statusText = span ? span.textContent.trim().toLowerCase() : '';
-                                                }
-                                                if (statusText.includes('pendente')) {
-                                                    pendentesCount++;
-                                                }
-                                            }
-                                            return pendentesCount;
-                                        });
-                                        
-                                        if (pendentesAposAceite === 0) {
-                                            // Não há mais pendentes - aceite provavelmente funcionou
-                                            console.log(`✅ [ACEITA] Pedido #${orderId} provavelmente aceito em ${elapsed}s (nenhum pendente visível)`);
-                                            aceiteStats.totalAccepted++;
-                                            aceiteStats.lastAccept = new Date().toISOString();
-                                            aceiteStats.lastAcceptedOrder = orderId;
-                                            aceiteStats.lastElapsed = elapsed;
-                                            aceiteStats.status = 'success';
-                                            
-                                            aceiteStats.recentAccepts.unshift({
-                                                orderId: orderId || 'auto',
-                                                time: new Date().toISOString(),
-                                                elapsed: elapsed,
-                                                status: 'inferred'
-                                            });
-                                            if (aceiteStats.recentAccepts.length > 10) {
-                                                aceiteStats.recentAccepts.pop();
-                                            }
-                                        } else {
-                                            console.log(`⚠️ [ACEITA] Pedido #${orderId} processado em ${elapsed}s (status: ${statusVerificado.newStatus}, ${pendentesAposAceite} pendentes)`);
-                                            aceiteStats.status = 'processed';
-                                        }
-                                    }
-                                    
-                                    saveAceiteStats(aceiteStats);
-                                }
-                            } else {
-                                // Fallback: procurar qualquer botão de aceitar
-                                console.log('⚠️ [ACEITA] Modal não apareceu, tentando fallback...');
-                                const anyAcceptButton = await page.evaluate(() => {
-                                    const buttons = document.querySelectorAll('hexa-v2-button, button');
-                                    for (const btn of buttons) {
-                                        const text = btn.innerText || btn.textContent || '';
-                                        if (text.toLowerCase().includes('aceitar') || text.toLowerCase().includes('confirmar')) {
-                                            btn.click();
+                                        const spanText = innerBtn.querySelector('span')?.textContent?.trim() || '';
+                                        const btnText = innerBtn.textContent?.trim() || '';
+                                        if (spanText === 'Aceitar' || btnText.includes('Aceitar')) {
+                                            innerBtn.click();
                                             return true;
                                         }
-                                        if (btn.shadowRoot) {
-                                            const innerBtn = btn.shadowRoot.querySelector('button');
-                                            const innerText = innerBtn ? (innerBtn.innerText || innerBtn.textContent) : '';
-                                            if (innerText.toLowerCase().includes('aceitar') || innerText.toLowerCase().includes('confirmar')) {
-                                                innerBtn.click();
-                                                return true;
-                                            }
-                                        }
                                     }
-                                    return false;
-                                });
-                                
-                                if (anyAcceptButton) {
-                                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-                                    console.log(`⚠️ [ACEITA] Tentativa via fallback em ${elapsed}s - verificando...`);
-                                    await sleep(2);
-                                } else {
-                                    console.log('❌ [ACEITA] Nenhum botão de aceitar encontrado!');
-                                    aceiteStats.status = 'no_button';
                                 }
-                                saveAceiteStats(aceiteStats);
                             }
+                            
+                            // ESTRATÉGIA 4: Qualquer botão com texto exato "Aceitar" em modal
+                            const modal = document.querySelector('[role="dialog"], .modal, [class*="modal"]');
+                            if (modal) {
+                                const btnsInModal = modal.querySelectorAll('button');
+                                for (const btn of btnsInModal) {
+                                    if (btn.textContent.trim() === 'Aceitar') {
+                                        btn.click();
+                                        return true;
+                                    }
+                                }
+                            }
+                            
+                            // ESTRATÉGIA 5: #orders-details-modal-button-accept
+                            const modalBtn = document.querySelector('#orders-details-modal-button-accept');
+                            if (modalBtn) {
+                                if (modalBtn.shadowRoot) {
+                                    const innerBtn = modalBtn.shadowRoot.querySelector('button');
+                                    if (innerBtn) { innerBtn.click(); return true; }
+                                }
+                                modalBtn.click();
+                                return true;
+                            }
+                            
+                            return false;
+                        });
+                        
+                        if (botaoAceitarClicado) break;
+                        console.log(`⏳ [ACEITA] Tentativa ${tentativa}/5 - botão não encontrado, aguardando...`);
+                        await sleep(1);
+                    }
 
-                            // Pequena pausa antes de continuar
-                            await sleep(1);
-                        } else {
-                            // Botão desabilitado
-                            await sleep(0.5);
+                    if (!botaoAceitarClicado) {
+                        console.log('❌ [ACEITA] Botão "Aceitar" não encontrado no modal após 5 tentativas');
+                        // Fechar modal se aberto (ESC ou clicar fora)
+                        await page.keyboard.press('Escape');
+                        await sleep(1);
+                        aceiteStats.totalFailed++;
+                        saveAceiteStats(aceiteStats);
+                        continue;
+                    }
+
+                    console.log('✅ [ACEITA] Clicou no botão "Aceitar"!');
+                    
+                    // =======================================================
+                    // PASSO 4: Aguardar 4 segundos e verificar se status mudou
+                    // =======================================================
+                    console.log('⏳ [ACEITA] Aguardando 4 segundos para verificar status...');
+                    await sleep(4);
+                    
+                    // Recarregar página para verificar status atualizado
+                    await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
+                    await sleep(1);
+                    
+                    const statusVerificado = await page.evaluate((targetOrderId) => {
+                        const rows = document.querySelectorAll('hexa-v2-custom-table-row');
+                        
+                        // Verificar se ainda há pedidos pendentes
+                        let pendentesCount = 0;
+                        let pedidoEncontrado = false;
+                        let novoStatus = '';
+                        
+                        for (const row of rows) {
+                            let rowOrderId = '';
+                            const orderNumEl = row.querySelector('[id^="order-number"]');
+                            if (orderNumEl) {
+                                rowOrderId = orderNumEl.textContent.trim().replace(/\s+/g, '');
+                            }
+                            
+                            const badges = row.querySelectorAll('hexa-v2-badge-status');
+                            for (const badge of badges) {
+                                let statusText = '';
+                                if (badge.shadowRoot) {
+                                    const span = badge.shadowRoot.querySelector('span');
+                                    statusText = span ? span.textContent.trim().toLowerCase() : '';
+                                }
+                                
+                                if (statusText.includes('pendente')) {
+                                    pendentesCount++;
+                                }
+                                
+                                // Verificar se encontrou o pedido alvo
+                                if (targetOrderId && targetOrderId !== 'N/A' && 
+                                    (rowOrderId.includes(targetOrderId) || targetOrderId.includes(rowOrderId))) {
+                                    pedidoEncontrado = true;
+                                    novoStatus = statusText;
+                                }
+                            }
+                        }
+                        
+                        return { 
+                            pendentesCount, 
+                            pedidoEncontrado, 
+                            novoStatus,
+                            success: novoStatus.includes('aceito') || novoStatus.includes('preparo') || 
+                                     (!pedidoEncontrado && pendentesCount === 0)
+                        };
+                    }, orderId);
+                    
+                    const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+                    
+                    if (statusVerificado.success || statusVerificado.novoStatus.includes('aceito')) {
+                        console.log(`✅✅✅ [ACEITA] PEDIDO #${orderId} ACEITO COM SUCESSO em ${elapsed}s!`);
+                        if (statusVerificado.novoStatus) {
+                            console.log(`   Novo status: ${statusVerificado.novoStatus.toUpperCase()}`);
+                        }
+                        
+                        // Log de integração - sucesso
+                        integrationLogger.logEvent(
+                            integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
+                            integrationLogger.STATUS.COMPLETED,
+                            `Pedido #${orderId} aceito com sucesso em ${elapsed}s`,
+                            { orderId, elapsed, newStatus: statusVerificado.novoStatus }
+                        );
+                        
+                        aceiteStats.totalAccepted++;
+                        aceiteStats.lastAccept = new Date().toISOString();
+                        aceiteStats.lastAcceptedOrder = orderId;
+                        aceiteStats.lastElapsed = elapsed;
+                        aceiteStats.status = 'success';
+                        
+                        aceiteStats.recentAccepts.unshift({
+                            orderId: orderId,
+                            time: new Date().toISOString(),
+                            elapsed: elapsed,
+                            status: 'success'
+                        });
+                        if (aceiteStats.recentAccepts.length > 10) {
+                            aceiteStats.recentAccepts.pop();
+                        }
+                    } else if (statusVerificado.novoStatus.includes('pendente')) {
+                        console.log(`❌ [ACEITA] FALHA! Pedido #${orderId} ainda está PENDENTE após ${elapsed}s`);
+                        console.log(`   Ainda há ${statusVerificado.pendentesCount} pedido(s) pendente(s)`);
+                        console.log(`   Tentando novamente...`);
+                        
+                        // Log de integração - falha
+                        integrationLogger.logEvent(
+                            integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
+                            integrationLogger.STATUS.CANCELLED,
+                            `Falha ao aceitar pedido #${orderId} - ainda pendente`,
+                            { orderId, elapsed, error: 'Pedido ainda pendente após tentativa' }
+                        );
+                        
+                        aceiteStats.totalFailed++;
+                        aceiteStats.status = 'failed';
+                    } else {
+                        // Pedido não encontrado na lista - provavelmente foi aceito
+                        console.log(`✅ [ACEITA] Pedido #${orderId} processado em ${elapsed}s (status inferido: aceito)`);
+                        aceiteStats.totalAccepted++;
+                        aceiteStats.lastAccept = new Date().toISOString();
+                        aceiteStats.lastAcceptedOrder = orderId;
+                        aceiteStats.status = 'success';
+                        
+                        aceiteStats.recentAccepts.unshift({
+                            orderId: orderId,
+                            time: new Date().toISOString(),
+                            elapsed: elapsed,
+                            status: 'inferred'
+                        });
+                        if (aceiteStats.recentAccepts.length > 10) {
+                            aceiteStats.recentAccepts.pop();
                         }
                     }
                     
-                    aceiteStats.status = 'monitoring';
                     saveAceiteStats(aceiteStats);
-                    await sleep(2);
+                    aceiteStats.status = 'monitoring';
+                    await sleep(1);
                     
                 } catch (innerErr) {
                     console.error("❌ [ACEITA] Erro no loop interno:", innerErr.message);
@@ -1433,7 +1379,7 @@ async function aceitaScript(browser, cookies) {
                         await page.reload({ waitUntil: "networkidle2", timeout: 30000 }); 
                     } catch (reloadErr) {
                         console.error("❌ [ACEITA] Erro ao recarregar:", reloadErr.message);
-                        break; // Sair do loop interno para recriar a aba
+                        break; // Sair do loop interno para reabrir aba
                     }
                     await sleep(3);
                 }
