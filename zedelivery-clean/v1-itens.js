@@ -222,42 +222,35 @@ async function getTextFromShadowOrNormal(page, selector, innerSelector = null) {
  */
 async function capturarTelefoneViaFluxo(page) {
     try {
-        console.log('📞 [TELEFONE] Iniciando captura de telefone via fluxo modal...');
-        
-        // Verificar se já tem telefone visível em #customer-phone
-        const telefoneExistente = await page.evaluate(() => {
-            const phoneEl = document.querySelector('#customer-phone');
-            if (phoneEl) {
-                const texto = phoneEl.textContent.trim();
-                const numeros = texto.replace(/\D/g, '');
-                if (numeros.length >= 10) return numeros;
-            }
-            return '';
-        });
-        
-        if (telefoneExistente) {
-            console.log('📞 [TELEFONE] Telefone já visível:', telefoneExistente);
-            return telefoneExistente;
-        }
-        
-        // ===============================================
-        // PASSO 1: Encontrar e clicar no botão "Ver telefone"
-        // ===============================================
-        console.log('📞 [TELEFONE] Buscando botão "Ver telefone"...');
-        
+        console.log('📞 [TELEFONE] Iniciando captura via fluxo modal...');
+
+        // PASSO 3: Clicar em "Ver telefone" - é um link <a>, não botão shadow DOM
         const clicouVerTelefone = await page.evaluate(() => {
-            // Buscar botão com texto "Ver telefone"
-            const buttons = document.querySelectorAll('button, hexa-v2-button');
+            // Buscar link com texto "Ver telefone"
+            const links = document.querySelectorAll('a');
+            for (const link of links) {
+                if (link.textContent.trim().toLowerCase() === 'ver telefone') {
+                    link.click();
+                    return true;
+                }
+            }
+            // Fallback: botão/span com texto "Ver telefone"
+            const spans = document.querySelectorAll('button > span, span');
+            for (const span of spans) {
+                if (span.textContent.trim().toLowerCase() === 'ver telefone') {
+                    span.click();
+                    return true;
+                }
+            }
+            // Fallback: hexa-v2-button
+            const buttons = document.querySelectorAll('hexa-v2-button, button');
             for (const btn of buttons) {
-                let texto = '';
+                let texto = btn.textContent || '';
                 if (btn.shadowRoot) {
                     const innerBtn = btn.shadowRoot.querySelector('button');
-                    const span = btn.shadowRoot.querySelector('span');
-                    texto = innerBtn?.textContent.trim() || span?.textContent.trim() || '';
+                    texto = innerBtn?.textContent || '';
                 }
-                if (!texto) texto = btn.textContent.trim();
-                
-                if (texto.toLowerCase().includes('ver telefone')) {
+                if (texto.trim().toLowerCase().includes('ver telefone')) {
                     if (btn.shadowRoot) {
                         const innerBtn = btn.shadowRoot.querySelector('button');
                         if (innerBtn) { innerBtn.click(); return true; }
@@ -268,28 +261,19 @@ async function capturarTelefoneViaFluxo(page) {
             }
             return false;
         });
-        
+
         if (!clicouVerTelefone) {
-            console.log('📞 [TELEFONE] Botão "Ver telefone" não encontrado');
+            console.log('📞 [TELEFONE] Link "Ver telefone" não encontrado');
             return '';
         }
-        
+
         console.log('📞 [TELEFONE] ✓ Clicou em "Ver telefone"');
         await sleep(2);
-        
-        // ===============================================
-        // PASSO 2: Selecionar "Problemas com a entrega"
-        // ===============================================
-        console.log('📞 [TELEFONE] Selecionando "Problemas com a entrega"...');
-        
+
+        // PASSO 5: Clicar em "Problemas com a entrega"
         const clicouProblemas = await page.evaluate(() => {
-            // Seletor do PDF: #REASON_CATEGORY_DELIVERY_PROBLEM > div
-            const problema = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM > div');
-            if (problema) {
-                problema.click();
-                return true;
-            }
-            
+            const el = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM > div');
+            if (el) { el.click(); return true; }
             // Fallback: buscar por texto
             const divs = document.querySelectorAll('div');
             for (const div of divs) {
@@ -300,112 +284,114 @@ async function capturarTelefoneViaFluxo(page) {
             }
             return false;
         });
-        
+
         if (!clicouProblemas) {
-            console.log('📞 [TELEFONE] Opção "Problemas com a entrega" não encontrada');
+            console.log('📞 [TELEFONE] "Problemas com a entrega" não encontrado');
             await page.keyboard.press('Escape');
             return '';
         }
-        
-        console.log('📞 [TELEFONE] ✓ Clicou em "Problemas com a entrega"');
-        await sleep(1.5);
-        
-        // ===============================================
-        // PASSO 3: Selecionar "O entregador não encontra o cliente"
-        // ===============================================
-        console.log('📞 [TELEFONE] Selecionando "O entregador não encontra o cliente"...');
-        
+
+        console.log('📞 [TELEFONE] ✓ Expandiu "Problemas com a entrega"');
+        await sleep(1.5); // Aguardar subopções aparecerem
+
+        // PASSO 6: Clicar em "O entregador não encontra o cliente"
+        // Aguardar o radio button aparecer após expandir
+        try {
+            await page.waitForSelector(
+                '#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER',
+                { visible: true, timeout: 5000 }
+            );
+        } catch (e) {
+            console.log('📞 [TELEFONE] Radio button não apareceu após 5s');
+            await page.keyboard.press('Escape');
+            return '';
+        }
+
         const clicouEntregador = await page.evaluate(() => {
-            // Seletor do PDF: #REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER
-            const radioInput = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
-            if (radioInput) {
-                radioInput.click();
-                return true;
-            }
-            
+            const radio = document.querySelector(
+                '#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER'
+            );
+            if (radio) { radio.click(); return true; }
+
             // Fallback: label correspondente
-            const label = document.querySelector('label[for="REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER"]');
-            if (label) {
-                label.click();
-                return true;
-            }
-            
+            const label = document.querySelector(
+                'label[for="REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER"]'
+            );
+            if (label) { label.click(); return true; }
+
             return false;
         });
-        
+
         if (!clicouEntregador) {
-            console.log('📞 [TELEFONE] Opção "Entregador não encontra" não encontrada');
+            console.log('📞 [TELEFONE] Radio "Entregador não encontra" não encontrado');
             await page.keyboard.press('Escape');
             return '';
         }
-        
-        console.log('📞 [TELEFONE] ✓ Clicou em "O entregador não encontra o cliente"');
-        await sleep(1.5);
-        
-        // ===============================================
-        // PASSO 4: Clicar no botão "Confirmar" amarelo
-        // ===============================================
-        console.log('📞 [TELEFONE] Clicando em "Confirmar"...');
+
+        console.log('📞 [TELEFONE] ✓ Selecionou "O entregador não encontra o cliente"');
+        await sleep(1);
+
+        // PASSO 7: Clicar no botão "Confirmar" amarelo
+        // O botão Confirmar pode estar desabilitado até selecionar uma opção - aguardar habilitar
+        await sleep(0.5);
         
         const clicouConfirmar = await page.evaluate(() => {
-            // Buscar botão amarelo "Confirmar"
-            const buttons = document.querySelectorAll('button, hexa-v2-button');
+            const buttons = document.querySelectorAll('button');
             for (const btn of buttons) {
-                let texto = '';
-                let isPrimary = false;
-                
-                if (btn.shadowRoot) {
-                    const innerBtn = btn.shadowRoot.querySelector('button');
-                    texto = innerBtn?.textContent.trim() || '';
-                    isPrimary = innerBtn?.classList.contains('primary') || false;
-                }
-                if (!texto) texto = btn.textContent.trim();
-                
-                if (texto.toLowerCase() === 'confirmar') {
-                    if (btn.shadowRoot) {
-                        const innerBtn = btn.shadowRoot.querySelector('button');
-                        if (innerBtn) { innerBtn.click(); return true; }
-                    }
+                const texto = btn.textContent.trim().toLowerCase();
+                if (texto === 'confirmar' && !btn.disabled) {
                     btn.click();
                     return true;
                 }
             }
+            // Tentar mesmo desabilitado como fallback
+            for (const btn of buttons) {
+                if (btn.textContent.trim().toLowerCase() === 'confirmar') {
+                    btn.click();
+                    return true;
+                }
+            }
+            // Fallback: hexa-v2-button
+            const hexaBtns = document.querySelectorAll('hexa-v2-button');
+            for (const btn of hexaBtns) {
+                if (btn.shadowRoot) {
+                    const innerBtn = btn.shadowRoot.querySelector('button');
+                    if (innerBtn && innerBtn.textContent.trim().toLowerCase() === 'confirmar') {
+                        innerBtn.click();
+                        return true;
+                    }
+                }
+            }
             return false;
         });
-        
+
         if (!clicouConfirmar) {
             console.log('📞 [TELEFONE] Botão "Confirmar" não encontrado');
             await page.keyboard.press('Escape');
             return '';
         }
-        
+
         console.log('📞 [TELEFONE] ✓ Clicou em "Confirmar"');
         await sleep(2);
-        
-        // ===============================================
-        // PASSO 5: Capturar telefone de #customer-phone
-        // ===============================================
-        console.log('📞 [TELEFONE] Capturando telefone de #customer-phone...');
-        
+
+        // PASSO 8: Capturar #customer-phone
         const telefone = await page.evaluate(() => {
-            const phoneEl = document.querySelector('#customer-phone');
-            if (phoneEl) {
-                const texto = phoneEl.textContent.trim();
-                return texto.replace(/\D/g, ''); // Apenas números
-            }
+            const el = document.querySelector('#customer-phone');
+            if (el) return el.textContent.trim().replace(/\D/g, '');
             return '';
         });
-        
+
         if (telefone && telefone.length >= 10) {
             console.log('📞 [TELEFONE] ✓ Telefone capturado:', telefone);
             return telefone;
         }
-        
+
         console.log('📞 [TELEFONE] Telefone não encontrado após fluxo');
         return '';
-        
+
     } catch (error) {
         console.error('📞 [TELEFONE] Erro:', error.message);
+        try { await page.keyboard.press('Escape'); } catch(e) {}
         return '';
     }
 }
@@ -1559,25 +1545,49 @@ async function itensScript(page) {
                 // =====================================================
                 console.log('🎟️ [CUPOM] Capturando descrição do cupom...');
                 
-                // Tentar capturar via Shadow DOM (elemento #discount-description é hexa-v2-text)
+                // Tentar capturar via Shadow DOM (Declarative Shadow DOM - shadowrootmode="open")
+                // Para Declarative Shadow DOM, o shadowRoot é acessível normalmente via .shadowRoot
                 cupomDescricao = await page.evaluate(() => {
-                    // O elemento #discount-description é um hexa-v2-text com Shadow DOM
-                    const discountDescEl = document.querySelector('#discount-description');
-                    if (discountDescEl) {
-                        // Tentar pegar do Shadow DOM (hexa-v2-text tem span interno)
-                        if (discountDescEl.shadowRoot) {
-                            const span = discountDescEl.shadowRoot.querySelector('span');
-                            if (span && span.textContent.trim()) {
-                                return span.textContent.trim();
-                            }
-                        }
-                        // Fallback: texto direto do elemento
-                        if (discountDescEl.textContent.trim()) {
-                            return discountDescEl.textContent.trim();
-                        }
+                    const el = document.querySelector('#discount-description');
+                    if (!el) return '';
+                    
+                    // Tentar shadowRoot (funciona para ambos declarativo e imperativo)
+                    if (el.shadowRoot) {
+                        const span = el.shadowRoot.querySelector('span[data-testid="hexa-v2-text"]');
+                        if (span && span.textContent.trim()) return span.textContent.trim();
+                        // Fallback: qualquer span
+                        const anySpan = el.shadowRoot.querySelector('span');
+                        if (anySpan && anySpan.textContent.trim()) return anySpan.textContent.trim();
                     }
+                    
+                    // Fallback: innerText direto (às vezes funciona mesmo com shadow DOM)
+                    if (el.innerText && el.innerText.trim()) return el.innerText.trim();
+                    
                     return '';
                 });
+                
+                // Se ainda vazio, tentar via Puppeteer nativo (mais confiável para shadow DOM)
+                if (!cupomDescricao) {
+                    try {
+                        const discountEl = await page.$('#discount-description');
+                        if (discountEl) {
+                            cupomDescricao = await page.evaluate(el => {
+                                // Percorrer shadow roots aninhados
+                                function getTextFromShadow(node) {
+                                    if (!node) return '';
+                                    if (node.shadowRoot) {
+                                        return getTextFromShadow(node.shadowRoot);
+                                    }
+                                    const span = node.querySelector 
+                                        ? node.querySelector('span') 
+                                        : null;
+                                    return span ? span.textContent.trim() : node.textContent.trim();
+                                }
+                                return getTextFromShadow(el);
+                            }, discountEl);
+                        }
+                    } catch(e) {}
+                }
                 
                 console.log('🎟️ [CUPOM] Resultado #discount-description:', cupomDescricao || '(vazio)');
                 
