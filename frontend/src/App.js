@@ -1226,6 +1226,26 @@ function App() {
                                         )}
                                       </div>
                                     </div>
+                                    
+                                    {/* Botão Confirmar Retirada - apenas para pedidos de retirada */}
+                                    {(pedidoDetails.pedido.delivery_tipo_pedido?.toLowerCase().includes('retirada') || 
+                                      pedidoDetails.pedido.delivery_tipo_pedido?.toLowerCase().includes('pickup')) && (
+                                      <div className="mt-4 pt-4 border-t border-gray-200">
+                                        <Button
+                                          onClick={() => confirmarRetirada(pedidoDetails.pedido.delivery_code)}
+                                          disabled={retiradaLoading}
+                                          className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-medium"
+                                          data-testid="confirmar-retirada-btn"
+                                        >
+                                          {retiradaLoading ? '⏳ Confirmando...' : '✅ Confirmar Retirada'}
+                                        </Button>
+                                        {retiradaStatus && (
+                                          <p className={`text-xs mt-2 text-center ${retiradaStatus.success ? 'text-green-600' : 'text-red-600'}`}>
+                                            {retiradaStatus.message}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               )}
