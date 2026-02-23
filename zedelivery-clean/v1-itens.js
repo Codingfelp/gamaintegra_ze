@@ -224,107 +224,77 @@ async function capturarTelefoneViaFluxo(page) {
     try {
         console.log('📞 [TELEFONE] Iniciando captura de telefone via fluxo modal...');
         
-        // Salvar screenshot para debug
-        try {
-            await page.screenshot({ path: '/app/logs/telefone-antes.png', fullPage: false });
-        } catch (e) {}
+        // Verificar se já tem telefone visível em #customer-phone
+        const telefoneExistente = await page.evaluate(() => {
+            const phoneEl = document.querySelector('#customer-phone');
+            if (phoneEl) {
+                const texto = phoneEl.textContent.trim();
+                const numeros = texto.replace(/\D/g, '');
+                if (numeros.length >= 10) return numeros;
+            }
+            return '';
+        });
+        
+        if (telefoneExistente) {
+            console.log('📞 [TELEFONE] Telefone já visível:', telefoneExistente);
+            return telefoneExistente;
+        }
         
         // ===============================================
         // PASSO 1: Encontrar e clicar no botão "Ver telefone"
         // ===============================================
+        console.log('📞 [TELEFONE] Buscando botão "Ver telefone"...');
         
-        // O botão tem ID #phone-unavailable e é um hexa-v2-button
-        const btnSelector = '#phone-unavailable';
+        const clicouVerTelefone = await page.evaluate(() => {
+            // Buscar botão com texto "Ver telefone"
+            const buttons = document.querySelectorAll('button, hexa-v2-button');
+            for (const btn of buttons) {
+                let texto = '';
+                if (btn.shadowRoot) {
+                    const innerBtn = btn.shadowRoot.querySelector('button');
+                    const span = btn.shadowRoot.querySelector('span');
+                    texto = innerBtn?.textContent.trim() || span?.textContent.trim() || '';
+                }
+                if (!texto) texto = btn.textContent.trim();
+                
+                if (texto.toLowerCase().includes('ver telefone')) {
+                    if (btn.shadowRoot) {
+                        const innerBtn = btn.shadowRoot.querySelector('button');
+                        if (innerBtn) { innerBtn.click(); return true; }
+                    }
+                    btn.click();
+                    return true;
+                }
+            }
+            return false;
+        });
         
-        // Verificar se o botão existe
-        const btnExists = await page.$(btnSelector);
-        if (!btnExists) {
-            console.log('📞 [TELEFONE] Botão #phone-unavailable não encontrado');
+        if (!clicouVerTelefone) {
+            console.log('📞 [TELEFONE] Botão "Ver telefone" não encontrado');
             return '';
         }
         
-        // Verificar o texto atual - se já for um telefone, retorna
-        const textoAtual = await page.evaluate((sel) => {
-            const el = document.querySelector(sel);
-            if (!el) return '';
-            
-            // Tentar pegar texto do shadow DOM
-            if (el.shadowRoot) {
-                const btn = el.shadowRoot.querySelector('button');
-                if (btn) return btn.textContent.trim();
-            }
-            return el.textContent.trim();
-        }, btnSelector);
-        
-        console.log('📞 [TELEFONE] Texto atual do botão:', textoAtual);
-        
-        // Se já é um telefone (contém números suficientes), retorna
-        const numerosNoTexto = textoAtual.replace(/\D/g, '');
-        if (numerosNoTexto.length >= 10) {
-            console.log('📞 [TELEFONE] Telefone já está visível:', numerosNoTexto);
-            return numerosNoTexto;
-        }
-        
-        // Clicar no botão Ver telefone
-        console.log('📞 [TELEFONE] Clicando no botão Ver telefone...');
-        await page.evaluate((sel) => {
-            const el = document.querySelector(sel);
-            if (el && el.shadowRoot) {
-                const btn = el.shadowRoot.querySelector('button');
-                if (btn) {
-                    btn.click();
-                    return;
-                }
-            }
-            if (el) el.click();
-        }, btnSelector);
-        
-        await sleep(2.5);
-        
-        // Salvar screenshot do modal
-        try {
-            await page.screenshot({ path: '/app/logs/telefone-modal1.png', fullPage: false });
-        } catch (e) {}
+        console.log('📞 [TELEFONE] ✓ Clicou em "Ver telefone"');
+        await sleep(2);
         
         // ===============================================
         // PASSO 2: Selecionar "Problemas com a entrega"
         // ===============================================
-        console.log('📞 [TELEFONE] Buscando opção "Problemas com a entrega"...');
+        console.log('📞 [TELEFONE] Selecionando "Problemas com a entrega"...');
         
-        // Listar todas as opções de radio disponíveis para debug
-        const opcoesDisponiveis = await page.evaluate(() => {
-            const opcoes = [];
-            const radios = document.querySelectorAll('hexa-v2-radio-button');
-            radios.forEach((radio, i) => {
-                let texto = radio.getAttribute('label') || '';
-                if (!texto && radio.shadowRoot) {
-                    const label = radio.shadowRoot.querySelector('label, span');
-                    texto = label ? label.textContent.trim() : '';
-                }
-                opcoes.push(`[${i}] ${texto}`);
-            });
-            return opcoes;
-        });
-        console.log('📞 [TELEFONE] Opções encontradas:', opcoesDisponiveis.join(' | '));
-        
-        // Clicar na opção "Problemas com a entrega"
         const clicouProblemas = await page.evaluate(() => {
-            const radios = document.querySelectorAll('hexa-v2-radio-button');
-            for (const radio of radios) {
-                let texto = radio.getAttribute('label') || '';
-                if (!texto && radio.shadowRoot) {
-                    const label = radio.shadowRoot.querySelector('label, span');
-                    texto = label ? label.textContent.trim() : '';
-                }
-                
-                if (texto.toLowerCase().includes('problemas com a entrega') || 
-                    texto.toLowerCase().includes('problema') && texto.toLowerCase().includes('entrega')) {
-                    // Clicar no radio
-                    if (radio.shadowRoot) {
-                        const input = radio.shadowRoot.querySelector('input');
-                        if (input) { input.click(); return true; }
-                    }
-                    radio.click();
+            // Seletor do PDF: #REASON_CATEGORY_DELIVERY_PROBLEM > div
+            const problema = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM > div');
+            if (problema) {
+                problema.click();
+                return true;
+            }
+            
+            // Fallback: buscar por texto
+            const divs = document.querySelectorAll('div');
+            for (const div of divs) {
+                if (div.textContent.trim() === 'Problemas com a entrega') {
+                    div.click();
                     return true;
                 }
             }
@@ -332,91 +302,113 @@ async function capturarTelefoneViaFluxo(page) {
         });
         
         if (!clicouProblemas) {
-            console.log('📞 [TELEFONE] Não encontrou "Problemas com a entrega", fechando modal');
+            console.log('📞 [TELEFONE] Opção "Problemas com a entrega" não encontrada');
             await page.keyboard.press('Escape');
             return '';
         }
         
         console.log('📞 [TELEFONE] ✓ Clicou em "Problemas com a entrega"');
-        await sleep(2);
-        
-        // Salvar screenshot
-        try {
-            await page.screenshot({ path: '/app/logs/telefone-modal2.png', fullPage: false });
-        } catch (e) {}
+        await sleep(1.5);
         
         // ===============================================
         // PASSO 3: Selecionar "O entregador não encontra o cliente"
         // ===============================================
-        console.log('📞 [TELEFONE] Buscando opção "O entregador não encontra o cliente"...');
-        
-        // Listar opções novamente
-        const opcoesSubMenu = await page.evaluate(() => {
-            const opcoes = [];
-            const radios = document.querySelectorAll('hexa-v2-radio-button');
-            radios.forEach((radio, i) => {
-                let texto = radio.getAttribute('label') || '';
-                if (!texto && radio.shadowRoot) {
-                    const label = radio.shadowRoot.querySelector('label, span');
-                    texto = label ? label.textContent.trim() : '';
-                }
-                opcoes.push(`[${i}] ${texto}`);
-            });
-            return opcoes;
-        });
-        console.log('📞 [TELEFONE] Opções do submenu:', opcoesSubMenu.join(' | '));
+        console.log('📞 [TELEFONE] Selecionando "O entregador não encontra o cliente"...');
         
         const clicouEntregador = await page.evaluate(() => {
-            const radios = document.querySelectorAll('hexa-v2-radio-button');
-            for (const radio of radios) {
-                let texto = radio.getAttribute('label') || '';
-                if (!texto && radio.shadowRoot) {
-                    const label = radio.shadowRoot.querySelector('label, span');
-                    texto = label ? label.textContent.trim() : '';
-                }
+            // Seletor do PDF: #REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER
+            const radioInput = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
+            if (radioInput) {
+                radioInput.click();
+                return true;
+            }
+            
+            // Fallback: label correspondente
+            const label = document.querySelector('label[for="REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER"]');
+            if (label) {
+                label.click();
+                return true;
+            }
+            
+            return false;
+        });
+        
+        if (!clicouEntregador) {
+            console.log('📞 [TELEFONE] Opção "Entregador não encontra" não encontrada');
+            await page.keyboard.press('Escape');
+            return '';
+        }
+        
+        console.log('📞 [TELEFONE] ✓ Clicou em "O entregador não encontra o cliente"');
+        await sleep(1.5);
+        
+        // ===============================================
+        // PASSO 4: Clicar no botão "Confirmar" amarelo
+        // ===============================================
+        console.log('📞 [TELEFONE] Clicando em "Confirmar"...');
+        
+        const clicouConfirmar = await page.evaluate(() => {
+            // Buscar botão amarelo "Confirmar"
+            const buttons = document.querySelectorAll('button, hexa-v2-button');
+            for (const btn of buttons) {
+                let texto = '';
+                let isPrimary = false;
                 
-                if (texto.toLowerCase().includes('entregador não encontra') || 
-                    texto.toLowerCase().includes('não encontra o cliente') ||
-                    texto.toLowerCase().includes('entregador') && texto.toLowerCase().includes('encontra')) {
-                    if (radio.shadowRoot) {
-                        const input = radio.shadowRoot.querySelector('input');
-                        if (input) { input.click(); return true; }
+                if (btn.shadowRoot) {
+                    const innerBtn = btn.shadowRoot.querySelector('button');
+                    texto = innerBtn?.textContent.trim() || '';
+                    isPrimary = innerBtn?.classList.contains('primary') || false;
+                }
+                if (!texto) texto = btn.textContent.trim();
+                
+                if (texto.toLowerCase() === 'confirmar') {
+                    if (btn.shadowRoot) {
+                        const innerBtn = btn.shadowRoot.querySelector('button');
+                        if (innerBtn) { innerBtn.click(); return true; }
                     }
-                    radio.click();
+                    btn.click();
                     return true;
                 }
             }
             return false;
         });
         
-        if (!clicouEntregador) {
-            console.log('📞 [TELEFONE] Não encontrou "O entregador não encontra", fechando modal');
+        if (!clicouConfirmar) {
+            console.log('📞 [TELEFONE] Botão "Confirmar" não encontrado');
             await page.keyboard.press('Escape');
             return '';
         }
         
-        console.log('📞 [TELEFONE] ✓ Clicou em "O entregador não encontra o cliente"');
+        console.log('📞 [TELEFONE] ✓ Clicou em "Confirmar"');
         await sleep(2);
         
-        // Salvar screenshot
-        try {
-            await page.screenshot({ path: '/app/logs/telefone-modal3.png', fullPage: false });
-        } catch (e) {}
-        
         // ===============================================
-        // PASSO 4: Clicar no botão "Confirmar"
+        // PASSO 5: Capturar telefone de #customer-phone
         // ===============================================
-        console.log('📞 [TELEFONE] Buscando botão "Confirmar"...');
+        console.log('📞 [TELEFONE] Capturando telefone de #customer-phone...');
         
-        const clicouConfirmar = await page.evaluate(() => {
-            const buttons = document.querySelectorAll('hexa-v2-button');
-            for (const btn of buttons) {
-                let texto = '';
-                if (btn.shadowRoot) {
-                    const innerBtn = btn.shadowRoot.querySelector('button');
-                    texto = innerBtn ? innerBtn.textContent.trim() : '';
-                }
-                if (!texto) texto = btn.textContent.trim();
+        const telefone = await page.evaluate(() => {
+            const phoneEl = document.querySelector('#customer-phone');
+            if (phoneEl) {
+                const texto = phoneEl.textContent.trim();
+                return texto.replace(/\D/g, ''); // Apenas números
+            }
+            return '';
+        });
+        
+        if (telefone && telefone.length >= 10) {
+            console.log('📞 [TELEFONE] ✓ Telefone capturado:', telefone);
+            return telefone;
+        }
+        
+        console.log('📞 [TELEFONE] Telefone não encontrado após fluxo');
+        return '';
+        
+    } catch (error) {
+        console.error('📞 [TELEFONE] Erro:', error.message);
+        return '';
+    }
+}
                 
                 console.log('Botão encontrado:', texto);
                 
