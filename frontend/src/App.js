@@ -244,6 +244,36 @@ function App() {
     }
   };
 
+  // Função para confirmar retirada de pedido
+  const confirmarRetirada = async (orderId) => {
+    if (!window.confirm(`Confirmar retirada do pedido #${orderId}?`)) return;
+    
+    setRetiradaLoading(true);
+    setRetiradaStatus(null);
+    
+    try {
+      const res = await fetch(`${API_URL}/api/pedidos/${orderId}/confirmar-retirada`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        setRetiradaStatus({ success: true, message: data.message || 'Retirada confirmada!' });
+      } else {
+        setRetiradaStatus({ success: false, message: data.detail || 'Erro ao confirmar retirada' });
+      }
+      
+      // Limpar status após 5 segundos
+      setTimeout(() => setRetiradaStatus(null), 5000);
+    } catch (err) {
+      console.error('Erro ao confirmar retirada:', err);
+      setRetiradaStatus({ success: false, message: 'Erro de conexão' });
+    } finally {
+      setRetiradaLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 5000); // Atualiza a cada 5 segundos
