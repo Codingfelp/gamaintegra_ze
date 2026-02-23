@@ -92,6 +92,10 @@ function App() {
   const [showLogsCaptura, setShowLogsCaptura] = useState(false);
   const [showLogsStatus, setShowLogsStatus] = useState(false);
   const [showLogsSync, setShowLogsSync] = useState(false);
+  
+  // Estado para confirmar retirada
+  const [retiradaLoading, setRetiradaLoading] = useState(false);
+  const [retiradaStatus, setRetiradaStatus] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
