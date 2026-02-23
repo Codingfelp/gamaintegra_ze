@@ -409,75 +409,8 @@ async function capturarTelefoneViaFluxo(page) {
         return '';
     }
 }
-                
-                console.log('Botão encontrado:', texto);
-                
-                if (texto.toLowerCase() === 'confirmar') {
-                    if (btn.shadowRoot) {
-                        const innerBtn = btn.shadowRoot.querySelector('button');
-                        if (innerBtn) { innerBtn.click(); return true; }
-                    }
-                    btn.click();
-                    return true;
-                }
-            }
-            return false;
-        });
-        
-        if (!clicouConfirmar) {
-            console.log('📞 [TELEFONE] Botão Confirmar não encontrado, fechando modal');
-            await page.keyboard.press('Escape');
-            return '';
-        }
-        
-        console.log('📞 [TELEFONE] ✓ Clicou em "Confirmar"');
-        await sleep(4);
-        
-        // Salvar screenshot após confirmar
-        try {
-            await page.screenshot({ path: '/app/logs/telefone-depois.png', fullPage: false });
-        } catch (e) {}
-        
-        // ===============================================
-        // PASSO 5: Capturar o telefone que agora deve estar visível
-        // ===============================================
-        console.log('📞 [TELEFONE] Capturando telefone após modal...');
-        
-        // O botão #phone-unavailable agora deve mostrar o telefone ao invés de "Ver telefone"
-        const telefone = await page.evaluate((sel) => {
-            const el = document.querySelector(sel);
-            if (!el) return '';
-            
-            let texto = '';
-            if (el.shadowRoot) {
-                const btn = el.shadowRoot.querySelector('button, span, a');
-                texto = btn ? btn.textContent.trim() : '';
-            }
-            if (!texto) texto = el.textContent.trim();
-            
-            // Extrair apenas números
-            const nums = texto.replace(/\D/g, '');
-            if (nums.length >= 10 && nums.length <= 13) {
-                return nums;
-            }
-            
-            return '';
-        }, btnSelector);
-        
-        if (telefone) {
-            console.log('📞 [TELEFONE] ✓ Telefone capturado com sucesso:', telefone);
-            return telefone;
-        }
-        
-        // Tentar buscar link tel:
-        const telLink = await page.$eval('a[href^="tel:"]', el => el.href).catch(() => '');
-        if (telLink) {
-            const tel = telLink.replace('tel:', '').replace(/\D/g, '');
-            if (tel.length >= 10) {
-                console.log('📞 [TELEFONE] ✓ Telefone via link tel:', tel);
-                return tel;
-            }
-        }
+
+/**
         
         // Buscar na seção #user-info por padrão de telefone
         const telefoneFromUserInfo = await page.evaluate(() => {
