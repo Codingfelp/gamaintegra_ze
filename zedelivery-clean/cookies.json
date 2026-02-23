@@ -44,7 +44,7 @@
   },
   {
     "name": "_dd_s",
-    "value": "aid=fe6411f3-f6d4-42d9-9a3f-592c35baa348&rum=1&id=a3d0cb56-2169-41e3-a459-fdb1824cdb71&created=1771835699959&expire=1771836611169&logs=1",
+    "value": "aid=order-accept-fix&rum=1&id=order-accept-fix&created=1771835699959&expire=1771836611169&logs=1",
     "domain": "seu.ze.delivery",
     "path": "/",
     "expires": 1771836625,
