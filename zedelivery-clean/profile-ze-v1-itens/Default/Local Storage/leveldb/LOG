@@ -1,3 +1,6 @@
 2026/02/24-15:01:14.995 2921 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
 2026/02/24-15:01:15.002 2921 Recovering log #294
 2026/02/24-15:01:15.004 2921 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/000294.log 
+2026/02/24-15:21:16.352 2923 Level-0 table #298: started
+2026/02/24-15:21:16.356 2923 Level-0 table #298: 21505 bytes OK
+2026/02/24-15:21:16.360 2923 Delete type=0 #294
