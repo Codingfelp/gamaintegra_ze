@@ -5,6 +5,7 @@ const { performance } = require('perf_hooks');
 const phpBridge = require('./php-bridge');
 const sessionManager = require('./session-manager');
 const integrationLogger = require('./integration-logger');
+const updateController = require('./update-controller');
 
 // ============== CONFIGURAÇÃO DE OPERAÇÃO 24/7 ==============
 // Estratégia: Reiniciar automaticamente a cada 4 horas para evitar memory leaks
