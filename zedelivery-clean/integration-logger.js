@@ -1,6 +1,7 @@
 /**
  * Integration Logger - Envia logs para Supabase REST API
  * 
+ * OTIMIZADO: Debounce, cache, evita logs duplicados
  * Endpoint: POST https://uppkjvovtvlgwfciqrbt.supabase.co/rest/v1/integration_logs
  */
 
@@ -9,6 +10,21 @@ const https = require('https');
 // Configuração do Supabase
 const SUPABASE_URL = 'https://uppkjvovtvlgwfciqrbt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwcGtqdm92dHZsZ3dmY2lxcmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMjU2NTksImV4cCI6MjA4NTkwMTY1OX0.JdCNg4RQBCdGslv1xVytXYp8mA347sTHp0RROqRqEiU';
+
+// ============================================
+// CONFIGURAÇÕES DE DEBOUNCE/CACHE
+// ============================================
+const LOG_DEBOUNCE_MS = 10000;           // 10 segundos entre logs do mesmo tipo
+const MAX_LOGS_PER_MINUTE = 6;           // Máximo 6 logs por minuto
+const CACHE_CLEANUP_INTERVAL = 60000;    // Limpar cache a cada 60 segundos
+
+// Cache para evitar logs duplicados
+const logCache = {
+  lastLogByType: new Map(),              // Último log por tipo de processo
+  logCount: 0,                           // Contador de logs no minuto atual
+  lastCountReset: Date.now(),            // Timestamp do último reset do contador
+  recentMessages: new Set(),             // Mensagens recentes (para evitar duplicatas)
+};
 
 // Status possíveis
 const STATUS = {
@@ -28,6 +44,47 @@ const PROCESS_TYPES = {
     ORDER_UPDATE: 'order_update',
     ORDER_CREATED: 'order_created'
 };
+
+/**
+ * Verifica se pode enviar log (respeitando debounce e rate limit)
+ */
+function canSendLog(processType, message) {
+    const now = Date.now();
+    
+    // Reset contador a cada minuto
+    if (now - logCache.lastCountReset > 60000) {
+        logCache.logCount = 0;
+        logCache.lastCountReset = now;
+        logCache.recentMessages.clear();
+    }
+    
+    // Rate limit global
+    if (logCache.logCount >= MAX_LOGS_PER_MINUTE) {
+        console.log(`[LOG] Rate limit atingido (${MAX_LOGS_PER_MINUTE}/min)`);
+        return false;
+    }
+    
+    // Verificar debounce por tipo
+    const lastLog = logCache.lastLogByType.get(processType) || 0;
+    if (now - lastLog < LOG_DEBOUNCE_MS) {
+        console.log(`[LOG] Debounce ativo para ${processType}`);
+        return false;
+    }
+    
+    // Verificar se mensagem é duplicata
+    const messageKey = `${processType}:${message}`;
+    if (logCache.recentMessages.has(messageKey)) {
+        console.log(`[LOG] Mensagem duplicada ignorada`);
+        return false;
+    }
+    
+    // Atualizar cache
+    logCache.lastLogByType.set(processType, now);
+    logCache.logCount++;
+    logCache.recentMessages.add(messageKey);
+    
+    return true;
+}
 
 /**
  * Envia requisição para Supabase REST API
@@ -86,10 +143,15 @@ function supabaseRequest(method, endpoint, data = null) {
 }
 
 /**
- * Cria novo log de integração
+ * Cria novo log de integração (COM DEBOUNCE)
  * @returns {string|null} process_id para atualizações
  */
 async function createLog(processType, status, message, errorMessage = null, metadata = {}) {
+    // Verificar debounce/rate limit
+    if (!canSendLog(processType, message)) {
+        return null;
+    }
+    
     const data = {
         process_type: processType,
         status: status,
@@ -133,9 +195,14 @@ async function updateLog(processId, status, message, errorMessage = null, metada
 }
 
 /**
- * Inicia processo
+ * Inicia processo (COM DEBOUNCE)
  */
 async function startProcess(processType, message, metadata = {}) {
+    if (!canSendLog(processType, message)) {
+        console.log(`[LOG] Iniciando (local): ${processType} - ${message}`);
+        return null;
+    }
+    
     console.log(`[LOG] Iniciando: ${processType} - ${message}`);
     return await createLog(processType, STATUS.IN_PROGRESS, message, null, metadata);
 }
@@ -145,7 +212,9 @@ async function startProcess(processType, message, metadata = {}) {
  */
 async function completeProcess(processId, message, metadata = {}) {
     console.log(`[LOG] Concluído: ${message}`);
-    await updateLog(processId, STATUS.COMPLETED, message, null, metadata);
+    if (processId) {
+        await updateLog(processId, STATUS.COMPLETED, message, null, metadata);
+    }
 }
 
 /**
@@ -153,15 +222,34 @@ async function completeProcess(processId, message, metadata = {}) {
  */
 async function cancelProcess(processId, message, errorMessage, metadata = {}) {
     console.log(`[LOG] Cancelado: ${message} - ${errorMessage}`);
-    await updateLog(processId, STATUS.CANCELLED, message, errorMessage, metadata);
+    if (processId) {
+        await updateLog(processId, STATUS.CANCELLED, message, errorMessage, metadata);
+    }
 }
 
 /**
- * Log rápido (evento único)
+ * Log rápido (evento único) - COM DEBOUNCE
  */
 async function logEvent(processType, status, message, metadata = {}) {
+    if (!canSendLog(processType, message)) {
+        console.log(`[LOG-LOCAL] ${processType}: ${message}`);
+        return;
+    }
     await createLog(processType, status, message, null, metadata);
 }
+
+// Limpar cache periodicamente
+setInterval(() => {
+    const now = Date.now();
+    const expiry = now - 120000; // 2 minutos
+    
+    for (const [key, value] of logCache.lastLogByType) {
+        if (value < expiry) {
+            logCache.lastLogByType.delete(key);
+        }
+    }
+    logCache.recentMessages.clear();
+}, CACHE_CLEANUP_INTERVAL);
 
 module.exports = {
     STATUS,
