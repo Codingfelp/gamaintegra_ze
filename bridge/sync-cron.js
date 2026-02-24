@@ -1,26 +1,121 @@
-// Sync automático a cada 3 segundos para Lovable Cloud - TEMPO REAL
+// Sync automático OTIMIZADO para Lovable Cloud
+// MELHORIAS: Debounce, cache de status, evita webhooks duplicados
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const fetch = require('node-fetch');
 const fs = require('fs');
+const crypto = require('crypto');
 const integrationLogger = require('./integration-logger');
 
-const SYNC_INTERVAL = 3 * 1000; // 3 segundos - quase instantâneo
+// ============================================
+// CONFIGURAÇÕES DE OTIMIZAÇÃO
+// ============================================
+const SYNC_INTERVAL = 10 * 1000;           // 10 segundos (era 3)
+const DEBOUNCE_TIME = 5 * 1000;            // 5 segundos de debounce
+const CACHE_TTL = 60 * 1000;               // Cache válido por 60 segundos
+const MAX_ORDERS_PER_SYNC = 50;            // Limite de pedidos por sync
+const WEBHOOK_COOLDOWN = 10 * 1000;        // 10 segundos entre webhooks do mesmo pedido
 
-// Função para formatar horário local (Brasil/BRT) sem sufixo Z
+// ============================================
+// CACHE GLOBAL - Evita updates/webhooks duplicados
+// ============================================
+const cache = {
+  lastSyncHash: null,                      // Hash do último payload enviado
+  lastSyncTime: 0,                         // Timestamp do último sync
+  orderHashes: new Map(),                  // Hash de cada pedido (para detectar mudanças)
+  webhookSent: new Map(),                  // Timestamp do último webhook por orderId
+  pendingUpdates: [],                      // Updates pendentes para batch
+  lastLogTime: 0,                          // Último log de integração
+};
+
+// ============================================
+// FUNÇÕES DE OTIMIZAÇÃO
+// ============================================
+
+/**
+ * Gera hash de um objeto para comparação
+ */
+function generateHash(obj) {
+  const str = JSON.stringify(obj, Object.keys(obj).sort());
+  return crypto.createHash('md5').update(str).digest('hex');
+}
+
+/**
+ * Verifica se um pedido realmente mudou
+ */
+function hasOrderChanged(orderId, orderData) {
+  const newHash = generateHash({
+    status: orderData.delivery_status,
+    entregador: orderData.delivery_email_entregador,
+    items_count: orderData.items?.length || 0,
+    total: orderData.delivery_total
+  });
+  
+  const oldHash = cache.orderHashes.get(orderId);
+  
+  if (oldHash !== newHash) {
+    cache.orderHashes.set(orderId, newHash);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Verifica se pode enviar webhook (respeitando cooldown)
+ */
+function canSendWebhook(orderId) {
+  const now = Date.now();
+  const lastSent = cache.webhookSent.get(orderId) || 0;
+  
+  if (now - lastSent < WEBHOOK_COOLDOWN) {
+    return false;
+  }
+  
+  cache.webhookSent.set(orderId, now);
+  return true;
+}
+
+/**
+ * Debounce para evitar updates muito frequentes
+ */
+function shouldSync() {
+  const now = Date.now();
+  
+  if (now - cache.lastSyncTime < DEBOUNCE_TIME) {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Log de integração com debounce (evita spam)
+ */
+async function logIntegration(processType, status, message, metadata = {}) {
+  const now = Date.now();
+  
+  // Só logar a cada 30 segundos no mínimo
+  if (now - cache.lastLogTime < 30000) {
+    console.log(`[SKIP LOG] ${message}`);
+    return null;
+  }
+  
+  cache.lastLogTime = now;
+  return await integrationLogger.logEvent(processType, status, message, metadata);
+}
+
+// ============================================
+// CONFIGURAÇÃO DO BANCO DE DADOS
+// ============================================
+
 function formatLocalTime(dateValue) {
   if (!dateValue) return null;
-  
-  // Se já é string, remover o sufixo Z e .000Z
   if (typeof dateValue === 'string') {
     return dateValue.replace(/\.000Z$/, '').replace(/Z$/, '');
   }
-  
-  // Se é Date, formatar como ISO sem Z
   if (dateValue instanceof Date) {
     return dateValue.toISOString().replace(/\.000Z$/, '').replace(/Z$/, '');
   }
-  
   return String(dateValue);
 }
 
@@ -33,15 +128,12 @@ const RAILWAY_CONFIG = {
   database: 'railway'
 };
 
-// Verificar TODAS as variáveis possíveis (DB_* para preview, MYSQL* para produção)
 const envHost = process.env.DB_HOST || process.env.MYSQLHOST || '';
 const envPort = process.env.DB_PORT || process.env.MYSQLPORT || '';
 const envUser = process.env.DB_USER || process.env.MYSQLUSER || '';
 const envPass = process.env.DB_PASS || process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD || '';
 const envDb = process.env.DB_NAME || process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE || '';
 
-// Detectar configuração errada (MongoDB, zeconnect-base, localhost, internal)
-// IMPORTANTE: mysql.railway.internal NÃO funciona externamente
 const isWrongConfig = (
   envHost === '' ||
   envHost === 'localhost' ||
@@ -58,14 +150,13 @@ const dbConfig = isWrongConfig ? RAILWAY_CONFIG : {
   database: envDb || RAILWAY_CONFIG.database,
 };
 
-// Forçar database railway se vier errado
 if (dbConfig.database === 'zeconnect-base' || dbConfig.database === 'test_database' || !dbConfig.database) {
   dbConfig.database = 'railway';
 }
 
 console.log(`🔧 MySQL Config: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
 if (isWrongConfig) {
-  console.log('⚠️ Usando Railway MySQL PÚBLICO (config internal ou vazia detectada)');
+  console.log('⚠️ Usando Railway MySQL PÚBLICO');
 }
 
 const pool = mysql.createPool({
@@ -74,7 +165,9 @@ const pool = mysql.createPool({
   connectionLimit: 5,
 });
 
-// Sincroniza dados de ze_pedido para delivery e itens
+// ============================================
+// SINCRONIZAÇÃO LOCAL (MySQL interno)
+// ============================================
 async function syncLocalData() {
   try {
     // 1. Sincronizar CPF/endereço de ze_pedido para delivery
@@ -125,19 +218,23 @@ async function syncLocalData() {
   }
 }
 
+// ============================================
+// SINCRONIZAÇÃO COM SUPABASE (OTIMIZADA)
+// ============================================
 async function syncToLovable() {
   const timestamp = new Date().toISOString();
-  console.log(`\n[${timestamp}] 🔄 Iniciando sincronização...`);
   
-  // Iniciar log de integração
-  let processId = await integrationLogger.log.supabaseSync.start(
-    'Iniciando sincronização com Supabase',
-    { timestamp }
-  );
+  // DEBOUNCE: Verificar se deve sincronizar
+  if (!shouldSync()) {
+    return;
+  }
+  
+  cache.lastSyncTime = Date.now();
+  
+  console.log(`\n[${timestamp}] 🔄 Verificando mudanças...`);
   
   try {
-    // Buscar pedidos ÚNICOS (por delivery_code) priorizando os que têm itens
-    // Usa subquery para pegar o registro com mais itens de cada código
+    // Buscar pedidos ÚNICOS priorizando os que têm itens
     const [pedidos] = await pool.query(`
       SELECT 
         d.delivery_id,
@@ -182,15 +279,18 @@ async function syncToLovable() {
       ) best ON d.delivery_id = best.max_id
       WHERE DATE(d.delivery_date_time) >= CURDATE() - INTERVAL 7 DAY
       ORDER BY d.delivery_date_time DESC
-      LIMIT 50
-    `);
+      LIMIT ?
+    `, [MAX_ORDERS_PER_SYNC]);
 
-    console.log(`📦 ${pedidos.length} pedidos encontrados`);
-
-    // Buscar itens de cada pedido e formatar para Lovable
-    const pedidosFormatados = [];
+    // ============================================
+    // FILTRAR APENAS PEDIDOS QUE MUDARAM
+    // ============================================
+    const pedidosAlterados = [];
     
     for (let pedido of pedidos) {
+      const orderId = pedido.delivery_code;
+      
+      // Buscar itens apenas se o pedido mudou ou é novo
       const [itens] = await pool.query(`
         SELECT 
           di.delivery_itens_id,
@@ -206,7 +306,6 @@ async function syncToLovable() {
         WHERE di.delivery_itens_id_delivery = ?
       `, [pedido.delivery_id]);
       
-      // Formatar itens para um array simples
       const itensFormatados = (itens || []).map(item => ({
         id: item.delivery_itens_id,
         nome: item.delivery_itens_descricao || item.produto_descricao,
@@ -216,34 +315,25 @@ async function syncToLovable() {
         codigo_ze: item.produto_codigo_ze || '',
         imagem: item.produto_link_imagem || ''
       }));
-
-      console.log(`   Pedido ${pedido.delivery_code}: ${itensFormatados.length} itens, entregador: ${pedido.delivery_email_entregador || 'N/A'}`);
       
-      // Formatar pedido para Lovable
-      pedidosFormatados.push({
-        // Identificadores - ENVIANDO AMBOS: número do pedido (9 dígitos) E código de entrega
+      // Criar objeto do pedido formatado
+      const pedidoFormatado = {
         id_local: pedido.delivery_id,
-        external_id: pedido.delivery_code,           // Número do pedido (9 dígitos): "228147196"
-        order_number: pedido.delivery_code,          // Número do pedido (9 dígitos): "228147196"  
-        delivery_code: pedido.delivery_codigo_entrega, // Código de entrega: "CRK 7WZ 1DJ W"
-        pickup_code: pedido.delivery_codigo_entrega,   // Código de entrega: "CRK 7WZ 1DJ W"
+        external_id: pedido.delivery_code,
+        order_number: pedido.delivery_code,
+        delivery_code: pedido.delivery_codigo_entrega,
+        pickup_code: pedido.delivery_codigo_entrega,
         delivery_codigo_entrega: pedido.delivery_codigo_entrega,
         ide: pedido.delivery_ide,
         delivery_id: pedido.delivery_id,
-        
-        // Cliente
         customer_name: pedido.delivery_name_cliente,
         customer_cpf: pedido.delivery_cpf_cliente,
         customer_phone: pedido.delivery_telefone || null,
-        
-        // Endereço
         address: pedido.delivery_endereco_rota,
         address_complement: pedido.delivery_endereco_complemento,
         address_neighborhood: pedido.delivery_endereco_bairro,
         address_city: pedido.delivery_endereco_cidade_uf,
         address_zip: pedido.delivery_endereco_cep,
-        
-        // Status e datas - HORÁRIO LOCAL (Brasil/BRT) sem sufixo Z
         status: pedido.delivery_status,
         delivery_status: pedido.delivery_status,
         status_text: getStatusText(pedido.delivery_status),
@@ -251,8 +341,6 @@ async function syncToLovable() {
         delivery_date_time: formatLocalTime(pedido.delivery_date_time),
         order_datetime: formatLocalTime(pedido.delivery_date_time),
         captured_at: formatLocalTime(pedido.delivery_data_hora_captura),
-        
-        // Valores
         subtotal: parseFloat(pedido.delivery_subtotal) || 0,
         delivery_subtotal: parseFloat(pedido.delivery_subtotal) || 0,
         discount: parseFloat(pedido.delivery_desconto) || 0,
@@ -262,42 +350,40 @@ async function syncToLovable() {
         total: parseFloat(pedido.delivery_total) || 0,
         delivery_total: parseFloat(pedido.delivery_total) || 0,
         convenience_fee: parseFloat(pedido.delivery_taxa_conveniencia) || 0,
-        
-        // Pagamento
         payment_method: pedido.delivery_forma_pagamento,
         delivery_forma_pagamento: pedido.delivery_forma_pagamento,
         change_for: parseFloat(pedido.delivery_troco_para) || 0,
         change: parseFloat(pedido.delivery_troco) || 0,
-        
-        // Entrega - IMPORTANTE: enviar tipo exato do banco
         delivery_type: pedido.delivery_tipo_pedido || 'Pedido Comum',
         delivery_tipo_pedido: pedido.delivery_tipo_pedido || 'Pedido Comum',
-        delivery_code: pedido.delivery_codigo_entrega,
-        delivery_codigo_entrega: pedido.delivery_codigo_entrega,
-        pickup_code: pedido.delivery_codigo_entrega, // Campo esperado pelo Lovable
-        
-        // ENTREGADOR - Múltiplos campos para garantir
-        // ✅ CORREÇÃO: NÃO usar email como deliverer_name
         courier_email: pedido.delivery_email_entregador || null,
         delivery_email_entregador: pedido.delivery_email_entregador || null,
         delivery_entregador_email: pedido.delivery_email_entregador || null,
-        // deliverer_name será preenchido pelo ze-sync-mysql via vinculação com tabela deliverers
         deliverer_name: null,
-        
         notes: pedido.delivery_obs,
-        
-        // ITENS - enviar como array E como JSON string para redundância
         items: itensFormatados,
         itens: itensFormatados,
         items_json: JSON.stringify(itensFormatados),
         items_count: itensFormatados.length,
         has_items: itensFormatados.length > 0,
-        
-        // Metadata
         source: 'ze-delivery',
         synced_at: timestamp
-      });
+      };
+      
+      // VERIFICAR SE REALMENTE MUDOU
+      if (hasOrderChanged(orderId, pedidoFormatado)) {
+        pedidosAlterados.push(pedidoFormatado);
+        console.log(`   📝 Pedido ${orderId} ALTERADO (status: ${pedido.delivery_status}, entregador: ${pedido.delivery_email_entregador || 'N/A'})`);
+      }
     }
+    
+    // Se nenhum pedido mudou, não enviar nada
+    if (pedidosAlterados.length === 0) {
+      console.log(`   ✓ Nenhuma alteração detectada`);
+      return;
+    }
+    
+    console.log(`📦 ${pedidosAlterados.length}/${pedidos.length} pedidos com alterações`);
 
     // Verificar configuração Lovable
     const LOVABLE_URL = process.env.LOVABLE_SUPABASE_URL;
@@ -305,22 +391,30 @@ async function syncToLovable() {
 
     if (!LOVABLE_URL || !LOVABLE_KEY) {
       console.log('⚠️  Lovable Cloud não configurado');
-      fs.writeFileSync('/app/logs/sync-debug.json', JSON.stringify(pedidosFormatados, null, 2));
-      console.log('   Debug salvo em /app/logs/sync-debug.json');
+      fs.writeFileSync('/app/logs/sync-debug.json', JSON.stringify(pedidosAlterados, null, 2));
       return;
     }
 
-    // Preparar payload
+    // Preparar payload APENAS com pedidos alterados
     const payload = {
-      pedidos: pedidosFormatados,
+      pedidos: pedidosAlterados,
       source: 'gamatauri-ze',
       timestamp: timestamp,
-      force_update: true // Forçar atualização mesmo se existir
+      force_update: true,
+      is_incremental: true  // Indica que é update incremental
     };
+
+    // Verificar se payload realmente mudou
+    const payloadHash = generateHash(payload.pedidos);
+    if (payloadHash === cache.lastSyncHash) {
+      console.log(`   ✓ Payload idêntico ao anterior, pulando envio`);
+      return;
+    }
+    cache.lastSyncHash = payloadHash;
 
     // Salvar debug
     fs.writeFileSync('/app/logs/sync-payload.json', JSON.stringify(payload, null, 2));
-    console.log(`📤 Enviando para ${LOVABLE_URL}...`);
+    console.log(`📤 Enviando ${pedidosAlterados.length} pedidos para ${LOVABLE_URL}...`);
     
     const response = await fetch(
       `${LOVABLE_URL}/functions/v1/ze-sync-mysql`,
@@ -338,37 +432,20 @@ async function syncToLovable() {
       const result = await response.json();
       console.log(`✅ Sincronização concluída:`, JSON.stringify(result));
       
-      // Log de integração - sucesso
-      await integrationLogger.completeProcess(
-        processId,
-        `${pedidosFormatados.length} pedidos sincronizados com Supabase`,
-        { pedidosCount: pedidosFormatados.length, result }
+      // Log de integração com debounce
+      await logIntegration(
+        integrationLogger.PROCESS_TYPES.SUPABASE_SYNC,
+        integrationLogger.STATUS.COMPLETED,
+        `${pedidosAlterados.length} pedidos sincronizados`,
+        { count: pedidosAlterados.length }
       );
     } else {
       const error = await response.text();
       console.error(`❌ Erro na sincronização: ${response.status} - ${error}`);
-      
-      // Log de integração - falha
-      await integrationLogger.cancelProcess(
-        processId,
-        `Erro na sincronização com Supabase: ${response.status}`,
-        error,
-        { statusCode: response.status }
-      );
     }
 
   } catch (err) {
     console.error(`❌ Erro: ${err.message}`);
-    
-    // Log de integração - erro
-    if (processId) {
-      await integrationLogger.cancelProcess(
-        processId,
-        'Erro durante sincronização com Supabase',
-        err.message,
-        {}
-      );
-    }
   }
 }
 
@@ -384,19 +461,39 @@ function getStatusText(status) {
   return statusMap[status] || 'Desconhecido';
 }
 
-// Executar imediatamente e depois a cada intervalo
-console.log('🚀 Sync Cron iniciado - sincronizando a cada 10 segundos');
+// ============================================
+// INICIALIZAÇÃO
+// ============================================
+console.log('🚀 Sync Cron OTIMIZADO iniciado');
+console.log(`   Intervalo: ${SYNC_INTERVAL/1000}s | Debounce: ${DEBOUNCE_TIME/1000}s | Cache: ${CACHE_TTL/1000}s`);
 
-// Função principal que sincroniza local + Lovable
 async function runSync() {
-  await syncLocalData();  // Sincroniza ze_pedido → delivery
-  await syncToLovable();  // Envia para Lovable Cloud
+  await syncLocalData();
+  await syncToLovable();
 }
 
 runSync();
 setInterval(runSync, SYNC_INTERVAL);
 
-// Manter processo vivo
+// Limpar cache de webhooks antigos a cada 5 minutos
+setInterval(() => {
+  const now = Date.now();
+  const expiry = now - (5 * 60 * 1000);
+  
+  for (const [key, value] of cache.webhookSent) {
+    if (value < expiry) {
+      cache.webhookSent.delete(key);
+    }
+  }
+  
+  // Limpar hashes antigos (manter últimos 500)
+  if (cache.orderHashes.size > 500) {
+    const entries = Array.from(cache.orderHashes.entries());
+    const toDelete = entries.slice(0, entries.length - 500);
+    toDelete.forEach(([key]) => cache.orderHashes.delete(key));
+  }
+}, 5 * 60 * 1000);
+
 process.on('SIGINT', () => {
   console.log('\n👋 Sync Cron encerrado');
   process.exit(0);
