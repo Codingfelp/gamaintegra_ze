@@ -916,6 +916,26 @@ async function statusScript(page) {
                     statusCode = '5';
                 }
 
+                // ============================================
+                // USAR UPDATE CONTROLLER - DEBOUNCE + CACHE
+                // Só envia update se status REALMENTE mudou
+                // ============================================
+                const shouldUpdate = updateController.hasStatusChanged(
+                    orderNumberWithoutSpaces, 
+                    statusCode, 
+                    order.entregador || ''
+                );
+                
+                if (!shouldUpdate) {
+                    // Status não mudou, pular update
+                    continue;
+                }
+                
+                // Verificar debounce (8 segundos entre updates do mesmo pedido)
+                if (!updateController.canSendUpdate(orderNumberWithoutSpaces)) {
+                    continue;
+                }
+
                 console.log("Atualizando pedido:", orderNumberWithoutSpaces, "Status:", statusPed, "Código:", statusCode, "Token:", configRobo.token, "Entregador:", order.entregador || '(não encontrado)');
 
                 // Usar PHP Bridge via CLI em vez de HTTP
@@ -928,7 +948,7 @@ async function statusScript(page) {
                     );
                     console.log("Resultado da atualização:", result ? result.substring(0, 100) : 'OK');
                     
-                    // Log de integração - apenas para status significativos
+                    // Log de integração - apenas para status significativos (entregue ou cancelado)
                     if (statusCode === '1' || statusCode === '4') {
                         integrationLogger.logEvent(
                             integrationLogger.PROCESS_TYPES.STATUS_UPDATE,
@@ -940,7 +960,7 @@ async function statusScript(page) {
                 } catch (error) {
                     console.log('Erro ao atualizar status:', error.message);
                     
-                    // Log de integração - erro
+                    // Log de integração - erro (com debounce do próprio logger)
                     integrationLogger.logEvent(
                         integrationLogger.PROCESS_TYPES.STATUS_UPDATE,
                         integrationLogger.STATUS.CANCELLED,
@@ -949,13 +969,13 @@ async function statusScript(page) {
                     );
                 }
 
-                await sleep(1);
+                await sleep(2); // Aumentado de 1s para 2s entre updates
             }
 
             const endTime = performance.now();
             console.log(`Tempo de execução: ${(endTime - startTime).toFixed(2)} ms`);
 
-            await sleep(2);
+            await sleep(5); // Aumentado de 2s para 5s entre ciclos
             await page.goto("https://seu.ze.delivery/history", {
                 waitUntil: "networkidle2",
             });
