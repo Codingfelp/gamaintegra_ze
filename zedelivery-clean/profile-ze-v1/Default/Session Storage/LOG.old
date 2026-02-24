@@ -1,3 +1,20 @@
-2026/02/23-22:26:06.976 2a27 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
-2026/02/23-22:26:06.977 2a27 Recovering log #58
-2026/02/23-22:26:06.978 2a27 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000058.log 
+2026/02/24-03:14:54.336 3b66 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
+2026/02/24-03:14:54.340 3b66 Recovering log #74
+2026/02/24-03:14:54.343 3b66 Level-0 table #77: started
+2026/02/24-03:14:54.356 3b66 Level-0 table #77: 521249 bytes OK
+2026/02/24-03:14:54.363 3b66 Delete type=0 #74
+2026/02/24-03:16:54.390 3b69 Level-0 table #80: started
+2026/02/24-03:16:54.440 3b69 Level-0 table #80: 518033 bytes OK
+2026/02/24-03:16:54.448 3b69 Delete type=0 #78
+2026/02/24-03:16:54.449 3b69 Compacting 4@0 + 1@1 files
+2026/02/24-03:16:54.545 3b69 Generated table #81@0: 5907 keys, 1267603 bytes
+2026/02/24-03:16:54.545 3b69 Compacted 4@0 + 1@1 files => 1267603 bytes
+2026/02/24-03:16:54.551 3b69 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/02/24-03:16:54.552 3b69 Delete type=2 #71
+2026/02/24-03:16:54.553 3b69 Delete type=2 #73
+2026/02/24-03:16:54.553 3b69 Delete type=2 #75
+2026/02/24-03:16:54.553 3b69 Delete type=2 #80
+2026/02/24-03:16:54.553 3b69 Delete type=2 #77
+2026/02/24-03:17:06.412 3b69 Level-0 table #83: started
+2026/02/24-03:17:06.424 3b69 Level-0 table #83: 516875 bytes OK
+2026/02/24-03:17:06.429 3b69 Delete type=0 #79
