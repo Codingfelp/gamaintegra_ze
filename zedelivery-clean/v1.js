@@ -1268,10 +1268,6 @@ async function aceitaScript(browser, cookies) {
                     aceiteStats.status = 'accepting';
                     aceiteStats.totalAttempts++;
                     saveAceiteStats(aceiteStats);
-                    
-                    aceiteStats.status = 'accepting';
-                    aceiteStats.totalAttempts++;
-                    saveAceiteStats(aceiteStats);
 
                     // =======================================================
                     // PASSO 2: Aceitar o pedido
@@ -1285,18 +1281,22 @@ async function aceitaScript(browser, cookies) {
                         // Usar botão "Aceitar todos"
                         console.log('🖱️ [ACEITA] Usando botão "Aceitar todos"...');
                         aceitou = await page.evaluate(() => {
-                            const acceptBtn = document.querySelector('#accept-button');
-                            if (acceptBtn) {
-                                if (acceptBtn.shadowRoot) {
-                                    const innerBtn = acceptBtn.shadowRoot.querySelector('button');
-                                    if (innerBtn && !innerBtn.disabled) {
-                                        innerBtn.click();
+                            // Tentar vários seletores para botão aceitar todos
+                            const selectors = ['#accept-button', '[data-testid="accept-all-button"]', '[data-testid*="accept"]'];
+                            for (const sel of selectors) {
+                                const acceptBtn = document.querySelector(sel);
+                                if (acceptBtn) {
+                                    if (acceptBtn.shadowRoot) {
+                                        const innerBtn = acceptBtn.shadowRoot.querySelector('button');
+                                        if (innerBtn && !innerBtn.disabled) {
+                                            innerBtn.click();
+                                            return true;
+                                        }
+                                    }
+                                    if (!acceptBtn.disabled) {
+                                        acceptBtn.click();
                                         return true;
                                     }
-                                }
-                                if (!acceptBtn.disabled) {
-                                    acceptBtn.click();
-                                    return true;
                                 }
                             }
                             return false;
@@ -1305,18 +1305,53 @@ async function aceitaScript(browser, cookies) {
                         // Clicar no card do pedido para abrir modal
                         console.log(`🖱️ [ACEITA] Clicando no card do pedido #${orderId}...`);
                         
-                        aceitou = await page.evaluate((cardIdx) => {
-                            const colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
+                        // Usar mesma lógica de busca de cards
+                        aceitou = await page.evaluate((cardIdx, cardClass) => {
+                            // Encontrar coluna
+                            let colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
+                            if (!colunaNovos) {
+                                colunaNovos = document.querySelector('[data-testid*="new-orders"], [data-testid*="novos"]');
+                            }
+                            if (!colunaNovos) {
+                                const columns = document.querySelectorAll('[class*="column"]');
+                                for (const col of columns) {
+                                    const header = col.querySelector('[class*="header"], h2, h3');
+                                    if (header && header.textContent.toLowerCase().includes('novo')) {
+                                        colunaNovos = col;
+                                        break;
+                                    }
+                                }
+                            }
                             if (!colunaNovos) return false;
                             
-                            const cards = colunaNovos.querySelectorAll('[class*="card"], article, [role="button"]');
+                            // Buscar cards
+                            const cardSelectors = [
+                                '[class*="order-card"]', '[class*="card"]', '[data-testid*="card"]',
+                                'article', '[role="button"]', '[role="listitem"]'
+                            ];
+                            
+                            let cards = [];
+                            for (const selector of cardSelectors) {
+                                cards = Array.from(colunaNovos.querySelectorAll(selector)).filter(c => 
+                                    c.offsetParent && c.offsetHeight > 20
+                                );
+                                if (cards.length > 0) break;
+                            }
+                            
+                            // Se não encontrou, pegar filhos diretos
+                            if (cards.length === 0) {
+                                cards = Array.from(colunaNovos.children).filter(c => 
+                                    c.offsetParent && c.offsetHeight > 20
+                                );
+                            }
+                            
                             const card = cards[cardIdx];
                             if (card) {
                                 card.click();
                                 return true;
                             }
                             return false;
-                        }, pedidoNovo.cardIndex || 0);
+                        }, pedidoNovo.cardIndex || 0, pedidoNovo.cardClass || '');
                         
                         if (aceitou) {
                             console.log('✓ [ACEITA] Card clicado, aguardando modal...');
