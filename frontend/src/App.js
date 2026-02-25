@@ -1199,6 +1199,13 @@ function App() {
                                           <span className="text-green-600">- R$ {parseFloat(pedidoDetails.pedido.delivery_desconto || 0).toFixed(2)}</span>
                                         </div>
                                       )}
+                                      {/* Descrição do Cupom/Desconto */}
+                                      {pedidoDetails.pedido.delivery_desconto_descricao && (
+                                        <div className="flex justify-between text-sm">
+                                          <span className="text-gray-500">Cupom</span>
+                                          <span className="text-purple-600 font-medium">{pedidoDetails.pedido.delivery_desconto_descricao}</span>
+                                        </div>
+                                      )}
                                       {parseFloat(pedidoDetails.pedido.delivery_taxa_conveniencia || 0) > 0 && (
                                         <div className="flex justify-between text-sm">
                                           <span className="text-gray-500">Taxa Conveniência</span>
