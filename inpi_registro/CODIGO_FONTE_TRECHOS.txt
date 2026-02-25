@@ -1,6 +1,7 @@
-# CÓDIGO-FONTE DO SOFTWARE - GAMATAURI ZÉ INTEGRADOR
+# CÓDIGO-FONTE DO SOFTWARE - INTEGRAFH
 # Trechos principais para registro no INPI
 # Data: 25/02/2026
+# Autor: FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
 
 ================================================================================
                     ARQUIVO 1: v1.js (Aceite Automático)
@@ -8,16 +9,17 @@
 ================================================================================
 
 /**
- * Gamatauri Zé Integrador - Módulo de Aceite Automático
+ * IntegraFH - Módulo de Aceite Automático
  * 
  * Este módulo é responsável por:
- * 1. Monitorar a página de pedidos do Zé Delivery
+ * 1. Monitorar a página de pedidos da plataforma de delivery
  * 2. Detectar novos pedidos pendentes na coluna "Novos" do Kanban
  * 3. Aceitar automaticamente os pedidos clicando no card e no botão "Aceitar"
  * 4. Verificar se o aceite foi bem-sucedido
  * 5. Registrar estatísticas e logs de integração
  * 
- * Copyright (c) 2026 - Todos os direitos reservados
+ * Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
+ * Todos os direitos reservados.
  */
 
 const puppeteer = require('puppeteer');
@@ -46,7 +48,7 @@ const isProduction = process.env.NODE_ENV === "production";
 const executablePath = isProduction ? "/usr/bin/chromium" : undefined;
 const SESSION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
 const SESSION_SAVE_INTERVAL = 10 * 60 * 1000; // 10 minutos
-const PROFILE_NAME = 'profile-ze-v1';
+const PROFILE_NAME = 'profile-integrafh';
 
 // Arquivo de estatísticas de aceite
 const ACEITE_STATS_FILE = '/app/logs/aceite-stats.json';
@@ -101,7 +103,7 @@ async function aceitaScript(browser, cookies) {
             page = await browser.newPage();
             await page.setCookie(...cookies);
 
-            await page.goto("https://seu.ze.delivery/poc-orders", {
+            await page.goto(process.env.DELIVERY_PLATFORM_URL + "/poc-orders", {
                 waitUntil: "networkidle2",
                 timeout: 60000
             });
@@ -294,7 +296,7 @@ async function aceitaScript(browser, cookies) {
 ================================================================================
 
 /**
- * Gamatauri Zé Integrador - Módulo de Captura de Itens
+ * IntegraFH - Módulo de Captura de Itens
  * 
  * Este módulo é responsável por:
  * 1. Buscar pedidos pendentes de processamento
@@ -303,12 +305,13 @@ async function aceitaScript(browser, cookies) {
  * 4. Capturar telefone do cliente via fluxo especial
  * 5. Salvar no banco de dados MySQL
  * 
- * Copyright (c) 2026 - Todos os direitos reservados
+ * Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
+ * Todos os direitos reservados.
  */
 
 /**
  * Função para capturar telefone via fluxo de modal
- * O Zé Delivery oculta o telefone - precisa seguir um fluxo específico:
+ * A plataforma oculta o telefone - precisa seguir um fluxo específico:
  * 1. Clicar em "Ver telefone"
  * 2. Expandir "Problemas com a entrega"
  * 3. Selecionar "O entregador não encontra o cliente"
@@ -430,7 +433,7 @@ async function itensScript(page) {
             console.log(`📦 [CAPTURA] Processando pedido #${id_pedido_info}`);
             
             // Navegar para página de detalhes
-            await page.goto(`https://seu.ze.delivery/order/${id_pedido_info}`, {
+            await page.goto(`${process.env.DELIVERY_PLATFORM_URL}/order/${id_pedido_info}`, {
                 waitUntil: "networkidle2",
                 timeout: 30000
             });
@@ -546,7 +549,7 @@ async function itensScript(page) {
 ================================================================================
 
 /**
- * Gamatauri Zé Integrador - Update Controller
+ * IntegraFH - Update Controller
  * 
  * Módulo centralizado para controlar frequência de updates e webhooks.
  * Implementa debounce, cache de status e prevenção de duplicatas.
@@ -556,7 +559,8 @@ async function itensScript(page) {
  * 2. Só envia webhook quando status REALMENTE mudar
  * 3. Cache de status para detectar mudanças reais
  * 
- * Copyright (c) 2026 - Todos os direitos reservados
+ * Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
+ * Todos os direitos reservados.
  */
 
 const UPDATE_DEBOUNCE_MS = 8000;         // 8 segundos entre updates
@@ -645,11 +649,11 @@ module.exports = {
 ================================================================================
 
 /**
- * Gamatauri Zé Integrador - Sync Cron
+ * IntegraFH - Sync Cron
  * 
- * Sincronização automática OTIMIZADA com sistema externo (Supabase/Lovable).
+ * Sincronização automática OTIMIZADA com sistema externo.
  * Implementa cache de hashes para detectar mudanças reais e evitar
- * sobrecarga no Supabase Realtime.
+ * sobrecarga em sistemas de tempo real.
  * 
  * MELHORIAS:
  * - Intervalo de 10 segundos (era 3)
@@ -657,7 +661,8 @@ module.exports = {
  * - Debounce de 5 segundos entre syncs
  * - Só envia pedidos que REALMENTE mudaram
  * 
- * Copyright (c) 2026 - Todos os direitos reservados
+ * Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
+ * Todos os direitos reservados.
  */
 
 const SYNC_INTERVAL = 10 * 1000;           // 10 segundos
@@ -703,7 +708,7 @@ function hasOrderChanged(orderId, orderData) {
 /**
  * Função principal de sincronização
  */
-async function syncToLovable() {
+async function syncToCloud() {
     const timestamp = new Date().toISOString();
     
     // Verificar debounce
@@ -734,19 +739,19 @@ async function syncToLovable() {
         return;
     }
 
-    // Enviar para Supabase
+    // Enviar para sistema em nuvem
     const payload = {
         pedidos: pedidosAlterados,
-        source: 'gamatauri-ze',
+        source: 'integrafh',
         timestamp,
         is_incremental: true
     };
 
-    await fetch(`${LOVABLE_URL}/functions/v1/ze-sync-mysql`, {
+    await fetch(`${process.env.CLOUD_SYNC_URL}/functions/v1/sync-mysql`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${LOVABLE_KEY}`,
+            'Authorization': `Bearer ${process.env.CLOUD_SYNC_KEY}`,
         },
         body: JSON.stringify(payload),
     });
@@ -760,7 +765,7 @@ async function syncToLovable() {
 ================================================================================
 
 """
-Gamatauri Zé Integrador - API Backend
+IntegraFH - API Backend
 
 API REST desenvolvida com FastAPI para comunicação entre o frontend
 e os serviços de automação. Fornece endpoints para:
@@ -769,7 +774,8 @@ e os serviços de automação. Fornece endpoints para:
 - Monitoramento de saúde do sistema
 - Reprocessamento de pedidos
 
-Copyright (c) 2026 - Todos os direitos reservados
+Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
+Todos os direitos reservados.
 """
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -779,7 +785,7 @@ import subprocess
 import json
 import os
 
-app = FastAPI(title="Gamatauri Zé Integrador API", version="1.0.0")
+app = FastAPI(title="IntegraFH API", version="1.0.0")
 
 # CORS
 app.add_middleware(
@@ -792,11 +798,11 @@ app.add_middleware(
 
 # Configuração MySQL
 MYSQL_CONFIG = {
-    "host": os.environ.get("DB_HOST", "mainline.proxy.rlwy.net"),
-    "port": int(os.environ.get("DB_PORT", 52996)),
-    "user": os.environ.get("DB_USER", "root"),
+    "host": os.environ.get("DB_HOST"),
+    "port": int(os.environ.get("DB_PORT", 3306)),
+    "user": os.environ.get("DB_USER"),
     "password": os.environ.get("DB_PASS"),
-    "database": os.environ.get("DB_NAME", "railway"),
+    "database": os.environ.get("DB_NAME"),
 }
 
 def get_db():
@@ -869,7 +875,7 @@ async def confirmar_retirada(order_id: str, background_tasks: BackgroundTasks):
     """Confirma retirada de um pedido"""
     background_tasks.add_task(
         subprocess.run,
-        ['node', '/app/zedelivery-clean/confirmar-retirada.js', order_id]
+        ['node', '/app/scripts/confirmar-retirada.js', order_id]
     )
     return {"success": True, "message": f"Confirmação iniciada para pedido #{order_id}"}
 
@@ -892,7 +898,7 @@ async def controlar_servico(service_name: str, action: str):
 ================================================================================
 
 /**
- * Gamatauri Zé Integrador - Frontend React
+ * IntegraFH - Frontend React
  * 
  * Dashboard de monitoramento para acompanhamento em tempo real
  * de pedidos, serviços e operações do integrador.
@@ -900,11 +906,12 @@ async def controlar_servico(service_name: str, action: str):
  * Funcionalidades:
  * - Listagem de pedidos com filtros
  * - Modal de detalhes do pedido
- * - Monitoramento de serviços (MySQL, PHP, Integrador)
+ * - Monitoramento de serviços
  * - Controle de aceite automático
  * - Botão de confirmação de retirada
  * 
- * Copyright (c) 2026 - Todos os direitos reservados
+ * Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
+ * Todos os direitos reservados.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -972,7 +979,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
-      <h1 className="text-3xl font-bold mb-6">Gamatauri Zé</h1>
+      <h1 className="text-3xl font-bold mb-6">IntegraFH</h1>
       
       {/* Status do Aceite Automático */}
       <Card className="mb-6">
@@ -1069,5 +1076,9 @@ export default App;
 ================================================================================
                     FIM DO DOCUMENTO DE CÓDIGO-FONTE
                     Total de arquivos principais: 6
+                    
+                    Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
+                    Todos os direitos reservados.
+                    
                     Data de geração: 25/02/2026
 ================================================================================
