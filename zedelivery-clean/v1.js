@@ -1050,6 +1050,14 @@ async function aceitaScript(browser, cookies) {
             
             console.log('📍 [ACEITA] Navegou para página de pedidos:', page.url());
             
+            // DEBUG: Tirar screenshot para ver estado da página
+            try {
+                await page.screenshot({ path: '/app/logs/poc-orders-debug.png', fullPage: true });
+                console.log('📸 [ACEITA] Screenshot salva: /app/logs/poc-orders-debug.png');
+            } catch (e) {
+                console.log('⚠️ [ACEITA] Erro ao tirar screenshot:', e.message);
+            }
+            
             // Se redirecionou para login, sessão expirou
             if (page.url().includes('login')) {
                 console.log('🔑 [ACEITA] Sessão expirou, reiniciando...');
