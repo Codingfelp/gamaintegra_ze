@@ -41,6 +41,35 @@ function generateHash(obj) {
 }
 
 /**
+ * Mapeia status do Zé Delivery para status do Lovable
+ */
+function mapZeStatus(zeStatus) {
+  const status = parseInt(zeStatus) || 0;
+  switch (status) {
+    case 0: return 'pending';       // Pendente -> NOVOS
+    case 2: return 'preparing';     // Aceito -> EM SEPARAÇÃO
+    case 3: return 'shipped';       // A Caminho -> EM ROTA
+    case 1: return 'awaiting_closure'; // Entregue -> AGUARDANDO ACERTO
+    case 4:
+    case 5: return 'cancelled';     // Cancelado
+    case 6: return 'awaiting_closure'; // Rejeitado
+    default: return 'pending';
+  }
+}
+
+/**
+ * Mapeia forma de pagamento
+ */
+function mapPaymentMethod(method) {
+  if (!method) return 'online';
+  const m = (method || '').toLowerCase();
+  if (m.includes('dinheiro')) return 'dinheiro';
+  if (m.includes('cartão') || m.includes('cartao') || m.includes('crédito') || m.includes('débito')) return 'cartao';
+  if (m.includes('pix')) return 'pix';
+  return 'online';
+}
+
+/**
  * Verifica se um pedido realmente mudou
  */
 function hasOrderChanged(orderId, orderData) {
