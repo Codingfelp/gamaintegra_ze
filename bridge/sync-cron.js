@@ -472,72 +472,26 @@ async function syncToLovable() {
           const result = await response.json();
           console.log(`✅ Edge Function: Sincronização concluída:`, JSON.stringify(result));
           syncSuccess = true;
+          
+          // Log de integração com debounce
+          await logIntegration(
+            integrationLogger.PROCESS_TYPES.SUPABASE_SYNC,
+            integrationLogger.STATUS.COMPLETED,
+            `${pedidosAlterados.length} pedidos sincronizados`,
+            { count: pedidosAlterados.length }
+          );
         } else {
           const error = await response.text();
-          console.warn(`⚠️ Edge Function falhou (${response.status}): ${error}`);
+          console.error(`❌ Edge Function falhou (${response.status}): ${error}`);
         }
       } catch (edgeFnErr) {
-        console.warn(`⚠️ Edge Function erro: ${edgeFnErr.message}`);
+        console.error(`❌ Edge Function erro: ${edgeFnErr.message}`);
       }
     }
     
-    // Fallback: usar REST API direta com service_role key
-    if (!syncSuccess && SERVICE_ROLE_KEY) {
-      console.log(`🔄 Usando fallback REST API direto...`);
-      
-      for (const pedido of pedidosAlterados) {
-        try {
-          const externalOrderId = `ze-${pedido.id_local || pedido.external_id}`;
-          
-          // Verificar se pedido já existe
-          const checkResponse = await fetch(
-            `${LOVABLE_URL}/rest/v1/orders?external_order_id=eq.${externalOrderId}&select=id`,
-            {
-              headers: {
-                'apikey': SERVICE_ROLE_KEY,
-                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-              }
-            }
-          );
-          
-          const existing = await checkResponse.json();
-          
-          // Preparar dados do pedido
-          const orderData = {
-            order_number: String(pedido.order_number || pedido.external_id || pedido.delivery_code),
-            customer_name: pedido.customer_name || pedido.delivery_name_cliente || 'Cliente Zé',
-            customer_phone: pedido.customer_phone || pedido.delivery_telefone || null,
-            customer_document: pedido.customer_cpf || pedido.delivery_cpf_cliente || null,
-            delivery_address: pedido.address || pedido.delivery_endereco_rota || null,
-            subtotal: parseFloat(pedido.subtotal || pedido.delivery_subtotal || pedido.total || pedido.delivery_total) || 0,
-            delivery_fee: parseFloat(pedido.delivery_fee || pedido.delivery_frete) || 0,
-            discount: parseFloat(pedido.discount || pedido.delivery_desconto) || 0,
-            total: parseFloat(pedido.total || pedido.delivery_total) || 0,
-            source: 'ze-delivery',
-            external_order_id: externalOrderId,
-            status: mapZeStatus(pedido.status || pedido.delivery_status),
-            items: pedido.items || pedido.itens || [],
-            payment_method: mapPaymentMethod(pedido.payment_method || pedido.delivery_forma_pagamento),
-            delivery_type: (pedido.delivery_tipo_pedido || pedido.delivery_type || '').toLowerCase().includes('retirada') ? 'pickup' : 'delivery',
-            pickup_code: pedido.delivery_codigo_entrega || pedido.pickup_code || null,
-            notes: pedido.notes || pedido.delivery_obs || null,
-            courier_email: pedido.courier_email || pedido.delivery_email_entregador || null,
-          };
-          
-          if (existing && existing.length > 0) {
-            // UPDATE
-            const updateResponse = await fetch(
-              `${LOVABLE_URL}/rest/v1/orders?id=eq.${existing[0].id}`,
-              {
-                method: 'PATCH',
-                headers: {
-                  'apikey': SERVICE_ROLE_KEY,
-                  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                  'Content-Type': 'application/json',
-                  'Prefer': 'return=minimal',
-                },
-                body: JSON.stringify({
-                  status: orderData.status,
+    if (!syncSuccess) {
+      console.error(`❌ Sincronização falhou`);
+    }
                   items: orderData.items,
                   courier_email: orderData.courier_email,
                   updated_at: new Date().toISOString(),
