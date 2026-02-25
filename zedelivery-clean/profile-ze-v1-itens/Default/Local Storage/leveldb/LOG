@@ -7,3 +7,15 @@
 2026/02/25-20:42:54.774 25ee Level-0 table #345: started
 2026/02/25-20:42:54.777 25ee Level-0 table #345: 21560 bytes OK
 2026/02/25-20:42:54.779 25ee Delete type=0 #342
+2026/02/25-21:08:54.775 25ee Level-0 table #347: started
+2026/02/25-21:08:54.779 25ee Level-0 table #347: 20098 bytes OK
+2026/02/25-21:08:54.783 25ee Delete type=0 #344
+2026/02/25-21:08:54.785 25ee Compacting 4@0 + 1@1 files
+2026/02/25-21:08:54.793 25ee Generated table #348@0: 46 keys, 5234 bytes
+2026/02/25-21:08:54.793 25ee Compacted 4@0 + 1@1 files => 5234 bytes
+2026/02/25-21:08:54.796 25ee compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/02/25-21:08:54.799 25ee Delete type=2 #337
+2026/02/25-21:08:54.800 25ee Delete type=2 #347
+2026/02/25-21:08:54.800 25ee Delete type=2 #340
+2026/02/25-21:08:54.800 25ee Delete type=2 #343
+2026/02/25-21:08:54.800 25ee Delete type=2 #345
