@@ -1054,6 +1054,29 @@ async function aceitaScript(browser, cookies) {
             try {
                 await page.screenshot({ path: '/app/logs/poc-orders-debug.png', fullPage: true });
                 console.log('📸 [ACEITA] Screenshot salva: /app/logs/poc-orders-debug.png');
+                
+                // DEBUG: Salvar HTML da página
+                const html = await page.content();
+                require('fs').writeFileSync('/app/logs/poc-orders-debug.html', html);
+                console.log('📄 [ACEITA] HTML salvo: /app/logs/poc-orders-debug.html');
+                
+                // DEBUG: Listar elementos principais
+                const debugInfo = await page.evaluate(() => {
+                    const info = {
+                        title: document.title,
+                        url: window.location.href,
+                        tables: document.querySelectorAll('table').length,
+                        rows: document.querySelectorAll('tr').length,
+                        hexaRows: document.querySelectorAll('hexa-v2-custom-table-row').length,
+                        cards: document.querySelectorAll('[class*="card"]').length,
+                        orders: document.querySelectorAll('[class*="order"]').length,
+                        buttons: document.querySelectorAll('button').length,
+                        sections: document.querySelectorAll('section').length,
+                        mainContent: document.body.innerText.substring(0, 500)
+                    };
+                    return info;
+                });
+                console.log('🔍 [ACEITA] Debug info:', JSON.stringify(debugInfo, null, 2));
             } catch (e) {
                 console.log('⚠️ [ACEITA] Erro ao tirar screenshot:', e.message);
             }
