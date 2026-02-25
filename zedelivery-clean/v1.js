@@ -1357,67 +1357,95 @@ async function aceitaScript(browser, cookies) {
                             console.log('✓ [ACEITA] Card clicado, aguardando modal...');
                             await sleep(2);
                             
-                            // Procurar botão "Aceitar" no modal
-                            // HTML: <button class="button primary medium flex" part="button" type="submit">
-                            //         <span class="text" part="text" data-testid="text">Aceitar</span>
-                            //       </button>
+                            // Screenshot do modal
+                            try {
+                                await page.screenshot({ path: `/app/logs/aceite-modal-${Date.now()}.png` });
+                            } catch(e) {}
+                            
                             console.log('🔍 [ACEITA] Buscando botão "Aceitar" no modal...');
                             
                             for (let tentativa = 1; tentativa <= 5; tentativa++) {
                                 const clicouAceitar = await page.evaluate(() => {
-                                    // Estratégia 1: Buscar span com data-testid="text" contendo "Aceitar"
-                                    const spans = document.querySelectorAll('span[data-testid="text"]');
-                                    for (const span of spans) {
-                                        if (span.textContent.trim() === 'Aceitar') {
-                                            const btn = span.closest('button');
-                                            if (btn && btn.classList.contains('primary')) {
-                                                btn.click();
-                                                return true;
-                                            }
-                                        }
-                                    }
-                                    
-                                    // Estratégia 2: Buscar button.primary com texto "Aceitar"
-                                    const buttons = document.querySelectorAll('button.primary, button[class*="primary"]');
-                                    for (const btn of buttons) {
-                                        if (btn.textContent.trim().includes('Aceitar')) {
-                                            btn.click();
-                                            return true;
-                                        }
-                                    }
-                                    
-                                    // Estratégia 3: hexa-v2-button com shadowRoot
+                                    // Estratégia 1: hexa-v2-button - verificar atributo label/text do host
                                     const hexaBtns = document.querySelectorAll('hexa-v2-button');
                                     for (const hb of hexaBtns) {
-                                        if (hb.shadowRoot) {
-                                            const innerBtn = hb.shadowRoot.querySelector('button.primary');
-                                            if (innerBtn) {
-                                                const spanText = innerBtn.querySelector('span')?.textContent?.trim() || '';
-                                                if (spanText === 'Aceitar' || innerBtn.textContent.includes('Aceitar')) {
+                                        const label = hb.getAttribute('label') || hb.getAttribute('text') || '';
+                                        if (label.toLowerCase().includes('aceitar')) {
+                                            if (hb.shadowRoot) {
+                                                const innerBtn = hb.shadowRoot.querySelector('button');
+                                                if (innerBtn && !innerBtn.disabled) {
                                                     innerBtn.click();
-                                                    return true;
+                                                    return { clicked: true, method: 'hexa-label' };
+                                                }
+                                            }
+                                            hb.click();
+                                            return { clicked: true, method: 'hexa-host' };
+                                        }
+                                        // Verificar texto interno do shadowRoot
+                                        if (hb.shadowRoot) {
+                                            const innerBtn = hb.shadowRoot.querySelector('button');
+                                            if (innerBtn) {
+                                                const btnText = innerBtn.textContent?.trim() || '';
+                                                if (btnText.toLowerCase().includes('aceitar')) {
+                                                    innerBtn.click();
+                                                    return { clicked: true, method: 'hexa-shadow-text' };
                                                 }
                                             }
                                         }
                                     }
                                     
-                                    // Estratégia 4: Qualquer botão em modal com texto "Aceitar"
-                                    const modal = document.querySelector('[role="dialog"], [class*="modal"], #order-details-modal');
-                                    if (modal) {
-                                        const btns = modal.querySelectorAll('button');
-                                        for (const btn of btns) {
-                                            if (btn.textContent.trim() === 'Aceitar') {
+                                    // Estratégia 2: Buscar span com data-testid="text" contendo "Aceitar"
+                                    const spans = document.querySelectorAll('span[data-testid="text"]');
+                                    for (const span of spans) {
+                                        if (span.textContent.trim().toLowerCase() === 'aceitar') {
+                                            const btn = span.closest('button');
+                                            if (btn) {
                                                 btn.click();
-                                                return true;
+                                                return { clicked: true, method: 'span-testid' };
                                             }
                                         }
                                     }
                                     
-                                    return false;
+                                    // Estratégia 3: Buscar button.primary com texto "Aceitar"
+                                    const buttons = document.querySelectorAll('button.primary, button[class*="primary"]');
+                                    for (const btn of buttons) {
+                                        if (btn.textContent.trim().toLowerCase().includes('aceitar')) {
+                                            btn.click();
+                                            return { clicked: true, method: 'button-primary' };
+                                        }
+                                    }
+                                    
+                                    // Estratégia 4: Qualquer botão visível com texto "Aceitar"
+                                    const allButtons = document.querySelectorAll('button');
+                                    for (const btn of allButtons) {
+                                        if (btn.offsetParent && btn.textContent.trim().toLowerCase() === 'aceitar') {
+                                            btn.click();
+                                            return { clicked: true, method: 'any-button' };
+                                        }
+                                    }
+                                    
+                                    // Estratégia 5: Botão em modal/dialog
+                                    const modal = document.querySelector('[role="dialog"], [class*="modal"], [class*="drawer"]');
+                                    if (modal) {
+                                        const btns = modal.querySelectorAll('button, hexa-v2-button');
+                                        for (const btn of btns) {
+                                            const text = btn.textContent || btn.getAttribute('label') || '';
+                                            if (text.toLowerCase().includes('aceitar')) {
+                                                if (btn.shadowRoot) {
+                                                    const inner = btn.shadowRoot.querySelector('button');
+                                                    if (inner) { inner.click(); return { clicked: true, method: 'modal-hexa' }; }
+                                                }
+                                                btn.click();
+                                                return { clicked: true, method: 'modal-button' };
+                                            }
+                                        }
+                                    }
+                                    
+                                    return { clicked: false };
                                 });
                                 
-                                if (clicouAceitar) {
-                                    console.log('✅ [ACEITA] Botão "Aceitar" clicado!');
+                                if (clicouAceitar.clicked) {
+                                    console.log(`✅ [ACEITA] Botão "Aceitar" clicado! (método: ${clicouAceitar.method})`);
                                     aceitou = true;
                                     break;
                                 }
@@ -1425,6 +1453,11 @@ async function aceitaScript(browser, cookies) {
                                 console.log(`⏳ [ACEITA] Tentativa ${tentativa}/5 - botão não encontrado`);
                                 await sleep(1);
                             }
+                            
+                            // Screenshot após tentativa
+                            try {
+                                await page.screenshot({ path: `/app/logs/aceite-apos-${Date.now()}.png` });
+                            } catch(e) {}
                         }
                     }
 
