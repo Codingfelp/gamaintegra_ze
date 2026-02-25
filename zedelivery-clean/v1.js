@@ -1023,7 +1023,7 @@ function loadAceiteStats() {
 
 async function aceitaScript(browser, cookies) {
     console.log('🤖 [ACEITA] Iniciando script de aceite automático de pedidos...');
-    console.log('🔄 [ACEITA] FLUXO CORRETO: /poc-orders -> Clicar CARD -> Modal -> Botão "Aceitar"');
+    console.log('🔄 [ACEITA] FLUXO: /poc-orders -> Kanban "Novos" -> Clicar CARD -> Modal -> Botão "Aceitar"');
     
     // Iniciar log de integração
     let currentProcessId = await integrationLogger.log.orderAccept.start(
@@ -1050,37 +1050,6 @@ async function aceitaScript(browser, cookies) {
             
             console.log('📍 [ACEITA] Navegou para página de pedidos:', page.url());
             
-            // DEBUG: Tirar screenshot para ver estado da página
-            try {
-                await page.screenshot({ path: '/app/logs/poc-orders-debug.png', fullPage: true });
-                console.log('📸 [ACEITA] Screenshot salva: /app/logs/poc-orders-debug.png');
-                
-                // DEBUG: Salvar HTML da página
-                const html = await page.content();
-                require('fs').writeFileSync('/app/logs/poc-orders-debug.html', html);
-                console.log('📄 [ACEITA] HTML salvo: /app/logs/poc-orders-debug.html');
-                
-                // DEBUG: Listar elementos principais
-                const debugInfo = await page.evaluate(() => {
-                    const info = {
-                        title: document.title,
-                        url: window.location.href,
-                        tables: document.querySelectorAll('table').length,
-                        rows: document.querySelectorAll('tr').length,
-                        hexaRows: document.querySelectorAll('hexa-v2-custom-table-row').length,
-                        cards: document.querySelectorAll('[class*="card"]').length,
-                        orders: document.querySelectorAll('[class*="order"]').length,
-                        buttons: document.querySelectorAll('button').length,
-                        sections: document.querySelectorAll('section').length,
-                        mainContent: document.body.innerText.substring(0, 500)
-                    };
-                    return info;
-                });
-                console.log('🔍 [ACEITA] Debug info:', JSON.stringify(debugInfo, null, 2));
-            } catch (e) {
-                console.log('⚠️ [ACEITA] Erro ao tirar screenshot:', e.message);
-            }
-            
             // Se redirecionou para login, sessão expirou
             if (page.url().includes('login')) {
                 console.log('🔑 [ACEITA] Sessão expirou, reiniciando...');
@@ -1093,92 +1062,91 @@ async function aceitaScript(browser, cookies) {
             aceiteStats.status = 'monitoring';
             saveAceiteStats(aceiteStats);
 
-            // Loop interno: monitora continuamente sem limite de iterações
+            // Loop interno: monitora continuamente
             while (true) {
                 try {
                     aceiteStats.lastCheck = new Date().toISOString();
                     
-                    // Fechar modais de alerta se existirem
-                    const closeButton = await page.$('#close-alert-modal');
-                    if (closeButton) {
-                        await closeButton.click();
-                        console.log('🔔 [ACEITA] Modal de alerta fechado');
-                    }
-
                     // =======================================================
-                    // PASSO 1: Procurar CARD de pedido pendente em "Novos"
+                    // PASSO 1: Verificar se há pedidos na coluna "Novos" do Kanban
+                    // Seletor: [data-testid="kanban-column-body-new-orders"]
                     // =======================================================
-                    const pedidoPendente = await page.evaluate(() => {
-                        // DEBUG: Listar todos os elementos encontrados
-                        const rows = document.querySelectorAll('hexa-v2-custom-table-row');
-                        console.log('[DEBUG] Total de rows encontradas:', rows.length);
-                        
-                        // Se não encontrou rows, tentar outros seletores
-                        if (rows.length === 0) {
-                            // Tentar buscar por outros padrões de cards
-                            const cards = document.querySelectorAll('[class*="order"], [class*="card"], [data-testid*="order"]');
-                            console.log('[DEBUG] Cards alternativos:', cards.length);
+                    const pedidoNovo = await page.evaluate(() => {
+                        // Buscar a coluna de pedidos novos
+                        const colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
+                        if (!colunaNovos) {
+                            console.log('[DEBUG] Coluna de novos não encontrada');
+                            return { found: false, reason: 'coluna_nao_encontrada' };
                         }
                         
-                        // Buscar cards na seção "Novos" ou com status "Pendente"
-                        for (const row of rows) {
-                            const badges = row.querySelectorAll('hexa-v2-badge-status');
-                            for (const badge of badges) {
-                                let statusText = '';
-                                if (badge.shadowRoot) {
-                                    const span = badge.shadowRoot.querySelector('span');
-                                    statusText = span ? span.textContent.trim().toLowerCase() : '';
-                                }
-                                // Também tentar innerText direto
-                                if (!statusText) {
-                                    statusText = (badge.innerText || badge.textContent || '').trim().toLowerCase();
-                                }
-                                
-                                console.log('[DEBUG] Status encontrado:', statusText);
-                                
-                                if (statusText.includes('pendente') || statusText.includes('novo') || statusText.includes('aguardando')) {
-                                    // Capturar ID do pedido
-                                    let orderId = '';
-                                    const orderNumEl = row.querySelector('[id^="order-number"]');
-                                    if (orderNumEl) {
-                                        orderId = orderNumEl.textContent.trim().replace(/\s+/g, '');
-                                    }
-                                    if (!orderId) {
-                                        const idEl = row.querySelector('hexa-v2-text');
-                                        if (idEl && idEl.shadowRoot) {
-                                            const span = idEl.shadowRoot.querySelector('span');
-                                            orderId = span ? span.textContent.trim().replace(/\s+/g, '') : '';
-                                        }
-                                    }
-                                    if (!orderId) {
-                                        const allText = row.innerText || '';
-                                        const match = allText.match(/(\d{3}\s*\d{3}\s*\d{3})/);
-                                        if (match) orderId = match[1].replace(/\s+/g, '');
-                                    }
-                                    
-                                    return { found: true, orderId: orderId || 'N/A', status: statusText, rowIndex: Array.from(rows).indexOf(row) };
-                                }
+                        // Verificar se há mensagem de "sem pedidos"
+                        const semPedidos = colunaNovos.querySelector('#no-new-orders-message');
+                        if (semPedidos && semPedidos.offsetParent !== null) {
+                            return { found: false, reason: 'sem_pedidos_novos' };
+                        }
+                        
+                        // Buscar cards de pedidos (podem ser divs, articles, ou elementos com classe card)
+                        const cards = colunaNovos.querySelectorAll('[class*="card"], article, [role="button"]');
+                        console.log('[DEBUG] Cards encontrados na coluna Novos:', cards.length);
+                        
+                        for (const card of cards) {
+                            // Pular elementos vazios ou invisíveis
+                            if (!card.offsetParent || card.offsetHeight === 0) continue;
+                            
+                            // Tentar capturar ID do pedido
+                            let orderId = '';
+                            const textos = card.innerText || '';
+                            const match = textos.match(/(\d{3}\s*\d{3}\s*\d{3})/);
+                            if (match) {
+                                orderId = match[1].replace(/\s+/g, '');
+                            }
+                            
+                            return { 
+                                found: true, 
+                                orderId: orderId || 'N/A', 
+                                cardIndex: Array.from(cards).indexOf(card)
+                            };
+                        }
+                        
+                        // Também verificar se o botão "Aceitar todos" está habilitado
+                        const acceptButton = document.querySelector('#accept-button');
+                        if (acceptButton) {
+                            // Verificar se está habilitado (olhar no shadowRoot se for hexa-v2-button)
+                            let isDisabled = acceptButton.disabled;
+                            if (acceptButton.shadowRoot) {
+                                const innerBtn = acceptButton.shadowRoot.querySelector('button');
+                                isDisabled = innerBtn ? innerBtn.disabled : true;
+                            }
+                            
+                            if (!isDisabled) {
+                                return { 
+                                    found: true, 
+                                    orderId: 'batch', 
+                                    useAcceptAllButton: true 
+                                };
                             }
                         }
-                        return { found: false, orderId: null, status: null, debugRowCount: rows.length };
+                        
+                        return { found: false, reason: 'nenhum_card_encontrado', cardsCount: cards.length };
                     });
                     
-                    // Log de debug
-                    if (!pedidoPendente.found) {
-                        console.log(`[ACEITA] Nenhum pedido pendente. Rows: ${pedidoPendente.debugRowCount || 0}`);
-                    }
-                    
-                    if (!pedidoPendente.found) {
-                        // Sem pedidos pendentes - aguardar e recarregar
+                    if (!pedidoNovo.found) {
+                        // Sem pedidos novos - aguardar e recarregar
                         aceiteStats.status = 'waiting';
                         saveAceiteStats(aceiteStats);
-                        await sleep(2);
+                        
+                        // Log ocasional
+                        if (Math.random() < 0.05) {
+                            console.log(`[ACEITA] Aguardando pedidos novos... (${pedidoNovo.reason || 'vazio'})`);
+                        }
+                        
+                        await sleep(3);
                         await page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
                         continue;
                     }
 
-                    const orderId = pedidoPendente.orderId;
-                    console.log(`🚀 [ACEITA] PEDIDO #${orderId} PENDENTE DETECTADO!`);
+                    const orderId = pedidoNovo.orderId;
+                    console.log(`🚀 [ACEITA] PEDIDO NOVO DETECTADO! ID: ${orderId}`);
                     const startTime = performance.now();
                     
                     aceiteStats.status = 'accepting';
@@ -1186,207 +1154,171 @@ async function aceitaScript(browser, cookies) {
                     saveAceiteStats(aceiteStats);
 
                     // =======================================================
-                    // PASSO 2: CLICAR NO CARD para abrir o modal
-                    // O card é um hexa-v2-custom-table-row clicável
+                    // PASSO 2: Aceitar o pedido
+                    // Opção A: Usar botão "Aceitar todos" se disponível
+                    // Opção B: Clicar no card para abrir modal e aceitar
                     // =======================================================
-                    console.log(`🖱️ [ACEITA] Clicando no CARD do pedido #${orderId}...`);
                     
-                    const cardClicado = await page.evaluate((rowIdx) => {
-                        const rows = document.querySelectorAll('hexa-v2-custom-table-row');
-                        if (rows[rowIdx]) {
-                            rows[rowIdx].click();
-                            return true;
-                        }
-                        // Fallback: clicar no primeiro card com status pendente
-                        for (const row of rows) {
-                            const badges = row.querySelectorAll('hexa-v2-badge-status');
-                            for (const badge of badges) {
-                                let statusText = '';
-                                if (badge.shadowRoot) {
-                                    const span = badge.shadowRoot.querySelector('span');
-                                    statusText = span ? span.textContent.trim().toLowerCase() : '';
-                                }
-                                if (statusText.includes('pendente') || statusText.includes('novo')) {
-                                    row.click();
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    }, pedidoPendente.rowIndex);
-
-                    if (!cardClicado) {
-                        console.log('❌ [ACEITA] Não conseguiu clicar no card do pedido');
-                        await sleep(1);
-                        continue;
-                    }
-
-                    console.log('✓ [ACEITA] Card clicado, aguardando modal...');
-                    await sleep(2); // Aguardar modal abrir
-
-                    // =======================================================
-                    // PASSO 3: Localizar e clicar no botão "Aceitar" DENTRO DO MODAL
-                    // HTML: <button class="button primary medium flex" part="button" type="submit">
-                    //         <span class="text" part="text" data-testid="text">Aceitar</span>
-                    //       </button>
-                    // =======================================================
-                    console.log('🔍 [ACEITA] Buscando botão "Aceitar" no modal...');
+                    let aceitou = false;
                     
-                    let botaoAceitarClicado = false;
-                    
-                    for (let tentativa = 1; tentativa <= 5; tentativa++) {
-                        botaoAceitarClicado = await page.evaluate(() => {
-                            // ESTRATÉGIA 1: Buscar o botão com data-testid="text" contendo "Aceitar"
-                            const spansAceitar = document.querySelectorAll('span[data-testid="text"]');
-                            for (const span of spansAceitar) {
-                                if (span.textContent.trim() === 'Aceitar') {
-                                    // O botão é o parent (button.primary)
-                                    const btn = span.closest('button');
-                                    if (btn && btn.classList.contains('primary')) {
-                                        btn.click();
+                    if (pedidoNovo.useAcceptAllButton) {
+                        // Usar botão "Aceitar todos"
+                        console.log('🖱️ [ACEITA] Usando botão "Aceitar todos"...');
+                        aceitou = await page.evaluate(() => {
+                            const acceptBtn = document.querySelector('#accept-button');
+                            if (acceptBtn) {
+                                if (acceptBtn.shadowRoot) {
+                                    const innerBtn = acceptBtn.shadowRoot.querySelector('button');
+                                    if (innerBtn && !innerBtn.disabled) {
+                                        innerBtn.click();
                                         return true;
                                     }
                                 }
-                            }
-                            
-                            // ESTRATÉGIA 2: Buscar button.primary com texto "Aceitar"
-                            const primaryButtons = document.querySelectorAll('button.primary');
-                            for (const btn of primaryButtons) {
-                                const texto = btn.textContent.trim();
-                                if (texto === 'Aceitar') {
-                                    btn.click();
+                                if (!acceptBtn.disabled) {
+                                    acceptBtn.click();
                                     return true;
                                 }
                             }
+                            return false;
+                        });
+                    } else {
+                        // Clicar no card do pedido para abrir modal
+                        console.log(`🖱️ [ACEITA] Clicando no card do pedido #${orderId}...`);
+                        
+                        aceitou = await page.evaluate((cardIdx) => {
+                            const colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
+                            if (!colunaNovos) return false;
                             
-                            // ESTRATÉGIA 3: Buscar em hexa-v2-button com shadowRoot
-                            const hexaBtns = document.querySelectorAll('hexa-v2-button');
-                            for (const hexaBtn of hexaBtns) {
-                                if (hexaBtn.shadowRoot) {
-                                    const innerBtn = hexaBtn.shadowRoot.querySelector('button.primary');
-                                    if (innerBtn) {
-                                        const spanText = innerBtn.querySelector('span')?.textContent?.trim() || '';
-                                        const btnText = innerBtn.textContent?.trim() || '';
-                                        if (spanText === 'Aceitar' || btnText.includes('Aceitar')) {
-                                            innerBtn.click();
+                            const cards = colunaNovos.querySelectorAll('[class*="card"], article, [role="button"]');
+                            const card = cards[cardIdx];
+                            if (card) {
+                                card.click();
+                                return true;
+                            }
+                            return false;
+                        }, pedidoNovo.cardIndex || 0);
+                        
+                        if (aceitou) {
+                            console.log('✓ [ACEITA] Card clicado, aguardando modal...');
+                            await sleep(2);
+                            
+                            // Procurar botão "Aceitar" no modal
+                            // HTML: <button class="button primary medium flex" part="button" type="submit">
+                            //         <span class="text" part="text" data-testid="text">Aceitar</span>
+                            //       </button>
+                            console.log('🔍 [ACEITA] Buscando botão "Aceitar" no modal...');
+                            
+                            for (let tentativa = 1; tentativa <= 5; tentativa++) {
+                                const clicouAceitar = await page.evaluate(() => {
+                                    // Estratégia 1: Buscar span com data-testid="text" contendo "Aceitar"
+                                    const spans = document.querySelectorAll('span[data-testid="text"]');
+                                    for (const span of spans) {
+                                        if (span.textContent.trim() === 'Aceitar') {
+                                            const btn = span.closest('button');
+                                            if (btn && btn.classList.contains('primary')) {
+                                                btn.click();
+                                                return true;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Estratégia 2: Buscar button.primary com texto "Aceitar"
+                                    const buttons = document.querySelectorAll('button.primary, button[class*="primary"]');
+                                    for (const btn of buttons) {
+                                        if (btn.textContent.trim().includes('Aceitar')) {
+                                            btn.click();
                                             return true;
                                         }
                                     }
-                                }
-                            }
-                            
-                            // ESTRATÉGIA 4: Qualquer botão com texto exato "Aceitar" em modal
-                            const modal = document.querySelector('[role="dialog"], .modal, [class*="modal"]');
-                            if (modal) {
-                                const btnsInModal = modal.querySelectorAll('button');
-                                for (const btn of btnsInModal) {
-                                    if (btn.textContent.trim() === 'Aceitar') {
-                                        btn.click();
-                                        return true;
+                                    
+                                    // Estratégia 3: hexa-v2-button com shadowRoot
+                                    const hexaBtns = document.querySelectorAll('hexa-v2-button');
+                                    for (const hb of hexaBtns) {
+                                        if (hb.shadowRoot) {
+                                            const innerBtn = hb.shadowRoot.querySelector('button.primary');
+                                            if (innerBtn) {
+                                                const spanText = innerBtn.querySelector('span')?.textContent?.trim() || '';
+                                                if (spanText === 'Aceitar' || innerBtn.textContent.includes('Aceitar')) {
+                                                    innerBtn.click();
+                                                    return true;
+                                                }
+                                            }
+                                        }
                                     }
+                                    
+                                    // Estratégia 4: Qualquer botão em modal com texto "Aceitar"
+                                    const modal = document.querySelector('[role="dialog"], [class*="modal"], #order-details-modal');
+                                    if (modal) {
+                                        const btns = modal.querySelectorAll('button');
+                                        for (const btn of btns) {
+                                            if (btn.textContent.trim() === 'Aceitar') {
+                                                btn.click();
+                                                return true;
+                                            }
+                                        }
+                                    }
+                                    
+                                    return false;
+                                });
+                                
+                                if (clicouAceitar) {
+                                    console.log('✅ [ACEITA] Botão "Aceitar" clicado!');
+                                    aceitou = true;
+                                    break;
                                 }
+                                
+                                console.log(`⏳ [ACEITA] Tentativa ${tentativa}/5 - botão não encontrado`);
+                                await sleep(1);
                             }
-                            
-                            // ESTRATÉGIA 5: #orders-details-modal-button-accept
-                            const modalBtn = document.querySelector('#orders-details-modal-button-accept');
-                            if (modalBtn) {
-                                if (modalBtn.shadowRoot) {
-                                    const innerBtn = modalBtn.shadowRoot.querySelector('button');
-                                    if (innerBtn) { innerBtn.click(); return true; }
-                                }
-                                modalBtn.click();
-                                return true;
-                            }
-                            
-                            return false;
-                        });
-                        
-                        if (botaoAceitarClicado) break;
-                        console.log(`⏳ [ACEITA] Tentativa ${tentativa}/5 - botão não encontrado, aguardando...`);
-                        await sleep(1);
+                        }
                     }
 
-                    if (!botaoAceitarClicado) {
-                        console.log('❌ [ACEITA] Botão "Aceitar" não encontrado no modal após 5 tentativas');
-                        // Fechar modal se aberto (ESC ou clicar fora)
-                        await page.keyboard.press('Escape');
-                        await sleep(1);
+                    if (!aceitou) {
+                        console.log('❌ [ACEITA] Não conseguiu aceitar o pedido');
                         aceiteStats.totalFailed++;
                         saveAceiteStats(aceiteStats);
+                        await page.keyboard.press('Escape');
+                        await sleep(2);
                         continue;
                     }
 
-                    console.log('✅ [ACEITA] Clicou no botão "Aceitar"!');
-                    
                     // =======================================================
-                    // PASSO 4: Aguardar 4 segundos e verificar se status mudou
+                    // PASSO 3: Verificar se foi aceito (aguardar 4 segundos)
                     // =======================================================
                     console.log('⏳ [ACEITA] Aguardando 4 segundos para verificar status...');
                     await sleep(4);
                     
-                    // Recarregar página para verificar status atualizado
                     await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
                     await sleep(1);
                     
-                    const statusVerificado = await page.evaluate((targetOrderId) => {
-                        const rows = document.querySelectorAll('hexa-v2-custom-table-row');
+                    // Verificar se ainda há pedidos novos
+                    const verificacao = await page.evaluate(() => {
+                        const colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
+                        if (!colunaNovos) return { success: true, reason: 'coluna_sumiu' };
                         
-                        // Verificar se ainda há pedidos pendentes
-                        let pendentesCount = 0;
-                        let pedidoEncontrado = false;
-                        let novoStatus = '';
-                        
-                        for (const row of rows) {
-                            let rowOrderId = '';
-                            const orderNumEl = row.querySelector('[id^="order-number"]');
-                            if (orderNumEl) {
-                                rowOrderId = orderNumEl.textContent.trim().replace(/\s+/g, '');
-                            }
-                            
-                            const badges = row.querySelectorAll('hexa-v2-badge-status');
-                            for (const badge of badges) {
-                                let statusText = '';
-                                if (badge.shadowRoot) {
-                                    const span = badge.shadowRoot.querySelector('span');
-                                    statusText = span ? span.textContent.trim().toLowerCase() : '';
-                                }
-                                
-                                if (statusText.includes('pendente')) {
-                                    pendentesCount++;
-                                }
-                                
-                                // Verificar se encontrou o pedido alvo
-                                if (targetOrderId && targetOrderId !== 'N/A' && 
-                                    (rowOrderId.includes(targetOrderId) || targetOrderId.includes(rowOrderId))) {
-                                    pedidoEncontrado = true;
-                                    novoStatus = statusText;
-                                }
-                            }
+                        const semPedidos = colunaNovos.querySelector('#no-new-orders-message');
+                        if (semPedidos && semPedidos.offsetParent !== null) {
+                            return { success: true, reason: 'sem_pedidos_novos' };
                         }
                         
+                        const cards = colunaNovos.querySelectorAll('[class*="card"], article');
                         return { 
-                            pendentesCount, 
-                            pedidoEncontrado, 
-                            novoStatus,
-                            success: novoStatus.includes('aceito') || novoStatus.includes('preparo') || 
-                                     (!pedidoEncontrado && pendentesCount === 0)
+                            success: cards.length === 0, 
+                            reason: cards.length === 0 ? 'cards_zerados' : 'ainda_tem_cards',
+                            cardsRestantes: cards.length
                         };
-                    }, orderId);
+                    });
                     
                     const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
                     
-                    if (statusVerificado.success || statusVerificado.novoStatus.includes('aceito')) {
+                    if (verificacao.success) {
                         console.log(`✅✅✅ [ACEITA] PEDIDO #${orderId} ACEITO COM SUCESSO em ${elapsed}s!`);
-                        if (statusVerificado.novoStatus) {
-                            console.log(`   Novo status: ${statusVerificado.novoStatus.toUpperCase()}`);
-                        }
                         
-                        // Log de integração - sucesso
                         integrationLogger.logEvent(
                             integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
                             integrationLogger.STATUS.COMPLETED,
-                            `Pedido #${orderId} aceito com sucesso em ${elapsed}s`,
-                            { orderId, elapsed, newStatus: statusVerificado.novoStatus }
+                            `Pedido #${orderId} aceito em ${elapsed}s`,
+                            { orderId, elapsed }
                         );
                         
                         aceiteStats.totalAccepted++;
@@ -1404,38 +1336,9 @@ async function aceitaScript(browser, cookies) {
                         if (aceiteStats.recentAccepts.length > 10) {
                             aceiteStats.recentAccepts.pop();
                         }
-                    } else if (statusVerificado.novoStatus.includes('pendente')) {
-                        console.log(`❌ [ACEITA] FALHA! Pedido #${orderId} ainda está PENDENTE após ${elapsed}s`);
-                        console.log(`   Ainda há ${statusVerificado.pendentesCount} pedido(s) pendente(s)`);
-                        console.log(`   Tentando novamente...`);
-                        
-                        // Log de integração - falha
-                        integrationLogger.logEvent(
-                            integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
-                            integrationLogger.STATUS.CANCELLED,
-                            `Falha ao aceitar pedido #${orderId} - ainda pendente`,
-                            { orderId, elapsed, error: 'Pedido ainda pendente após tentativa' }
-                        );
-                        
-                        aceiteStats.totalFailed++;
-                        aceiteStats.status = 'failed';
                     } else {
-                        // Pedido não encontrado na lista - provavelmente foi aceito
-                        console.log(`✅ [ACEITA] Pedido #${orderId} processado em ${elapsed}s (status inferido: aceito)`);
-                        aceiteStats.totalAccepted++;
-                        aceiteStats.lastAccept = new Date().toISOString();
-                        aceiteStats.lastAcceptedOrder = orderId;
-                        aceiteStats.status = 'success';
-                        
-                        aceiteStats.recentAccepts.unshift({
-                            orderId: orderId,
-                            time: new Date().toISOString(),
-                            elapsed: elapsed,
-                            status: 'inferred'
-                        });
-                        if (aceiteStats.recentAccepts.length > 10) {
-                            aceiteStats.recentAccepts.pop();
-                        }
+                        console.log(`⚠️ [ACEITA] Pedido processado em ${elapsed}s, mas ainda há ${verificacao.cardsRestantes} cards`);
+                        aceiteStats.status = 'partial';
                     }
                     
                     saveAceiteStats(aceiteStats);
@@ -1453,7 +1356,7 @@ async function aceitaScript(browser, cookies) {
                         await page.reload({ waitUntil: "networkidle2", timeout: 30000 }); 
                     } catch (reloadErr) {
                         console.error("❌ [ACEITA] Erro ao recarregar:", reloadErr.message);
-                        break; // Sair do loop interno para reabrir aba
+                        break;
                     }
                     await sleep(3);
                 }
