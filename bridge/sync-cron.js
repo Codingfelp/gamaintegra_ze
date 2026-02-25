@@ -247,6 +247,7 @@ async function syncToLovable() {
         d.delivery_subtotal,
         d.delivery_forma_pagamento,
         d.delivery_desconto,
+        d.delivery_desconto_descricao,
         d.delivery_frete,
         d.delivery_total,
         d.delivery_cpf_cliente,
