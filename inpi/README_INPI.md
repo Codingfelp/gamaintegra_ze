@@ -21,9 +21,11 @@
 
 ## HASH SHA-512 DO CÓDIGO
 
-O hash SHA-512 está disponível no arquivo `hash_sha512.txt` desta pasta.
+```
+68c6532c1ce6215dc60315e7d0a5047ced3912615f1d1af99cf861a12636baeab43e13afd4a70a14b23ab813c39faafa4d642ac07506fbed808ca20d60885c78
+```
 
-**Arquivo:** `software.zip`
+**Arquivo:** `software.zip` (127 KB)
 
 ---
 
@@ -31,16 +33,13 @@ O hash SHA-512 está disponível no arquivo `hash_sha512.txt` desta pasta.
 
 ### A. Código-fonte (PDF)
 Arquivo: `codigo_fonte.md`
-- Contém trechos dos 6 principais arquivos do sistema
+- Contém trechos estruturais dos 5 principais módulos do sistema
 - Inclui cabeçalhos de copyright
-- Aproximadamente 30 páginas
+- Aproximadamente 15-20 páginas
 
 Converter para PDF com:
 ```bash
-# No Linux:
 pandoc codigo_fonte.md -o codigo_fonte.pdf
-
-# Ou usar qualquer editor de texto para salvar como PDF
 ```
 
 ### B. Descrição do Sistema (PDF)
@@ -113,8 +112,8 @@ Arquivo: `hash_sha512.txt`
 ```
 /app/inpi/
 ├── descricao_software.md     # Descrição completa do software
-├── codigo_fonte.md           # Trechos do código-fonte
-├── software.zip              # ZIP com código-fonte
+├── codigo_fonte.md           # Trechos estruturais do código-fonte
+├── software.zip              # ZIP com código-fonte (127 KB)
 ├── hash_sha512.txt           # Hash SHA-512 do ZIP
 └── README_INPI.md            # Este arquivo
 ```
