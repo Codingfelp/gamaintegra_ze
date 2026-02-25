@@ -4,3 +4,6 @@
 2026/02/25-20:14:54.774 25ee Level-0 table #343: started
 2026/02/25-20:14:54.784 25ee Level-0 table #343: 20128 bytes OK
 2026/02/25-20:14:54.787 25ee Delete type=0 #339
+2026/02/25-20:42:54.774 25ee Level-0 table #345: started
+2026/02/25-20:42:54.777 25ee Level-0 table #345: 21560 bytes OK
+2026/02/25-20:42:54.779 25ee Delete type=0 #342
