@@ -492,58 +492,6 @@ async function syncToLovable() {
     if (!syncSuccess) {
       console.error(`❌ Sincronização falhou`);
     }
-                  items: orderData.items,
-                  courier_email: orderData.courier_email,
-                  updated_at: new Date().toISOString(),
-                }),
-              }
-            );
-            
-            if (updateResponse.ok) {
-              console.log(`   🔄 Pedido ${externalOrderId} atualizado`);
-            }
-          } else {
-            // INSERT
-            const insertResponse = await fetch(
-              `${LOVABLE_URL}/rest/v1/orders`,
-              {
-                method: 'POST',
-                headers: {
-                  'apikey': SERVICE_ROLE_KEY,
-                  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                  'Content-Type': 'application/json',
-                  'Prefer': 'return=minimal',
-                },
-                body: JSON.stringify(orderData),
-              }
-            );
-            
-            if (insertResponse.ok) {
-              console.log(`   ✅ Pedido ${externalOrderId} inserido`);
-            } else {
-              const errText = await insertResponse.text();
-              console.error(`   ❌ Erro ao inserir ${externalOrderId}: ${errText}`);
-            }
-          }
-        } catch (restErr) {
-          console.error(`   ❌ REST erro: ${restErr.message}`);
-        }
-      }
-      
-      syncSuccess = true;
-    }
-    
-    if (syncSuccess) {
-      // Log de integração com debounce
-      await logIntegration(
-        integrationLogger.PROCESS_TYPES.SUPABASE_SYNC,
-        integrationLogger.STATUS.COMPLETED,
-        `${pedidosAlterados.length} pedidos sincronizados`,
-        { count: pedidosAlterados.length }
-      );
-    } else {
-      console.error(`❌ Sincronização falhou - nenhum método disponível`);
-    }
 
   } catch (err) {
     console.error(`❌ Erro: ${err.message}`);
