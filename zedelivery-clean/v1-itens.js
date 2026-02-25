@@ -1467,25 +1467,32 @@ async function itensScript(page) {
                 
                 let customerPhone = '';
                 
-                // Primeiro, verificar se o telefone já está visível (raro, mas possível)
+                // Primeiro, verificar se o telefone já está visível (várias estratégias)
                 customerPhone = await page.evaluate(() => {
-                    // Verificar se existe um link tel: (indicaria telefone já revelado)
+                    // ESTRATÉGIA 1: Link tel: (telefone já revelado)
                     const telLink = document.querySelector('a[href^="tel:"]');
                     if (telLink) {
                         return telLink.href.replace('tel:', '').replace(/\D/g, '');
                     }
                     
-                    // Verificar na seção #user-info se há um número de telefone
+                    // ESTRATÉGIA 2: Elemento #customer-phone
+                    const customerPhoneEl = document.querySelector('#customer-phone');
+                    if (customerPhoneEl) {
+                        const text = customerPhoneEl.textContent.trim().replace(/\D/g, '');
+                        if (text.length >= 10) return text;
+                    }
+                    
+                    // ESTRATÉGIA 3: Seção #user-info
                     const userInfo = document.querySelector('#user-info');
                     if (userInfo) {
                         const text = userInfo.innerText || '';
-                        const phoneMatch = text.match(/\+55\d{10,11}|\(\d{2}\)\s*\d{4,5}[-\s]?\d{4}/);
+                        const phoneMatch = text.match(/\+55\d{10,11}|\(\d{2}\)\s*\d{4,5}[-\s]?\d{4}|\d{10,11}/);
                         if (phoneMatch) {
                             return phoneMatch[0].replace(/\D/g, '');
                         }
                     }
                     
-                    // Verificar se #phone-unavailable já mostra um telefone
+                    // ESTRATÉGIA 4: #phone-unavailable (pode conter telefone)
                     const phoneBtn = document.querySelector('#phone-unavailable');
                     if (phoneBtn) {
                         let texto = '';
@@ -1499,6 +1506,29 @@ async function itensScript(page) {
                         const nums = texto.replace(/\D/g, '');
                         if (nums.length >= 10 && nums.length <= 13) {
                             return nums;
+                        }
+                    }
+                    
+                    // ESTRATÉGIA 5: Buscar em todo o DOM por padrão de telefone brasileiro
+                    const allText = document.body.innerText || '';
+                    // Padrão: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX ou +55 XX XXXXX-XXXX
+                    const phonePatterns = allText.match(/\(\d{2}\)\s*\d{4,5}[-\s]?\d{4}/g);
+                    if (phonePatterns && phonePatterns.length > 0) {
+                        // Pegar o primeiro que parece ser telefone de cliente
+                        for (const p of phonePatterns) {
+                            const nums = p.replace(/\D/g, '');
+                            if (nums.length >= 10 && nums.length <= 11) {
+                                return nums;
+                            }
+                        }
+                    }
+                    
+                    // ESTRATÉGIA 6: Buscar em elementos com class ou id contendo "phone" ou "telefone"
+                    const phoneElements = document.querySelectorAll('[class*="phone"], [class*="telefone"], [id*="phone"], [id*="telefone"]');
+                    for (const el of phoneElements) {
+                        const text = el.textContent.trim().replace(/\D/g, '');
+                        if (text.length >= 10 && text.length <= 11) {
+                            return text;
                         }
                     }
                     
