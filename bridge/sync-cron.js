@@ -392,8 +392,9 @@ async function syncToLovable() {
     // Verificar configuração Lovable
     const LOVABLE_URL = process.env.LOVABLE_SUPABASE_URL;
     const LOVABLE_KEY = process.env.LOVABLE_ZE_SYNC_KEY;
+    const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!LOVABLE_URL || !LOVABLE_KEY) {
+    if (!LOVABLE_URL) {
       console.log('⚠️  Lovable Cloud não configurado');
       fs.writeFileSync('/app/logs/sync-debug.json', JSON.stringify(pedidosAlterados, null, 2));
       return;
@@ -420,22 +421,136 @@ async function syncToLovable() {
     fs.writeFileSync('/app/logs/sync-payload.json', JSON.stringify(payload, null, 2));
     console.log(`📤 Enviando ${pedidosAlterados.length} pedidos para ${LOVABLE_URL}...`);
     
-    const response = await fetch(
-      `${LOVABLE_URL}/functions/v1/ze-sync-mysql`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${LOVABLE_KEY}`,
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    // Tentar Edge Function primeiro
+    let syncSuccess = false;
+    
+    if (LOVABLE_KEY) {
+      try {
+        const response = await fetch(
+          `${LOVABLE_URL}/functions/v1/ze-sync-mysql`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${LOVABLE_KEY}`,
+              'x-api-key': LOVABLE_KEY,
+            },
+            body: JSON.stringify(payload),
+          }
+        );
 
-    if (response.ok) {
-      const result = await response.json();
-      console.log(`✅ Sincronização concluída:`, JSON.stringify(result));
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ Edge Function: Sincronização concluída:`, JSON.stringify(result));
+          syncSuccess = true;
+        } else {
+          const error = await response.text();
+          console.warn(`⚠️ Edge Function falhou (${response.status}): ${error}`);
+        }
+      } catch (edgeFnErr) {
+        console.warn(`⚠️ Edge Function erro: ${edgeFnErr.message}`);
+      }
+    }
+    
+    // Fallback: usar REST API direta com service_role key
+    if (!syncSuccess && SERVICE_ROLE_KEY) {
+      console.log(`🔄 Usando fallback REST API direto...`);
       
+      for (const pedido of pedidosAlterados) {
+        try {
+          const externalOrderId = `ze-${pedido.id_local || pedido.external_id}`;
+          
+          // Verificar se pedido já existe
+          const checkResponse = await fetch(
+            `${LOVABLE_URL}/rest/v1/orders?external_order_id=eq.${externalOrderId}&select=id`,
+            {
+              headers: {
+                'apikey': SERVICE_ROLE_KEY,
+                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+              }
+            }
+          );
+          
+          const existing = await checkResponse.json();
+          
+          // Preparar dados do pedido
+          const orderData = {
+            order_number: pedido.order_number || pedido.external_id,
+            customer_name: pedido.customer_name || 'Cliente Zé',
+            customer_phone: pedido.customer_phone || null,
+            customer_document: pedido.customer_cpf || null,
+            delivery_address: pedido.address || null,
+            subtotal: parseFloat(pedido.subtotal) || 0,
+            delivery_fee: parseFloat(pedido.delivery_fee || pedido.delivery_frete) || 0,
+            discount: parseFloat(pedido.discount || pedido.delivery_desconto) || 0,
+            total: parseFloat(pedido.total || pedido.delivery_total) || 0,
+            source: 'ze-delivery',
+            external_order_id: externalOrderId,
+            status: mapZeStatus(pedido.status || pedido.delivery_status),
+            items: pedido.items || pedido.itens || [],
+            payment_method: mapPaymentMethod(pedido.payment_method || pedido.delivery_forma_pagamento),
+            delivery_type: (pedido.delivery_tipo_pedido || '').toLowerCase().includes('retirada') ? 'pickup' : 'delivery',
+            pickup_code: pedido.delivery_codigo_entrega || null,
+            notes: pedido.notes || pedido.delivery_obs || null,
+            courier_email: pedido.courier_email || pedido.delivery_email_entregador || null,
+          };
+          
+          if (existing && existing.length > 0) {
+            // UPDATE
+            const updateResponse = await fetch(
+              `${LOVABLE_URL}/rest/v1/orders?id=eq.${existing[0].id}`,
+              {
+                method: 'PATCH',
+                headers: {
+                  'apikey': SERVICE_ROLE_KEY,
+                  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=minimal',
+                },
+                body: JSON.stringify({
+                  status: orderData.status,
+                  items: orderData.items,
+                  courier_email: orderData.courier_email,
+                  updated_at: new Date().toISOString(),
+                }),
+              }
+            );
+            
+            if (updateResponse.ok) {
+              console.log(`   🔄 Pedido ${externalOrderId} atualizado`);
+            }
+          } else {
+            // INSERT
+            const insertResponse = await fetch(
+              `${LOVABLE_URL}/rest/v1/orders`,
+              {
+                method: 'POST',
+                headers: {
+                  'apikey': SERVICE_ROLE_KEY,
+                  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=minimal',
+                },
+                body: JSON.stringify(orderData),
+              }
+            );
+            
+            if (insertResponse.ok) {
+              console.log(`   ✅ Pedido ${externalOrderId} inserido`);
+            } else {
+              const errText = await insertResponse.text();
+              console.error(`   ❌ Erro ao inserir ${externalOrderId}: ${errText}`);
+            }
+          }
+        } catch (restErr) {
+          console.error(`   ❌ REST erro: ${restErr.message}`);
+        }
+      }
+      
+      syncSuccess = true;
+    }
+    
+    if (syncSuccess) {
       // Log de integração com debounce
       await logIntegration(
         integrationLogger.PROCESS_TYPES.SUPABASE_SYNC,
@@ -444,8 +559,7 @@ async function syncToLovable() {
         { count: pedidosAlterados.length }
       );
     } else {
-      const error = await response.text();
-      console.error(`❌ Erro na sincronização: ${response.status} - ${error}`);
+      console.error(`❌ Sincronização falhou - nenhum método disponível`);
     }
 
   } catch (err) {
