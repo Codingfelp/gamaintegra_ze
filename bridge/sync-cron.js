@@ -504,12 +504,12 @@ async function syncToLovable() {
           
           // Preparar dados do pedido
           const orderData = {
-            order_number: pedido.order_number || pedido.external_id,
-            customer_name: pedido.customer_name || 'Cliente Zé',
-            customer_phone: pedido.customer_phone || null,
-            customer_document: pedido.customer_cpf || null,
-            delivery_address: pedido.address || null,
-            subtotal: parseFloat(pedido.subtotal) || 0,
+            order_number: String(pedido.order_number || pedido.external_id || pedido.delivery_code),
+            customer_name: pedido.customer_name || pedido.delivery_name_cliente || 'Cliente Zé',
+            customer_phone: pedido.customer_phone || pedido.delivery_telefone || null,
+            customer_document: pedido.customer_cpf || pedido.delivery_cpf_cliente || null,
+            delivery_address: pedido.address || pedido.delivery_endereco_rota || null,
+            subtotal: parseFloat(pedido.subtotal || pedido.delivery_subtotal || pedido.total || pedido.delivery_total) || 0,
             delivery_fee: parseFloat(pedido.delivery_fee || pedido.delivery_frete) || 0,
             discount: parseFloat(pedido.discount || pedido.delivery_desconto) || 0,
             total: parseFloat(pedido.total || pedido.delivery_total) || 0,
@@ -518,8 +518,8 @@ async function syncToLovable() {
             status: mapZeStatus(pedido.status || pedido.delivery_status),
             items: pedido.items || pedido.itens || [],
             payment_method: mapPaymentMethod(pedido.payment_method || pedido.delivery_forma_pagamento),
-            delivery_type: (pedido.delivery_tipo_pedido || '').toLowerCase().includes('retirada') ? 'pickup' : 'delivery',
-            pickup_code: pedido.delivery_codigo_entrega || null,
+            delivery_type: (pedido.delivery_tipo_pedido || pedido.delivery_type || '').toLowerCase().includes('retirada') ? 'pickup' : 'delivery',
+            pickup_code: pedido.delivery_codigo_entrega || pedido.pickup_code || null,
             notes: pedido.notes || pedido.delivery_obs || null,
             courier_email: pedido.courier_email || pedido.delivery_email_entregador || null,
           };
