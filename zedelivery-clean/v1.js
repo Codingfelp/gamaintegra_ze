@@ -1068,34 +1068,150 @@ async function aceitaScript(browser, cookies) {
                     aceiteStats.lastCheck = new Date().toISOString();
                     
                     // =======================================================
-                    // PASSO 1: Verificar se há pedidos na coluna "Novos" do Kanban
-                    // Seletor: [data-testid="kanban-column-body-new-orders"]
+                    // DIAGNÓSTICO: Capturar estrutura da página
+                    // =======================================================
+                    const diagnostico = await page.evaluate(() => {
+                        const result = {
+                            url: window.location.href,
+                            allDataTestIds: [],
+                            kanbanElements: [],
+                            acceptButtons: [],
+                            hexaElements: 0
+                        };
+                        
+                        // Listar todos data-testid presentes
+                        document.querySelectorAll('[data-testid]').forEach(el => {
+                            const testid = el.getAttribute('data-testid');
+                            if (testid && !result.allDataTestIds.includes(testid)) {
+                                result.allDataTestIds.push(testid);
+                            }
+                        });
+                        
+                        // Listar elementos relacionados a Kanban
+                        document.querySelectorAll('[class*="kanban"], [class*="column"], [class*="order"], [data-testid*="column"], [data-testid*="order"]').forEach(el => {
+                            result.kanbanElements.push({
+                                tag: el.tagName,
+                                class: (el.className || '').substring(0, 100),
+                                testid: el.getAttribute('data-testid') || '',
+                                childCount: el.children.length
+                            });
+                        });
+                        
+                        // Verificar botões de aceitar
+                        document.querySelectorAll('button, hexa-v2-button').forEach(el => {
+                            const text = el.textContent || el.getAttribute('label') || '';
+                            if (text.toLowerCase().includes('aceitar') || text.toLowerCase().includes('accept')) {
+                                result.acceptButtons.push({
+                                    tag: el.tagName,
+                                    text: text.substring(0, 50),
+                                    disabled: el.disabled,
+                                    id: el.id || ''
+                                });
+                            }
+                        });
+                        
+                        // Contar elementos hexa-v2
+                        result.hexaElements = document.querySelectorAll('[class*="hexa"], hexa-v2-button, hexa-v2-text').length;
+                        
+                        return result;
+                    });
+                    
+                    // Log de diagnóstico a cada 30 segundos
+                    if (Math.random() < 0.03) {
+                        console.log('[DIAGNÓSTICO]', JSON.stringify({
+                            testIds: diagnostico.allDataTestIds.slice(0, 20),
+                            kanban: diagnostico.kanbanElements.slice(0, 5),
+                            acceptBtns: diagnostico.acceptButtons,
+                            hexaCount: diagnostico.hexaElements
+                        }, null, 2));
+                    }
+                    
+                    // =======================================================
+                    // PASSO 1: Verificar se há pedidos novos
+                    // Múltiplas estratégias para detectar pedidos
                     // =======================================================
                     const pedidoNovo = await page.evaluate(() => {
-                        // Buscar a coluna de pedidos novos
-                        const colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
+                        // ESTRATÉGIA 1: Coluna Kanban com data-testid
+                        let colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
+                        
+                        // ESTRATÉGIA 2: Tentar outros seletores de coluna
                         if (!colunaNovos) {
-                            console.log('[DEBUG] Coluna de novos não encontrada');
+                            colunaNovos = document.querySelector('[data-testid*="new-orders"], [data-testid*="novos"], [data-testid*="pending"]');
+                        }
+                        
+                        // ESTRATÉGIA 3: Buscar por classe
+                        if (!colunaNovos) {
+                            const columns = document.querySelectorAll('[class*="column"], [class*="kanban"]');
+                            for (const col of columns) {
+                                const header = col.querySelector('[class*="header"], h2, h3');
+                                if (header && (header.textContent.toLowerCase().includes('novo') || header.textContent.toLowerCase().includes('new'))) {
+                                    colunaNovos = col;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!colunaNovos) {
+                            // Verificar se botão "Aceitar todos" está habilitado como fallback
+                            const acceptAllBtn = document.querySelector('#accept-button, [data-testid="accept-all-button"], [data-testid*="accept"]');
+                            if (acceptAllBtn) {
+                                let isDisabled = acceptAllBtn.disabled;
+                                if (acceptAllBtn.shadowRoot) {
+                                    const innerBtn = acceptAllBtn.shadowRoot.querySelector('button');
+                                    isDisabled = innerBtn ? innerBtn.disabled : true;
+                                }
+                                if (!isDisabled) {
+                                    return { found: true, orderId: 'batch', useAcceptAllButton: true };
+                                }
+                            }
                             return { found: false, reason: 'coluna_nao_encontrada' };
                         }
                         
-                        // Verificar se há mensagem de "sem pedidos"
-                        const semPedidos = colunaNovos.querySelector('#no-new-orders-message');
-                        if (semPedidos && semPedidos.offsetParent !== null) {
+                        // Verificar mensagem de "sem pedidos"
+                        const semPedidos = colunaNovos.querySelector('#no-new-orders-message, [class*="empty"], [class*="no-orders"]');
+                        if (semPedidos && semPedidos.offsetParent !== null && semPedidos.textContent.trim()) {
                             return { found: false, reason: 'sem_pedidos_novos' };
                         }
                         
-                        // Buscar cards de pedidos (podem ser divs, articles, ou elementos com classe card)
-                        const cards = colunaNovos.querySelectorAll('[class*="card"], article, [role="button"]');
-                        console.log('[DEBUG] Cards encontrados na coluna Novos:', cards.length);
+                        // Buscar cards - estratégia expandida
+                        const cardSelectors = [
+                            '[class*="order-card"]',
+                            '[class*="card"]',
+                            '[data-testid*="order-card"]',
+                            '[data-testid*="card"]',
+                            'article',
+                            '[role="button"]',
+                            '[role="listitem"]',
+                            'li[class*="order"]'
+                        ];
                         
-                        for (const card of cards) {
-                            // Pular elementos vazios ou invisíveis
-                            if (!card.offsetParent || card.offsetHeight === 0) continue;
+                        let cards = [];
+                        for (const selector of cardSelectors) {
+                            const found = colunaNovos.querySelectorAll(selector);
+                            if (found.length > 0) {
+                                cards = Array.from(found).filter(c => c.offsetParent && c.offsetHeight > 20);
+                                if (cards.length > 0) break;
+                            }
+                        }
+                        
+                        // Se não encontrou cards mas a coluna não está vazia, pegar filhos diretos
+                        if (cards.length === 0 && colunaNovos.children.length > 0) {
+                            cards = Array.from(colunaNovos.children).filter(c => 
+                                c.offsetParent && 
+                                c.offsetHeight > 20 && 
+                                !c.id?.includes('no-') &&
+                                !c.className?.includes('empty')
+                            );
+                        }
+                        
+                        for (let i = 0; i < cards.length; i++) {
+                            const card = cards[i];
                             
-                            // Tentar capturar ID do pedido
+                            // Extrair ID do pedido
                             let orderId = '';
-                            const textos = card.innerText || '';
+                            const textos = card.innerText || card.textContent || '';
+                            
+                            // Padrão: 123 456 789 ou 123456789
                             const match = textos.match(/(\d{3}\s*\d{3}\s*\d{3})/);
                             if (match) {
                                 orderId = match[1].replace(/\s+/g, '');
@@ -1104,26 +1220,22 @@ async function aceitaScript(browser, cookies) {
                             return { 
                                 found: true, 
                                 orderId: orderId || 'N/A', 
-                                cardIndex: Array.from(cards).indexOf(card)
+                                cardIndex: i,
+                                cardTag: card.tagName,
+                                cardClass: (card.className || '').substring(0, 50)
                             };
                         }
                         
-                        // Também verificar se o botão "Aceitar todos" está habilitado
-                        const acceptButton = document.querySelector('#accept-button');
-                        if (acceptButton) {
-                            // Verificar se está habilitado (olhar no shadowRoot se for hexa-v2-button)
-                            let isDisabled = acceptButton.disabled;
-                            if (acceptButton.shadowRoot) {
-                                const innerBtn = acceptButton.shadowRoot.querySelector('button');
+                        // Verificar botão "Aceitar todos" como última opção
+                        const acceptBtn = document.querySelector('#accept-button, [data-testid="accept-all-button"]');
+                        if (acceptBtn) {
+                            let isDisabled = acceptBtn.disabled;
+                            if (acceptBtn.shadowRoot) {
+                                const innerBtn = acceptBtn.shadowRoot.querySelector('button');
                                 isDisabled = innerBtn ? innerBtn.disabled : true;
                             }
-                            
                             if (!isDisabled) {
-                                return { 
-                                    found: true, 
-                                    orderId: 'batch', 
-                                    useAcceptAllButton: true 
-                                };
+                                return { found: true, orderId: 'batch', useAcceptAllButton: true };
                             }
                         }
                         
@@ -1131,23 +1243,31 @@ async function aceitaScript(browser, cookies) {
                     });
                     
                     if (!pedidoNovo.found) {
-                        // Sem pedidos novos - aguardar e recarregar
                         aceiteStats.status = 'waiting';
                         saveAceiteStats(aceiteStats);
                         
-                        // Log ocasional
                         if (Math.random() < 0.05) {
                             console.log(`[ACEITA] Aguardando pedidos novos... (${pedidoNovo.reason || 'vazio'})`);
                         }
                         
                         await sleep(3);
-                        await page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
+                        await page.reload({ waitUntil: "networkidle2", timeout: 15000 });
                         continue;
                     }
 
                     const orderId = pedidoNovo.orderId;
                     console.log(`🚀 [ACEITA] PEDIDO NOVO DETECTADO! ID: ${orderId}`);
+                    console.log(`   Card: ${pedidoNovo.cardTag} class="${pedidoNovo.cardClass}"`);
                     const startTime = performance.now();
+                    
+                    // Screenshot para debug
+                    try {
+                        await page.screenshot({ path: `/app/logs/aceite-detectado-${Date.now()}.png` });
+                    } catch(e) {}
+                    
+                    aceiteStats.status = 'accepting';
+                    aceiteStats.totalAttempts++;
+                    saveAceiteStats(aceiteStats);
                     
                     aceiteStats.status = 'accepting';
                     aceiteStats.totalAttempts++;
