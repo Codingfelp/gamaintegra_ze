@@ -1,3 +1,6 @@
-2026/02/25-03:02:49.474 6dfb Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/shared_proto_db/MANIFEST-000001
-2026/02/25-03:02:49.475 6dfb Recovering log #7
-2026/02/25-03:02:49.481 6dfb Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/shared_proto_db/000007.log 
+2026/02/25-03:52:55.135 32a5 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/shared_proto_db/MANIFEST-000001
+2026/02/25-03:52:55.135 32a5 Recovering log #7
+2026/02/25-03:52:55.146 32a5 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/shared_proto_db/000007.log 
+2026/02/25-03:52:55.229 32a7 Level-0 table #11: started
+2026/02/25-03:52:55.239 32a7 Level-0 table #11: 68459 bytes OK
+2026/02/25-03:52:55.241 32a7 Delete type=0 #7
