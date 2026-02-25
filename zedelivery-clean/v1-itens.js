@@ -1927,7 +1927,7 @@ async function itensScript(page) {
                         { 
                             orderId: id_pedido_info,
                             itemsCount: produtos.length,
-                            hasPhone: !!telefoneCliente
+                            hasPhone: !!customerPhone
                         }
                     );
                 } catch (error) {
