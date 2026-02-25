@@ -94,7 +94,7 @@ O **IntegraFH** é um sistema de automação e integração desenvolvido para es
 ### 4.5 Integrações
 - **APIs de E-mail** - Leitura de códigos 2FA
 - **APIs REST** - Sincronização de dados
-- **Plataformas de Delivery** - Integração via web scraping
+- **Integração automatizada com interfaces web de plataformas de terceiros**
 
 ---
 
@@ -144,7 +144,7 @@ O software é destinado a:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │  Frontend   │    │   Backend   │    │  Scrapers   │         │
+│  │  Frontend   │    │   Backend   │    │  Adapter    │         │
 │  │   React     │◄──►│   FastAPI   │◄──►│   Node.js   │         │
 │  │             │    │   Python    │    │  Puppeteer  │         │
 │  └─────────────┘    └──────┬──────┘    └──────┬──────┘         │
@@ -171,13 +171,13 @@ O software é destinado a:
 
 | Módulo | Arquivo Principal | Função |
 |--------|-------------------|--------|
-| Aceite Automático | v1.js | Aceita pedidos automaticamente |
-| Captura de Itens | v1-itens.js | Captura detalhes dos pedidos |
+| Aceite Automático | auto-accept.js | Aceita pedidos automaticamente |
+| Captura de Itens | capture-items.js | Captura detalhes dos pedidos |
 | Sincronização | sync-cron.js | Sincroniza com sistema externo |
 | Gestão de Sessão | session-manager.js | Gerencia autenticação |
 | Logger | integration-logger.js | Registra operações |
 | Controle de Updates | update-controller.js | Controla frequência de atualizações |
-| Confirmação Retirada | confirmar-retirada.js | Confirma pedidos de retirada |
+| Confirmação Retirada | confirm-pickup.js | Confirma pedidos de retirada |
 | Bridge PHP | php-bridge.js | Comunicação com scripts PHP |
 | API Backend | server.py | API REST para frontend |
 | Interface Web | App.js | Dashboard de monitoramento |

@@ -1,11 +1,11 @@
 # CÓDIGO-FONTE DO SOFTWARE - INTEGRAFH
-# Trechos principais para registro no INPI
+# Trechos estruturais para registro no INPI
 # Data: 25/02/2026
 # Autor: FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
 
 ================================================================================
-                    ARQUIVO 1: v1.js (Aceite Automático)
-                    Localização: /app/zedelivery-clean/v1.js
+                    ARQUIVO 1: auto-accept.js (Aceite Automático)
+                    Localização: /app/delivery-adapter/auto-accept.js
 ================================================================================
 
 /**
@@ -13,8 +13,8 @@
  * 
  * Este módulo é responsável por:
  * 1. Monitorar a página de pedidos da plataforma de delivery
- * 2. Detectar novos pedidos pendentes na coluna "Novos" do Kanban
- * 3. Aceitar automaticamente os pedidos clicando no card e no botão "Aceitar"
+ * 2. Detectar novos pedidos pendentes na interface Kanban
+ * 3. Aceitar automaticamente os pedidos via interação com a UI
  * 4. Verificar se o aceite foi bem-sucedido
  * 5. Registrar estatísticas e logs de integração
  * 
@@ -24,17 +24,14 @@
 
 const puppeteer = require('puppeteer');
 const fs = require('fs');
-const request = require('request');
-const { performance } = require('perf_hooks');
-const phpBridge = require('./php-bridge');
 const sessionManager = require('./session-manager');
 const integrationLogger = require('./integration-logger');
 const updateController = require('./update-controller');
 
 // ============== CONFIGURAÇÃO DE OPERAÇÃO 24/7 ==============
-const MAX_RUNTIME_MS = 4 * 60 * 60 * 1000; // 4 horas
-const HORA_INICIO = 9;  // 09:00
-const HORA_FIM = 24;    // 00:00 (meia-noite)
+const MAX_RUNTIME_MS = 4 * 60 * 60 * 1000;
+const HORA_INICIO = 9;
+const HORA_FIM = 24;
 const START_TIME = Date.now();
 
 function isHorarioOperacao() {
@@ -46,17 +43,15 @@ function isHorarioOperacao() {
 // ============== CONSTANTES E CONFIGURAÇÕES ==============
 const isProduction = process.env.NODE_ENV === "production";
 const executablePath = isProduction ? "/usr/bin/chromium" : undefined;
-const SESSION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
-const SESSION_SAVE_INTERVAL = 10 * 60 * 1000; // 10 minutos
+const SESSION_CHECK_INTERVAL = 5 * 60 * 1000;
+const SESSION_SAVE_INTERVAL = 10 * 60 * 1000;
 const PROFILE_NAME = 'profile-integrafh';
+const STATS_FILE = '/app/logs/aceite-stats.json';
 
-// Arquivo de estatísticas de aceite
-const ACEITE_STATS_FILE = '/app/logs/aceite-stats.json';
-
-function loadAceiteStats() {
+function loadStats() {
     try {
-        if (fs.existsSync(ACEITE_STATS_FILE)) {
-            return JSON.parse(fs.readFileSync(ACEITE_STATS_FILE, 'utf8'));
+        if (fs.existsSync(STATS_FILE)) {
+            return JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
         }
     } catch (e) {}
     return {
@@ -66,36 +61,32 @@ function loadAceiteStats() {
         totalAccepted: 0,
         totalFailed: 0,
         lastAccept: null,
-        lastAcceptedOrder: null,
         startTime: null,
-        errors: [],
-        recentAccepts: []
+        errors: []
     };
 }
 
-function saveAceiteStats(stats) {
+function saveStats(stats) {
     try {
-        fs.writeFileSync(ACEITE_STATS_FILE, JSON.stringify(stats, null, 2));
+        fs.writeFileSync(STATS_FILE, JSON.stringify(stats, null, 2));
     } catch (e) {}
 }
 
-// [... Função auxiliar sleep ...]
 async function sleep(seg) {
     return new Promise(resolve => setTimeout(resolve, seg * 1000));
 }
 
 /**
  * FUNÇÃO PRINCIPAL DE ACEITE AUTOMÁTICO
- * Implementa o fluxo: /poc-orders -> Kanban "Novos" -> Clicar CARD -> Modal -> Botão "Aceitar"
+ * Detecta pedidos novos na interface e executa aceite automatizado
  */
-async function aceitaScript(browser, cookies) {
-    console.log('🤖 [ACEITA] Iniciando script de aceite automático de pedidos...');
-    console.log('🔄 [ACEITA] FLUXO: /poc-orders -> Kanban "Novos" -> Clicar CARD -> Modal -> Botão "Aceitar"');
+async function autoAcceptScript(browser, cookies) {
+    console.log('[ACEITE] Iniciando monitoramento automático...');
     
-    let aceiteStats = loadAceiteStats();
-    aceiteStats.status = 'running';
-    aceiteStats.startTime = new Date().toISOString();
-    saveAceiteStats(aceiteStats);
+    let stats = loadStats();
+    stats.status = 'running';
+    stats.startTime = new Date().toISOString();
+    saveStats(stats);
     
     while (true) {
         let page = null;
@@ -103,48 +94,44 @@ async function aceitaScript(browser, cookies) {
             page = await browser.newPage();
             await page.setCookie(...cookies);
 
-            await page.goto(process.env.DELIVERY_PLATFORM_URL + "/poc-orders", {
+            await page.goto(process.env.PLATFORM_BASE_URL + "/orders", {
                 waitUntil: "networkidle2",
                 timeout: 60000
             });
             
-            // Verificar se sessão expirou
             if (page.url().includes('login')) {
-                console.log('🔑 [ACEITA] Sessão expirou, reiniciando...');
+                console.log('[ACEITE] Sessão expirou, reiniciando...');
                 process.exit(1);
             }
 
-            aceiteStats.status = 'monitoring';
-            saveAceiteStats(aceiteStats);
+            stats.status = 'monitoring';
+            saveStats(stats);
 
-            // Loop de monitoramento contínuo
             while (true) {
                 try {
-                    aceiteStats.lastCheck = new Date().toISOString();
+                    stats.lastCheck = new Date().toISOString();
                     
-                    // PASSO 1: Verificar se há pedidos na coluna "Novos" do Kanban
-                    const pedidoNovo = await page.evaluate(() => {
-                        const colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
-                        if (!colunaNovos) {
-                            return { found: false, reason: 'coluna_nao_encontrada' };
+                    // Detectar pedidos novos na interface Kanban
+                    const newOrder = await page.evaluate(() => {
+                        const newOrdersColumn = document.querySelector('[data-testid*="new-orders"]');
+                        if (!newOrdersColumn) {
+                            return { found: false, reason: 'column_not_found' };
                         }
                         
-                        const semPedidos = colunaNovos.querySelector('#no-new-orders-message');
-                        if (semPedidos && semPedidos.offsetParent !== null) {
-                            return { found: false, reason: 'sem_pedidos_novos' };
+                        const emptyMessage = newOrdersColumn.querySelector('[id*="no-orders"]');
+                        if (emptyMessage && emptyMessage.offsetParent !== null) {
+                            return { found: false, reason: 'no_new_orders' };
                         }
                         
-                        const cards = colunaNovos.querySelectorAll('[class*="card"], article, [role="button"]');
+                        const cards = newOrdersColumn.querySelectorAll('[class*="card"], article');
                         
                         for (const card of cards) {
                             if (!card.offsetParent || card.offsetHeight === 0) continue;
                             
                             let orderId = '';
-                            const textos = card.innerText || '';
-                            const match = textos.match(/(\d{3}\s*\d{3}\s*\d{3})/);
-                            if (match) {
-                                orderId = match[1].replace(/\s+/g, '');
-                            }
+                            const text = card.innerText || '';
+                            const match = text.match(/(\d{9})/);
+                            if (match) orderId = match[1];
                             
                             return { 
                                 found: true, 
@@ -153,134 +140,76 @@ async function aceitaScript(browser, cookies) {
                             };
                         }
                         
-                        // Verificar botão "Aceitar todos"
-                        const acceptButton = document.querySelector('#accept-button');
-                        if (acceptButton) {
-                            let isDisabled = acceptButton.disabled;
-                            if (acceptButton.shadowRoot) {
-                                const innerBtn = acceptButton.shadowRoot.querySelector('button');
-                                isDisabled = innerBtn ? innerBtn.disabled : true;
-                            }
-                            
-                            if (!isDisabled) {
-                                return { found: true, orderId: 'batch', useAcceptAllButton: true };
-                            }
-                        }
-                        
-                        return { found: false, reason: 'nenhum_card_encontrado' };
+                        return { found: false, reason: 'no_cards_found' };
                     });
                     
-                    if (!pedidoNovo.found) {
-                        aceiteStats.status = 'waiting';
-                        saveAceiteStats(aceiteStats);
+                    if (!newOrder.found) {
+                        stats.status = 'waiting';
+                        saveStats(stats);
                         await sleep(3);
                         await page.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
                         continue;
                     }
 
-                    const orderId = pedidoNovo.orderId;
-                    console.log(`🚀 [ACEITA] PEDIDO NOVO DETECTADO! ID: ${orderId}`);
+                    console.log(`[ACEITE] Novo pedido detectado: ${newOrder.orderId}`);
                     
-                    aceiteStats.status = 'accepting';
-                    aceiteStats.totalAttempts++;
-                    saveAceiteStats(aceiteStats);
+                    stats.status = 'accepting';
+                    stats.totalAttempts++;
+                    saveStats(stats);
 
-                    // PASSO 2: Aceitar o pedido
-                    let aceitou = false;
+                    // Executar aceite via clique no card + botão
+                    let accepted = await page.evaluate((cardIdx) => {
+                        const column = document.querySelector('[data-testid*="new-orders"]');
+                        if (!column) return false;
+                        
+                        const cards = column.querySelectorAll('[class*="card"], article');
+                        const card = cards[cardIdx];
+                        if (card) {
+                            card.click();
+                            return true;
+                        }
+                        return false;
+                    }, newOrder.cardIndex || 0);
                     
-                    if (pedidoNovo.useAcceptAllButton) {
-                        // Usar botão "Aceitar todos"
-                        aceitou = await page.evaluate(() => {
-                            const acceptBtn = document.querySelector('#accept-button');
-                            if (acceptBtn) {
-                                if (acceptBtn.shadowRoot) {
-                                    const innerBtn = acceptBtn.shadowRoot.querySelector('button');
-                                    if (innerBtn && !innerBtn.disabled) {
-                                        innerBtn.click();
+                    if (accepted) {
+                        await sleep(2);
+                        
+                        // Localizar e clicar no botão de aceitar no modal
+                        for (let attempt = 1; attempt <= 5; attempt++) {
+                            const clicked = await page.evaluate(() => {
+                                const buttons = document.querySelectorAll('button');
+                                for (const btn of buttons) {
+                                    const text = btn.textContent.trim().toLowerCase();
+                                    if (text === 'aceitar' || text === 'accept') {
+                                        btn.click();
                                         return true;
                                     }
                                 }
-                                if (!acceptBtn.disabled) {
-                                    acceptBtn.click();
-                                    return true;
-                                }
-                            }
-                            return false;
-                        });
-                    } else {
-                        // Clicar no card do pedido para abrir modal
-                        aceitou = await page.evaluate((cardIdx) => {
-                            const colunaNovos = document.querySelector('[data-testid="kanban-column-body-new-orders"]');
-                            if (!colunaNovos) return false;
+                                return false;
+                            });
                             
-                            const cards = colunaNovos.querySelectorAll('[class*="card"], article, [role="button"]');
-                            const card = cards[cardIdx];
-                            if (card) {
-                                card.click();
-                                return true;
-                            }
-                            return false;
-                        }, pedidoNovo.cardIndex || 0);
-                        
-                        if (aceitou) {
-                            await sleep(2);
-                            
-                            // Procurar botão "Aceitar" no modal
-                            for (let tentativa = 1; tentativa <= 5; tentativa++) {
-                                const clicouAceitar = await page.evaluate(() => {
-                                    // Buscar span com data-testid="text" contendo "Aceitar"
-                                    const spans = document.querySelectorAll('span[data-testid="text"]');
-                                    for (const span of spans) {
-                                        if (span.textContent.trim() === 'Aceitar') {
-                                            const btn = span.closest('button');
-                                            if (btn && btn.classList.contains('primary')) {
-                                                btn.click();
-                                                return true;
-                                            }
-                                        }
-                                    }
-                                    
-                                    // Buscar button.primary com texto "Aceitar"
-                                    const buttons = document.querySelectorAll('button.primary');
-                                    for (const btn of buttons) {
-                                        if (btn.textContent.trim().includes('Aceitar')) {
-                                            btn.click();
-                                            return true;
-                                        }
-                                    }
-                                    
-                                    return false;
-                                });
-                                
-                                if (clicouAceitar) {
-                                    aceitou = true;
-                                    break;
-                                }
-                                await sleep(1);
-                            }
+                            if (clicked) break;
+                            await sleep(1);
                         }
                     }
 
-                    // PASSO 3: Verificar se foi aceito
                     await sleep(4);
                     await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
                     
-                    // Atualizar estatísticas
-                    aceiteStats.totalAccepted++;
-                    aceiteStats.lastAccept = new Date().toISOString();
-                    aceiteStats.lastAcceptedOrder = orderId;
-                    saveAceiteStats(aceiteStats);
+                    stats.totalAccepted++;
+                    stats.lastAccept = new Date().toISOString();
+                    saveStats(stats);
                     
                 } catch (innerErr) {
-                    console.error("❌ [ACEITA] Erro:", innerErr.message);
-                    aceiteStats.errors.push({ time: new Date().toISOString(), error: innerErr.message });
-                    saveAceiteStats(aceiteStats);
+                    console.error("[ACEITE] Erro:", innerErr.message);
+                    stats.errors.push({ time: new Date().toISOString(), error: innerErr.message });
+                    saveStats(stats);
                     await sleep(3);
                 }
             }
 
         } catch (error) {
-            console.error("❌ [ACEITA] Erro crítico:", error.message);
+            console.error("[ACEITE] Erro crítico:", error.message);
         } finally {
             if (page) {
                 try { await page.close(); } catch (e) { }
@@ -290,262 +219,11 @@ async function aceitaScript(browser, cookies) {
     }
 }
 
-================================================================================
-                    ARQUIVO 2: v1-itens.js (Captura de Itens)
-                    Localização: /app/zedelivery-clean/v1-itens.js
-================================================================================
-
-/**
- * IntegraFH - Módulo de Captura de Itens
- * 
- * Este módulo é responsável por:
- * 1. Buscar pedidos pendentes de processamento
- * 2. Navegar até a página de detalhes do pedido
- * 3. Capturar todos os dados: cliente, endereço, itens, valores
- * 4. Capturar telefone do cliente via fluxo especial
- * 5. Salvar no banco de dados MySQL
- * 
- * Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
- * Todos os direitos reservados.
- */
-
-/**
- * Função para capturar telefone via fluxo de modal
- * A plataforma oculta o telefone - precisa seguir um fluxo específico:
- * 1. Clicar em "Ver telefone"
- * 2. Expandir "Problemas com a entrega"
- * 3. Selecionar "O entregador não encontra o cliente"
- * 4. Clicar em "Confirmar"
- * 5. Capturar o telefone revelado
- */
-async function capturarTelefoneViaFluxo(page) {
-    try {
-        console.log('📞 [TELEFONE] Iniciando captura via fluxo modal...');
-
-        // PASSO 1: Clicar em "Ver telefone" - é um link <a>, não botão
-        const clicouVerTelefone = await page.evaluate(() => {
-            const links = document.querySelectorAll('a');
-            for (const link of links) {
-                if (link.textContent.trim().toLowerCase() === 'ver telefone') {
-                    link.click();
-                    return true;
-                }
-            }
-            // Fallback: botão/span com texto "Ver telefone"
-            const spans = document.querySelectorAll('button > span, span');
-            for (const span of spans) {
-                if (span.textContent.trim().toLowerCase() === 'ver telefone') {
-                    span.click();
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        if (!clicouVerTelefone) {
-            return '';
-        }
-
-        await sleep(2);
-
-        // PASSO 2: Clicar em "Problemas com a entrega"
-        const clicouProblemas = await page.evaluate(() => {
-            const el = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM > div');
-            if (el) { el.click(); return true; }
-            return false;
-        });
-
-        if (!clicouProblemas) {
-            await page.keyboard.press('Escape');
-            return '';
-        }
-
-        await sleep(1.5);
-
-        // PASSO 3: Aguardar e clicar em "O entregador não encontra o cliente"
-        try {
-            await page.waitForSelector(
-                '#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER',
-                { visible: true, timeout: 5000 }
-            );
-        } catch (e) {
-            await page.keyboard.press('Escape');
-            return '';
-        }
-
-        await page.evaluate(() => {
-            const radio = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
-            if (radio) { radio.click(); return true; }
-            return false;
-        });
-
-        await sleep(1);
-
-        // PASSO 4: Clicar no botão "Confirmar"
-        await page.evaluate(() => {
-            const buttons = document.querySelectorAll('button');
-            for (const btn of buttons) {
-                if (btn.textContent.trim().toLowerCase() === 'confirmar' && !btn.disabled) {
-                    btn.click();
-                    return true;
-                }
-            }
-            return false;
-        });
-
-        await sleep(2);
-
-        // PASSO 5: Capturar #customer-phone
-        const telefone = await page.evaluate(() => {
-            const el = document.querySelector('#customer-phone');
-            if (el) return el.textContent.trim().replace(/\D/g, '');
-            return '';
-        });
-
-        if (telefone && telefone.length >= 10) {
-            console.log('📞 [TELEFONE] ✓ Telefone capturado:', telefone);
-            return telefone;
-        }
-
-        return '';
-
-    } catch (error) {
-        console.error('📞 [TELEFONE] Erro:', error.message);
-        return '';
-    }
-}
-
-/**
- * Função principal de captura de itens do pedido
- */
-async function itensScript(page) {
-    while (true) {
-        try {
-            // Buscar próximo pedido para processar
-            const id_pedido_info = await pegar_id_pedido();
-            
-            if (!id_pedido_info) {
-                console.log("⏳ [CAPTURA] Aguardando novos pedidos...");
-                await sleep(10);
-                continue;
-            }
-
-            console.log(`📦 [CAPTURA] Processando pedido #${id_pedido_info}`);
-            
-            // Navegar para página de detalhes
-            await page.goto(`${process.env.DELIVERY_PLATFORM_URL}/order/${id_pedido_info}`, {
-                waitUntil: "networkidle2",
-                timeout: 30000
-            });
-
-            await sleep(3);
-
-            // Capturar dados do cliente
-            const nomeCliente = await getTextFromShadowOrNormal(page, "#customer-name");
-            const cpfCliente = await getTextFromShadowOrNormal(page, "#customer-document");
-            
-            // Capturar endereço
-            const endereco = await getTextFromShadowOrNormal(page, "#address-street");
-            const complemento = await getTextFromShadowOrNormal(page, "#address-complement");
-            const bairro = await getTextFromShadowOrNormal(page, "#address-neighborhood");
-            const cidadeUf = await getTextFromShadowOrNormal(page, "#address-city-province");
-            const cep = await getTextFromShadowOrNormal(page, "#address-zip-code");
-
-            // Capturar valores financeiros
-            const subtotal = await getTextFromShadowOrNormal(page, "#subtotal");
-            const frete = await getTextFromShadowOrNormal(page, "#deliveryFee");
-            const desconto = await getTextFromShadowOrNormal(page, "#total-discount");
-            const total = await getTextFromShadowOrNormal(page, "#total");
-            
-            // Capturar descrição do cupom (Shadow DOM declarativo)
-            let cupomDescricao = await page.evaluate(() => {
-                const el = document.querySelector('#discount-description');
-                if (!el) return '';
-                
-                if (el.shadowRoot) {
-                    const span = el.shadowRoot.querySelector('span');
-                    if (span) return span.textContent.trim();
-                }
-                
-                return el.innerText?.trim() || '';
-            });
-
-            // Capturar telefone (múltiplas estratégias)
-            let customerPhone = await page.evaluate(() => {
-                // Link tel:
-                const telLink = document.querySelector('a[href^="tel:"]');
-                if (telLink) return telLink.href.replace('tel:', '').replace(/\D/g, '');
-                
-                // #customer-phone
-                const phoneEl = document.querySelector('#customer-phone');
-                if (phoneEl) return phoneEl.textContent.trim().replace(/\D/g, '');
-                
-                // Regex no DOM
-                const allText = document.body.innerText || '';
-                const phoneMatch = allText.match(/\(\d{2}\)\s*\d{4,5}[-\s]?\d{4}/);
-                if (phoneMatch) return phoneMatch[0].replace(/\D/g, '');
-                
-                return '';
-            });
-
-            // Se não encontrou, usar fluxo do modal
-            if (!customerPhone || customerPhone.length < 10) {
-                customerPhone = await capturarTelefoneViaFluxo(page);
-            }
-
-            // Capturar itens do pedido
-            const produtos = await page.evaluate(() => {
-                const items = [];
-                const rows = document.querySelectorAll('.order-item, [class*="item-row"]');
-                
-                rows.forEach(row => {
-                    const nome = row.querySelector('[class*="name"]')?.textContent?.trim() || '';
-                    const qtd = row.querySelector('[class*="quantity"]')?.textContent?.trim() || '1';
-                    const preco = row.querySelector('[class*="price"]')?.textContent?.trim() || '0';
-                    
-                    if (nome) {
-                        items.push({
-                            nome,
-                            quantidade: parseInt(qtd) || 1,
-                            preco: parseFloat(preco.replace(/[^\d,]/g, '').replace(',', '.')) || 0
-                        });
-                    }
-                });
-                
-                return items;
-            });
-
-            // Salvar no banco de dados
-            await phpBridge.salvarPedido({
-                id_pedido: id_pedido_info,
-                nome_cliente: nomeCliente,
-                cpf_cliente: cpfCliente,
-                telefone: customerPhone,
-                endereco,
-                complemento,
-                bairro,
-                cidade_uf: cidadeUf,
-                cep,
-                subtotal,
-                frete,
-                desconto,
-                cupom_descricao: cupomDescricao,
-                total,
-                itens: produtos
-            });
-
-            console.log(`✅ [CAPTURA] Pedido #${id_pedido_info} processado com sucesso!`);
-
-        } catch (error) {
-            console.error("❌ [CAPTURA] Erro:", error.message);
-            await sleep(5);
-        }
-    }
-}
+module.exports = { autoAcceptScript };
 
 ================================================================================
-                    ARQUIVO 3: update-controller.js (Controle de Updates)
-                    Localização: /app/zedelivery-clean/update-controller.js
+                    ARQUIVO 2: update-controller.js (Controle de Updates)
+                    Localização: /app/delivery-adapter/update-controller.js
 ================================================================================
 
 /**
@@ -563,40 +241,39 @@ async function itensScript(page) {
  * Todos os direitos reservados.
  */
 
-const UPDATE_DEBOUNCE_MS = 8000;         // 8 segundos entre updates
-const WEBHOOK_COOLDOWN_MS = 10000;       // 10 segundos entre webhooks
-const STATUS_CACHE_TTL_MS = 60000;       // Cache válido por 60 segundos
+const UPDATE_DEBOUNCE_MS = 8000;
+const WEBHOOK_COOLDOWN_MS = 10000;
+const STATUS_CACHE_TTL_MS = 60000;
 
 const cache = {
     orderStatus: new Map(),
     lastUpdate: new Map(),
     lastWebhook: new Map(),
-    lastLoopRun: new Map(),
 };
 
 /**
  * Verifica se o status do pedido realmente mudou
  */
-function hasStatusChanged(orderId, newStatus, newEntregador = null) {
+function hasStatusChanged(orderId, newStatus, newDriver = null) {
     const cached = cache.orderStatus.get(orderId);
     const now = Date.now();
     
     if (!cached || (now - cached.timestamp > STATUS_CACHE_TTL_MS)) {
         cache.orderStatus.set(orderId, {
             status: newStatus,
-            entregador: newEntregador,
+            driver: newDriver,
             timestamp: now
         });
         return true;
     }
     
     const statusChanged = cached.status !== newStatus;
-    const entregadorChanged = newEntregador && cached.entregador !== newEntregador;
+    const driverChanged = newDriver && cached.driver !== newDriver;
     
-    if (statusChanged || entregadorChanged) {
+    if (statusChanged || driverChanged) {
         cache.orderStatus.set(orderId, {
             status: newStatus,
-            entregador: newEntregador,
+            driver: newDriver,
             timestamp: now
         });
         return true;
@@ -644,7 +321,7 @@ module.exports = {
 };
 
 ================================================================================
-                    ARQUIVO 4: sync-cron.js (Sincronização)
+                    ARQUIVO 3: sync-cron.js (Sincronização)
                     Localização: /app/bridge/sync-cron.js
 ================================================================================
 
@@ -655,26 +332,19 @@ module.exports = {
  * Implementa cache de hashes para detectar mudanças reais e evitar
  * sobrecarga em sistemas de tempo real.
  * 
- * MELHORIAS:
- * - Intervalo de 10 segundos (era 3)
- * - Cache de hashes para detectar mudanças reais
- * - Debounce de 5 segundos entre syncs
- * - Só envia pedidos que REALMENTE mudaram
- * 
  * Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
  * Todos os direitos reservados.
  */
 
-const SYNC_INTERVAL = 10 * 1000;           // 10 segundos
-const DEBOUNCE_TIME = 5 * 1000;            // 5 segundos de debounce
-const CACHE_TTL = 60 * 1000;               // Cache válido por 60 segundos
-const MAX_ORDERS_PER_SYNC = 50;            // Limite de pedidos por sync
+const SYNC_INTERVAL = 10 * 1000;
+const DEBOUNCE_TIME = 5 * 1000;
+const CACHE_TTL = 60 * 1000;
+const MAX_ORDERS_PER_SYNC = 50;
 
 const cache = {
     lastSyncHash: null,
     lastSyncTime: 0,
     orderHashes: new Map(),
-    webhookSent: new Map(),
 };
 
 /**
@@ -690,10 +360,10 @@ function generateHash(obj) {
  */
 function hasOrderChanged(orderId, orderData) {
     const newHash = generateHash({
-        status: orderData.delivery_status,
-        entregador: orderData.delivery_email_entregador,
+        status: orderData.status,
+        driver: orderData.driver_email,
         items_count: orderData.items?.length || 0,
-        total: orderData.delivery_total
+        total: orderData.total
     });
     
     const oldHash = cache.orderHashes.get(orderId);
@@ -706,48 +376,42 @@ function hasOrderChanged(orderId, orderData) {
 }
 
 /**
- * Função principal de sincronização
+ * Função principal de sincronização incremental
  */
 async function syncToCloud() {
     const timestamp = new Date().toISOString();
     
-    // Verificar debounce
     if (Date.now() - cache.lastSyncTime < DEBOUNCE_TIME) {
         return;
     }
     
     cache.lastSyncTime = Date.now();
     
-    // Buscar pedidos do MySQL
-    const [pedidos] = await pool.query(`
-        SELECT d.delivery_id, d.delivery_code, d.delivery_name_cliente,
-               d.delivery_status, d.delivery_total, d.delivery_telefone,
-               d.delivery_desconto_descricao, d.delivery_email_entregador
-        FROM delivery d
-        WHERE DATE(d.delivery_date_time) >= CURDATE() - INTERVAL 7 DAY
-        ORDER BY d.delivery_date_time DESC
+    const [orders] = await pool.query(`
+        SELECT id, code, customer_name, status, total, phone, discount_description, driver_email
+        FROM orders
+        WHERE DATE(created_at) >= CURDATE() - INTERVAL 7 DAY
+        ORDER BY created_at DESC
         LIMIT ?
     `, [MAX_ORDERS_PER_SYNC]);
 
-    // Filtrar apenas pedidos que mudaram
-    const pedidosAlterados = pedidos.filter(pedido => 
-        hasOrderChanged(pedido.delivery_code, pedido)
+    const changedOrders = orders.filter(order => 
+        hasOrderChanged(order.code, order)
     );
     
-    if (pedidosAlterados.length === 0) {
+    if (changedOrders.length === 0) {
         console.log('✓ Nenhuma alteração detectada');
         return;
     }
 
-    // Enviar para sistema em nuvem
     const payload = {
-        pedidos: pedidosAlterados,
+        orders: changedOrders,
         source: 'integrafh',
         timestamp,
         is_incremental: true
     };
 
-    await fetch(`${process.env.CLOUD_SYNC_URL}/functions/v1/sync-mysql`, {
+    await fetch(`${process.env.CLOUD_SYNC_URL}/functions/v1/sync`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -756,11 +420,13 @@ async function syncToCloud() {
         body: JSON.stringify(payload),
     });
     
-    console.log(`✅ ${pedidosAlterados.length} pedidos sincronizados`);
+    console.log(`✅ ${changedOrders.length} pedidos sincronizados`);
 }
 
+module.exports = { syncToCloud, hasOrderChanged, generateHash };
+
 ================================================================================
-                    ARQUIVO 5: server.py (API Backend)
+                    ARQUIVO 4: server.py (API Backend)
                     Localização: /app/backend/server.py
 ================================================================================
 
@@ -768,11 +434,7 @@ async function syncToCloud() {
 IntegraFH - API Backend
 
 API REST desenvolvida com FastAPI para comunicação entre o frontend
-e os serviços de automação. Fornece endpoints para:
-- Listagem e detalhes de pedidos
-- Controle de serviços (supervisor)
-- Monitoramento de saúde do sistema
-- Reprocessamento de pedidos
+e os serviços de automação.
 
 Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
 Todos os direitos reservados.
@@ -787,7 +449,6 @@ import os
 
 app = FastAPI(title="IntegraFH API", version="1.0.0")
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -796,7 +457,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuração MySQL
 MYSQL_CONFIG = {
     "host": os.environ.get("DB_HOST"),
     "port": int(os.environ.get("DB_PORT", 3306)),
@@ -806,63 +466,52 @@ MYSQL_CONFIG = {
 }
 
 def get_db():
-    """Retorna conexão com o banco de dados"""
     return mysql.connector.connect(**MYSQL_CONFIG)
 
 @app.get("/api/health")
 async def health_check():
-    """Verifica saúde do sistema"""
     return {"status": "healthy"}
 
-@app.get("/api/pedidos")
-async def listar_pedidos(limit: int = 50, offset: int = 0):
-    """Lista pedidos com paginação"""
+@app.get("/api/orders")
+async def list_orders(limit: int = 50, offset: int = 0):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
     cursor.execute("""
-        SELECT delivery_id, delivery_code, delivery_name_cliente, delivery_status,
-               delivery_total, delivery_date_time, delivery_tipo_pedido,
-               delivery_telefone, delivery_desconto_descricao
-        FROM delivery 
-        WHERE delivery_trash = 0
-        ORDER BY delivery_date_time DESC
+        SELECT id, code, customer_name, status, total, created_at, order_type, phone, discount_description
+        FROM orders 
+        WHERE trash = 0
+        ORDER BY created_at DESC
         LIMIT %s OFFSET %s
     """, (limit, offset))
     
-    pedidos = cursor.fetchall()
+    orders = cursor.fetchall()
     cursor.close()
     conn.close()
     
-    return {"success": True, "data": pedidos}
+    return {"success": True, "data": orders}
 
-@app.get("/api/pedidos/{order_id}")
-async def detalhes_pedido(order_id: str):
-    """Retorna detalhes de um pedido específico"""
+@app.get("/api/orders/{order_id}")
+async def order_details(order_id: str):
     conn = get_db()
     cursor = conn.cursor(dictionary=True)
     
-    cursor.execute("SELECT * FROM delivery WHERE delivery_code = %s", (order_id,))
-    pedido = cursor.fetchone()
+    cursor.execute("SELECT * FROM orders WHERE code = %s", (order_id,))
+    order = cursor.fetchone()
     
-    if not pedido:
+    if not order:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
     
-    # Buscar itens
-    cursor.execute("""
-        SELECT * FROM delivery_itens 
-        WHERE delivery_itens_id_delivery = %s
-    """, (pedido['delivery_id'],))
-    itens = cursor.fetchall()
+    cursor.execute("SELECT * FROM order_items WHERE order_id = %s", (order['id'],))
+    items = cursor.fetchall()
     
     cursor.close()
     conn.close()
     
-    return {"success": True, "pedido": pedido, "itens": itens}
+    return {"success": True, "order": order, "items": items}
 
-@app.get("/api/aceite/status")
-async def status_aceite():
-    """Retorna status do aceite automático"""
+@app.get("/api/accept/status")
+async def accept_status():
     try:
         with open('/app/logs/aceite-stats.json', 'r') as f:
             stats = json.load(f)
@@ -870,18 +519,16 @@ async def status_aceite():
     except:
         return {"success": False, "data": None}
 
-@app.post("/api/pedidos/{order_id}/confirmar-retirada")
-async def confirmar_retirada(order_id: str, background_tasks: BackgroundTasks):
-    """Confirma retirada de um pedido"""
+@app.post("/api/orders/{order_id}/confirm-pickup")
+async def confirm_pickup(order_id: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(
         subprocess.run,
-        ['node', '/app/scripts/confirmar-retirada.js', order_id]
+        ['node', '/app/scripts/confirm-pickup.js', order_id]
     )
     return {"success": True, "message": f"Confirmação iniciada para pedido #{order_id}"}
 
 @app.post("/api/services/{service_name}/{action}")
-async def controlar_servico(service_name: str, action: str):
-    """Controla serviços via supervisor"""
+async def control_service(service_name: str, action: str):
     if action not in ['start', 'stop', 'restart']:
         raise HTTPException(status_code=400, detail="Ação inválida")
     
@@ -893,7 +540,7 @@ async def controlar_servico(service_name: str, action: str):
     return {"success": result.returncode == 0, "output": result.stdout}
 
 ================================================================================
-                    ARQUIVO 6: App.js (Frontend React)
+                    ARQUIVO 5: App.js (Frontend React)
                     Localização: /app/frontend/src/App.js
 ================================================================================
 
@@ -903,13 +550,6 @@ async def controlar_servico(service_name: str, action: str):
  * Dashboard de monitoramento para acompanhamento em tempo real
  * de pedidos, serviços e operações do integrador.
  * 
- * Funcionalidades:
- * - Listagem de pedidos com filtros
- * - Modal de detalhes do pedido
- * - Monitoramento de serviços
- * - Controle de aceite automático
- * - Botão de confirmação de retirada
- * 
  * Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
  * Todos os direitos reservados.
  */
@@ -917,45 +557,41 @@ async def controlar_servico(service_name: str, action: str):
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { Button } from './components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './components/ui/dialog';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 function App() {
-  const [pedidos, setPedidos] = useState([]);
-  const [pedidoDetails, setPedidoDetails] = useState(null);
-  const [aceiteStatus, setAceiteStatus] = useState(null);
-  const [retiradaLoading, setRetiradaLoading] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [acceptStatus, setAcceptStatus] = useState(null);
+  const [pickupLoading, setPickupLoading] = useState(false);
 
-  // Buscar pedidos
-  const fetchPedidos = async () => {
+  const fetchOrders = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/pedidos`);
+      const res = await fetch(`${API_URL}/api/orders`);
       const data = await res.json();
-      if (data.success) setPedidos(data.data);
+      if (data.success) setOrders(data.data);
     } catch (err) {
       console.error('Erro ao buscar pedidos:', err);
     }
   };
 
-  // Buscar status do aceite automático
-  const fetchAceiteStatus = async () => {
+  const fetchAcceptStatus = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/aceite/status`);
+      const res = await fetch(`${API_URL}/api/accept/status`);
       const data = await res.json();
-      if (data.success) setAceiteStatus(data.data);
+      if (data.success) setAcceptStatus(data.data);
     } catch (err) {
       console.error('Erro ao buscar status:', err);
     }
   };
 
-  // Confirmar retirada
-  const confirmarRetirada = async (orderId) => {
+  const confirmPickup = async (orderId) => {
     if (!window.confirm(`Confirmar retirada do pedido #${orderId}?`)) return;
     
-    setRetiradaLoading(true);
+    setPickupLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/pedidos/${orderId}/confirmar-retirada`, {
+      const res = await fetch(`${API_URL}/api/orders/${orderId}/confirm-pickup`, {
         method: 'POST'
       });
       const data = await res.json();
@@ -963,16 +599,16 @@ function App() {
     } catch (err) {
       alert('Erro ao confirmar retirada');
     } finally {
-      setRetiradaLoading(false);
+      setPickupLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPedidos();
-    fetchAceiteStatus();
+    fetchOrders();
+    fetchAcceptStatus();
     const interval = setInterval(() => {
-      fetchPedidos();
-      fetchAceiteStatus();
+      fetchOrders();
+      fetchAcceptStatus();
     }, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -981,7 +617,6 @@ function App() {
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <h1 className="text-3xl font-bold mb-6">IntegraFH</h1>
       
-      {/* Status do Aceite Automático */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Monitor 24/7</CardTitle>
@@ -989,20 +624,19 @@ function App() {
         <CardContent>
           <div className="flex items-center gap-4">
             <div className={`w-4 h-4 rounded-full ${
-              aceiteStatus?.status === 'monitoring' || aceiteStatus?.status === 'waiting' 
+              acceptStatus?.status === 'monitoring' || acceptStatus?.status === 'waiting' 
                 ? 'bg-green-500' 
                 : 'bg-red-500'
             }`} />
             <span>
-              {aceiteStatus?.status === 'monitoring' ? 'FUNCIONANDO' : 
-               aceiteStatus?.status === 'waiting' ? 'AGUARDANDO PEDIDOS' : 
+              {acceptStatus?.status === 'monitoring' ? 'FUNCIONANDO' : 
+               acceptStatus?.status === 'waiting' ? 'AGUARDANDO PEDIDOS' : 
                'PARADO'}
             </span>
           </div>
         </CardContent>
       </Card>
 
-      {/* Lista de Pedidos */}
       <Card>
         <CardHeader>
           <CardTitle>Pedidos</CardTitle>
@@ -1018,48 +652,22 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {pedidos.map(pedido => (
-                <tr key={pedido.delivery_id}>
-                  <td>#{pedido.delivery_code}</td>
-                  <td>{pedido.delivery_name_cliente}</td>
-                  <td>R$ {parseFloat(pedido.delivery_total).toFixed(2)}</td>
+              {orders.map(order => (
+                <tr key={order.id}>
+                  <td>#{order.code}</td>
+                  <td>{order.customer_name}</td>
+                  <td>R$ {parseFloat(order.total).toFixed(2)}</td>
                   <td>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button onClick={() => setPedidoDetails({ pedido })}>
-                          Ver
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Pedido #{pedido.delivery_code}</DialogTitle>
-                        </DialogHeader>
-                        
-                        {/* Detalhes do pedido */}
-                        <div>
-                          <p>Cliente: {pedido.delivery_name_cliente}</p>
-                          <p>Total: R$ {parseFloat(pedido.delivery_total).toFixed(2)}</p>
-                          
-                          {/* Cupom/Desconto */}
-                          {pedido.delivery_desconto_descricao && (
-                            <p className="text-purple-600">
-                              Cupom: {pedido.delivery_desconto_descricao}
-                            </p>
-                          )}
-                          
-                          {/* Botão Confirmar Retirada */}
-                          {pedido.delivery_tipo_pedido?.toLowerCase().includes('retirada') && (
-                            <Button
-                              onClick={() => confirmarRetirada(pedido.delivery_code)}
-                              disabled={retiradaLoading}
-                              className="mt-4 bg-yellow-400 text-black"
-                            >
-                              {retiradaLoading ? 'Confirmando...' : 'Confirmar Retirada'}
-                            </Button>
-                          )}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <Button>Ver</Button>
+                    {order.order_type?.toLowerCase().includes('retirada') && (
+                      <Button
+                        onClick={() => confirmPickup(order.code)}
+                        disabled={pickupLoading}
+                        className="ml-2 bg-yellow-400 text-black"
+                      >
+                        Confirmar Retirada
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -1075,7 +683,7 @@ export default App;
 
 ================================================================================
                     FIM DO DOCUMENTO DE CÓDIGO-FONTE
-                    Total de arquivos principais: 6
+                    Total de arquivos principais: 5
                     
                     Copyright (c) 2026 - FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
                     Todos os direitos reservados.
