@@ -1078,8 +1078,18 @@ async function aceitaScript(browser, cookies) {
                     // PASSO 1: Procurar CARD de pedido pendente em "Novos"
                     // =======================================================
                     const pedidoPendente = await page.evaluate(() => {
-                        // Buscar cards na seção "Novos" ou com status "Pendente"
+                        // DEBUG: Listar todos os elementos encontrados
                         const rows = document.querySelectorAll('hexa-v2-custom-table-row');
+                        console.log('[DEBUG] Total de rows encontradas:', rows.length);
+                        
+                        // Se não encontrou rows, tentar outros seletores
+                        if (rows.length === 0) {
+                            // Tentar buscar por outros padrões de cards
+                            const cards = document.querySelectorAll('[class*="order"], [class*="card"], [data-testid*="order"]');
+                            console.log('[DEBUG] Cards alternativos:', cards.length);
+                        }
+                        
+                        // Buscar cards na seção "Novos" ou com status "Pendente"
                         for (const row of rows) {
                             const badges = row.querySelectorAll('hexa-v2-badge-status');
                             for (const badge of badges) {
@@ -1088,7 +1098,14 @@ async function aceitaScript(browser, cookies) {
                                     const span = badge.shadowRoot.querySelector('span');
                                     statusText = span ? span.textContent.trim().toLowerCase() : '';
                                 }
-                                if (statusText.includes('pendente') || statusText.includes('novo')) {
+                                // Também tentar innerText direto
+                                if (!statusText) {
+                                    statusText = (badge.innerText || badge.textContent || '').trim().toLowerCase();
+                                }
+                                
+                                console.log('[DEBUG] Status encontrado:', statusText);
+                                
+                                if (statusText.includes('pendente') || statusText.includes('novo') || statusText.includes('aguardando')) {
                                     // Capturar ID do pedido
                                     let orderId = '';
                                     const orderNumEl = row.querySelector('[id^="order-number"]');
@@ -1112,8 +1129,13 @@ async function aceitaScript(browser, cookies) {
                                 }
                             }
                         }
-                        return { found: false, orderId: null, status: null };
+                        return { found: false, orderId: null, status: null, debugRowCount: rows.length };
                     });
+                    
+                    // Log de debug
+                    if (!pedidoPendente.found) {
+                        console.log(`[ACEITA] Nenhum pedido pendente. Rows: ${pedidoPendente.debugRowCount || 0}`);
+                    }
                     
                     if (!pedidoPendente.found) {
                         // Sem pedidos pendentes - aguardar e recarregar
