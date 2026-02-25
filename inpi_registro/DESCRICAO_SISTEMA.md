@@ -2,28 +2,28 @@
 
 ## 1. IDENTIFICAÇÃO DO SOFTWARE
 
-**Nome do Software:** Gamatauri Zé Integrador
+**Nome do Software:** IntegraFH
 
 **Versão:** 1.0.0
 
 **Data de Criação:** Janeiro de 2026
 
-**Titular:** [NOME DO TITULAR/EMPRESA]
+**Titular:** FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
 
-**Autor(es):** [NOME DOS AUTORES]
+**Autor:** FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
 
 ---
 
 ## 2. OBJETIVO DO SOFTWARE
 
-O **Gamatauri Zé Integrador** é um sistema de automação e integração desenvolvido para estabelecimentos comerciais que utilizam a plataforma Zé Delivery (Ambev). O software automatiza processos críticos de gestão de pedidos, eliminando a necessidade de intervenção manual constante e reduzindo erros operacionais.
+O **IntegraFH** é um sistema de automação e integração desenvolvido para estabelecimentos comerciais que utilizam plataformas de delivery de terceiros. O software automatiza processos críticos de gestão de pedidos, eliminando a necessidade de intervenção manual constante e reduzindo erros operacionais.
 
 ---
 
 ## 3. FUNCIONALIDADES PRINCIPAIS
 
 ### 3.1 Aceite Automático de Pedidos
-- Monitoramento contínuo da plataforma Zé Delivery
+- Monitoramento contínuo de plataformas de delivery
 - Detecção automática de novos pedidos pendentes
 - Aceite automatizado seguindo fluxo específico da plataforma
 - Verificação de confirmação do aceite
@@ -38,7 +38,7 @@ O **Gamatauri Zé Integrador** é um sistema de automação e integração desen
 
 ### 3.3 Sincronização com Sistemas Externos
 - Integração bidirecional com banco de dados MySQL
-- Sincronização com Supabase (sistema em nuvem)
+- Sincronização com sistemas em nuvem
 - Controle de atualizações com debounce e cache
 - Prevenção de duplicatas e webhooks redundantes
 - Payload incremental para otimização de recursos
@@ -46,14 +46,14 @@ O **Gamatauri Zé Integrador** é um sistema de automação e integração desen
 ### 3.4 Gestão de Sessão e Autenticação
 - Persistência automática de sessão do navegador
 - Restauração de cookies e dados de autenticação
-- Integração com Gmail API para códigos 2FA
+- Integração com APIs de e-mail para códigos 2FA
 - Recuperação automática em caso de expiração
 
 ### 3.5 Dashboard de Monitoramento
 - Interface web responsiva para acompanhamento em tempo real
 - Visualização de pedidos com filtros e busca
 - Detalhes completos de cada pedido em modal
-- Indicadores de status dos serviços (MySQL, PHP, Integrador)
+- Indicadores de status dos serviços
 - Controle de serviços (iniciar, parar, reiniciar)
 
 ### 3.6 Confirmação de Retirada
@@ -63,7 +63,7 @@ O **Gamatauri Zé Integrador** é um sistema de automação e integração desen
 
 ### 3.7 Logs e Auditoria
 - Registro de todas as operações em banco de dados
-- Logs de integração enviados para Supabase
+- Logs de integração enviados para sistema em nuvem
 - Rate limiting e controle de frequência
 - Histórico de erros e tentativas
 
@@ -84,7 +84,7 @@ O **Gamatauri Zé Integrador** é um sistema de automação e integração desen
 
 ### 4.3 Banco de Dados
 - **MySQL** - Banco de dados relacional principal
-- **Supabase** - Banco de dados PostgreSQL em nuvem para logs
+- **PostgreSQL** - Banco de dados em nuvem para logs
 
 ### 4.4 Infraestrutura
 - **Supervisor** - Gerenciamento de processos
@@ -92,9 +92,9 @@ O **Gamatauri Zé Integrador** é um sistema de automação e integração desen
 - **Docker/Kubernetes** - Containerização e orquestração
 
 ### 4.5 Integrações
-- **Gmail API** - Leitura de códigos 2FA
-- **Supabase REST API** - Sincronização de dados
-- **Zé Delivery** - Plataforma de delivery (Ambev)
+- **APIs de E-mail** - Leitura de códigos 2FA
+- **APIs REST** - Sincronização de dados
+- **Plataformas de Delivery** - Integração via web scraping
 
 ---
 
@@ -102,10 +102,10 @@ O **Gamatauri Zé Integrador** é um sistema de automação e integração desen
 
 O software é destinado a:
 
-1. **Estabelecimentos comerciais** que utilizam o Zé Delivery como canal de vendas
+1. **Estabelecimentos comerciais** que utilizam plataformas de delivery como canal de vendas
 2. **Operadores de delivery** que precisam gerenciar múltiplos pedidos simultaneamente
 3. **Empresas de logística** que integram com plataformas de delivery
-4. **Desenvolvedores** que necessitam integrar sistemas com o Zé Delivery
+4. **Desenvolvedores** que necessitam integrar sistemas com plataformas de delivery
 
 ---
 
@@ -140,7 +140,7 @@ O software é destinado a:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    GAMATAURI ZÉ INTEGRADOR                      │
+│                         INTEGRAFH                               │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
@@ -158,7 +158,7 @@ O software é destinado a:
 │                            │                   │                │
 │                            ▼                   ▼                │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
-│  │  Supabase   │    │    Gmail    │    │ Zé Delivery │         │
+│  │   Cloud     │    │    Email    │    │  Delivery   │         │
 │  │   (Logs)    │    │    API      │    │  Platform   │         │
 │  └─────────────┘    └─────────────┘    └─────────────┘         │
 │                                                                 │
@@ -203,7 +203,7 @@ O software é destinado a:
 
 ## 10. LICENÇA E PROPRIEDADE INTELECTUAL
 
-Este software é de propriedade exclusiva do titular registrado no INPI.
+Este software é de propriedade exclusiva de FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO, titular registrado no INPI.
 
 Todos os direitos reservados.
 
@@ -213,4 +213,4 @@ A reprodução, distribuição ou modificação não autorizada deste software �
 
 **Documento gerado em:** 25 de Fevereiro de 2026
 
-**Hash SHA-512 do código:** [SERÁ PREENCHIDO APÓS GERAÇÃO DO ZIP]
+**Autor:** FELIPE HUDSON CARVALHO ARAÚJO TIBÚRCIO
