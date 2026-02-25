@@ -1,3 +1,4 @@
-2026/02/25-22:56:40.443 30d8 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
-2026/02/25-22:56:40.444 30d8 Recovering log #181
-2026/02/25-22:56:40.444 30d8 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000181.log 
+2026/02/25-23:13:14.925 4240 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
+2026/02/25-23:13:14.926 4240 Recovering log #181
+2026/02/25-23:13:14.926 4240 (ignoring error) /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000181.log: dropping 315 bytes; Corruption: missing start of fragmented record(2)
+2026/02/25-23:13:14.926 4240 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000181.log 
