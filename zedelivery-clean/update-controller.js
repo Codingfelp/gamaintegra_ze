@@ -9,12 +9,12 @@
  */
 
 // ============================================
-// CONFIGURAÇÕES
+// CONFIGURAÇÕES - AJUSTADAS PARA RESPONSIVIDADE
 // ============================================
-const UPDATE_DEBOUNCE_MS = 8000;         // 8 segundos entre updates do mesmo pedido
-const WEBHOOK_COOLDOWN_MS = 10000;       // 10 segundos entre webhooks do mesmo pedido
-const STATUS_CACHE_TTL_MS = 60000;       // Cache de status válido por 60 segundos
-const MIN_LOOP_INTERVAL_MS = 5000;       // Mínimo 5 segundos entre iterações de loop
+const UPDATE_DEBOUNCE_MS = 3000;         // 3 segundos entre updates do mesmo pedido (era 8)
+const WEBHOOK_COOLDOWN_MS = 5000;        // 5 segundos entre webhooks do mesmo pedido (era 10)
+const STATUS_CACHE_TTL_MS = 15000;       // Cache de status válido por 15 segundos (era 60)
+const MIN_LOOP_INTERVAL_MS = 3000;       // Mínimo 3 segundos entre iterações de loop (era 5)
 
 // ============================================
 // CACHE GLOBAL
