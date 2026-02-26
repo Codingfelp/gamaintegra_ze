@@ -40,3 +40,6 @@
 2026/02/26-01:47:04.312 28bc Level-0 table #373: started
 2026/02/26-01:47:04.316 28bc Level-0 table #373: 20915 bytes OK
 2026/02/26-01:47:04.319 28bc Delete type=0 #370
+2026/02/26-02:06:04.295 28c5 Level-0 table #375: started
+2026/02/26-02:06:04.298 28c5 Level-0 table #375: 24646 bytes OK
+2026/02/26-02:06:04.300 28c5 Delete type=0 #372

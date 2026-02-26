@@ -46,7 +46,8 @@ const PROCESS_TYPES = {
 };
 
 /**
- * Verifica se pode enviar log (respeitando debounce e rate limit)
+ * Verifica se pode enviar log (respeitando rate limit)
+ * SIMPLIFICADO: Removido debounce por tipo para permitir logs de diferentes pedidos
  */
 function canSendLog(processType, message) {
     const now = Date.now();
@@ -64,14 +65,8 @@ function canSendLog(processType, message) {
         return false;
     }
     
-    // Verificar debounce por tipo
-    const lastLog = logCache.lastLogByType.get(processType) || 0;
-    if (now - lastLog < LOG_DEBOUNCE_MS) {
-        console.log(`[LOG] Debounce ativo para ${processType}`);
-        return false;
-    }
-    
-    // Verificar se mensagem é duplicata
+    // Verificar se mensagem EXATA é duplicata (tipo + mensagem)
+    // Isso permite logs do mesmo tipo para pedidos diferentes
     const messageKey = `${processType}:${message}`;
     if (logCache.recentMessages.has(messageKey)) {
         console.log(`[LOG] Mensagem duplicada ignorada`);
@@ -79,7 +74,6 @@ function canSendLog(processType, message) {
     }
     
     // Atualizar cache
-    logCache.lastLogByType.set(processType, now);
     logCache.logCount++;
     logCache.recentMessages.add(messageKey);
     
