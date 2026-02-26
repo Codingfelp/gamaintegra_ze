@@ -14,9 +14,9 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // ============================================
 // CONFIGURAÇÕES DE DEBOUNCE/CACHE (OTIMIZADO)
 // ============================================
-const LOG_DEBOUNCE_MS = 30000;           // 30 segundos entre logs do mesmo tipo
-const MAX_LOGS_PER_MINUTE = 10;          // Máximo 10 logs por minuto (reduzido para economizar)
-const CACHE_CLEANUP_INTERVAL = 120000;   // Limpar cache a cada 2 minutos
+const LOG_DEBOUNCE_MS = 5000;            // 5 segundos entre logs do mesmo tipo (era 30s)
+const MAX_LOGS_PER_MINUTE = 60;          // Máximo 60 logs por minuto 
+const CACHE_CLEANUP_INTERVAL = 60000;    // Limpar cache a cada 1 minuto
 
 // Cache para evitar logs duplicados
 const logCache = {
