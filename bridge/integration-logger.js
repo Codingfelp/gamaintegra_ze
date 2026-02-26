@@ -7,16 +7,16 @@
 
 const https = require('https');
 
-// Configuração do Supabase
+// Configuração do Supabase - Usando SERVICE_ROLE_KEY para garantir acesso
 const SUPABASE_URL = 'https://uppkjvovtvlgwfciqrbt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwcGtqdm92dHZsZ3dmY2lxcmJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzMjU2NTksImV4cCI6MjA4NTkwMTY1OX0.JdCNg4RQBCdGslv1xVytXYp8mA347sTHp0RROqRqEiU';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVwcGtqdm92dHZsZ3dmY2lxcmJ0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDMyNTY1OSwiZXhwIjoyMDg1OTAxNjU5fQ.stSPy2ST1hk3M3bvYT_QNGtEjbEN5NQyILsHF_dHyyM';
 
 // ============================================
-// CONFIGURAÇÕES DE DEBOUNCE/CACHE
+// CONFIGURAÇÕES DE DEBOUNCE/CACHE (OTIMIZADO)
 // ============================================
-const LOG_DEBOUNCE_MS = 10000;           // 10 segundos entre logs do mesmo tipo
-const MAX_LOGS_PER_MINUTE = 6;           // Máximo 6 logs por minuto
-const CACHE_CLEANUP_INTERVAL = 60000;    // Limpar cache a cada 60 segundos
+const LOG_DEBOUNCE_MS = 30000;           // 30 segundos entre logs do mesmo tipo
+const MAX_LOGS_PER_MINUTE = 10;          // Máximo 10 logs por minuto (reduzido para economizar)
+const CACHE_CLEANUP_INTERVAL = 120000;   // Limpar cache a cada 2 minutos
 
 // Cache para evitar logs duplicados
 const logCache = {
