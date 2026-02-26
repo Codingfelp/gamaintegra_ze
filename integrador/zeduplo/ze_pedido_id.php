@@ -10,6 +10,31 @@ $DB = new Database();
 $FE = new Ferraments();
 $ide = addslashes($_GET['ide']);
 
+// PRIORIDADE 0 (MAIS ALTA): Pedidos ACEITOS/EM ANDAMENTO sem telefone - CAPTURAR URGENTE!
+// Telefone só pode ser capturado enquanto pedido está em andamento (status 2 ou 3)
+$read_pedido_urgente = $DB->ReadComposta("
+    SELECT d.delivery_code 
+    FROM delivery d
+    WHERE d.delivery_ide_hub_delivery = '".$ide."'
+    AND d.delivery_status IN (2, 3)
+    AND (d.delivery_telefone IS NULL OR d.delivery_telefone = '' OR d.delivery_telefone = '0')
+    AND d.delivery_trash = 0
+    AND d.delivery_date_time >= DATE_SUB(NOW(), INTERVAL 4 HOUR)
+    ORDER BY d.delivery_id DESC
+    LIMIT 1
+");
+
+if ($DB->NumQuery($read_pedido_urgente) > '0') {
+    foreach ($read_pedido_urgente as $row) {
+        $json = [
+            "id_pedido" => trim($row['delivery_code']),
+            "prioridade" => "urgente_telefone"
+        ];
+        echo json_encode($json);
+    }
+    exit;
+}
+
 // PRIORIDADE 1: Pedidos novos que ainda não foram processados (pedido_st_validacao = 0)
 $read_pedido = $DB->ReadComposta("SELECT * FROM ze_pedido WHERE pedido_st_validacao = '0' AND pedido_ide = '".$ide."' ORDER BY pedido_id DESC LIMIT 1");
 
