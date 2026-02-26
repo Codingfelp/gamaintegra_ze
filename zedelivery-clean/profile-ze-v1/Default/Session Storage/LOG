@@ -1,19 +1,3 @@
-2026/02/26-00:13:14.942 7753 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
-2026/02/26-00:13:14.946 7753 Recovering log #184
-2026/02/26-00:13:14.948 7753 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000184.log 
-2026/02/26-00:16:14.960 7753 Level-0 table #188: started
-2026/02/26-00:16:14.965 7753 Level-0 table #188: 11670 bytes OK
-2026/02/26-00:16:14.968 7753 Delete type=0 #184
-2026/02/26-00:16:14.970 7753 Compacting 4@0 + 2@1 files
-2026/02/26-00:16:15.259 7753 Generated table #189@0: 8141 keys, 1703302 bytes
-2026/02/26-00:16:15.259 7753 Compacted 4@0 + 2@1 files => 1703302 bytes
-2026/02/26-00:16:15.261 7753 compacted to: files[ 0 1 1 0 0 0 0 ]
-2026/02/26-00:16:15.263 7753 Delete type=2 #179
-2026/02/26-00:16:15.264 7753 Delete type=2 #188
-2026/02/26-00:16:15.264 7753 Delete type=2 #185
-2026/02/26-00:16:15.264 7753 Delete type=2 #176
-2026/02/26-00:16:15.264 7753 Delete type=2 #182
-2026/02/26-00:16:15.264 7753 Delete type=2 #175
-2026/02/26-00:41:14.960 7756 Level-0 table #191: started
-2026/02/26-00:41:14.980 7756 Level-0 table #191: 898600 bytes OK
-2026/02/26-00:41:14.988 7756 Delete type=0 #187
+2026/02/26-00:44:51.340 980d Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/MANIFEST-000001
+2026/02/26-00:44:51.342 980d Recovering log #190
+2026/02/26-00:44:51.345 980d Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/Session Storage/000190.log 
