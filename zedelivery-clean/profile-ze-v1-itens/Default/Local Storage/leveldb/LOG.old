@@ -1,9 +1,0 @@
-2026/02/25-22:06:26.653 2fcc Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
-2026/02/25-22:06:26.657 2fcc Recovering log #350
-2026/02/25-22:06:26.657 2fcc Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/000350.log 
-2026/02/25-22:16:56.588 2fcc Level-0 table #354: started
-2026/02/25-22:16:56.591 2fcc Level-0 table #354: 20676 bytes OK
-2026/02/25-22:16:56.595 2fcc Delete type=0 #350
-2026/02/25-22:43:27.475 2fce Level-0 table #356: started
-2026/02/25-22:43:27.478 2fce Level-0 table #356: 20290 bytes OK
-2026/02/25-22:43:27.482 2fce Delete type=0 #353
