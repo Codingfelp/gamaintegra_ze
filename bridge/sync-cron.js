@@ -10,11 +10,11 @@ const integrationLogger = require('./integration-logger');
 // ============================================
 // CONFIGURAÇÕES DE OTIMIZAÇÃO
 // ============================================
-const SYNC_INTERVAL = 5 * 1000;           // 5 segundos (era 10) - sincronização mais frequente
-const DEBOUNCE_TIME = 5 * 1000;            // 5 segundos de debounce
-const CACHE_TTL = 60 * 1000;               // Cache válido por 60 segundos
+const SYNC_INTERVAL = 3 * 1000;           // 3 segundos - sincronização muito frequente
+const DEBOUNCE_TIME = 1 * 1000;           // 1 segundo debounce (era 5)
+const CACHE_TTL = 10 * 1000;              // Cache válido por 10 segundos (era 60)
 const MAX_ORDERS_PER_SYNC = 50;            // Limite de pedidos por sync
-const WEBHOOK_COOLDOWN = 10 * 1000;        // 10 segundos entre webhooks do mesmo pedido
+const WEBHOOK_COOLDOWN = 3 * 1000;        // 3 segundos entre webhooks do mesmo pedido (era 10)
 
 // ============================================
 // CACHE GLOBAL - Evita updates/webhooks duplicados
