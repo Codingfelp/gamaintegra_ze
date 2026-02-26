@@ -447,8 +447,8 @@ async def test_mysql_connection():
             return {"success": False, "data": {"status": "offline", "error": str(e)[:100]}}
 
 @app.get("/api/pedidos")
-async def get_pedidos(limit: int = 50, status: Optional[int] = None):
-    """Lista pedidos"""
+async def get_pedidos(limit: int = 50, status: Optional[int] = None, search: Optional[str] = None):
+    """Lista pedidos com filtro de busca"""
     try:
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
@@ -461,11 +461,21 @@ async def get_pedidos(limit: int = 50, status: Optional[int] = None):
                    delivery_telefone, delivery_desconto_descricao
             FROM delivery WHERE delivery_trash = 0
         """
+        params = []
+        
         if status is not None:
-            query += f" AND delivery_status = {status}"
+            query += " AND delivery_status = %s"
+            params.append(status)
+        
+        # Adicionar busca por código do pedido ou nome do cliente
+        if search:
+            search_term = f"%{search}%"
+            query += " AND (delivery_code LIKE %s OR delivery_name_cliente LIKE %s OR delivery_telefone LIKE %s)"
+            params.extend([search_term, search_term, search_term])
+        
         query += f" ORDER BY delivery_date_time DESC LIMIT {limit}"
         
-        cursor.execute(query)
+        cursor.execute(query, params)
         pedidos = cursor.fetchall()
         
         # Converter datetime para string
