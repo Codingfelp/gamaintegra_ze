@@ -444,12 +444,9 @@ async function syncToLovable() {
       is_incremental: true  // Indica que é update incremental
     };
 
-    // Verificar se payload realmente mudou
+    // Verificar se payload realmente mudou (ignorar para pedidos recentes)
     const payloadHash = generateHash(payload.pedidos);
-    if (payloadHash === cache.lastSyncHash) {
-      console.log(`   ✓ Payload idêntico ao anterior, pulando envio`);
-      return;
-    }
+    // REMOVIDO: cache de hash - sempre enviar pedidos recentes
     cache.lastSyncHash = payloadHash;
 
     // Salvar debug
