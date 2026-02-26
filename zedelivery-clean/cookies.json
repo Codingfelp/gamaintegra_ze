@@ -440,7 +440,7 @@
   },
   {
     "name": "_dd_s",
-    "value": "aid=fcb499a9-e2a7-48d7-b03b-f54827f56ae3&rum=2&id=49be14fc-4d2b-4c91-b082-1f042585cf0b&created=1772129339785&expire=1772130250447&logs=1",
+    "value": "aid=order-sync-stage&rum=2&id=order-sync-stage&created=1772129339785&expire=1772130250447&logs=1",
     "domain": "seu.ze.delivery",
     "path": "/",
     "expires": 1772130264,
