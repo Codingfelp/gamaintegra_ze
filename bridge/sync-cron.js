@@ -10,7 +10,7 @@ const integrationLogger = require('./integration-logger');
 // ============================================
 // CONFIGURAÇÕES DE OTIMIZAÇÃO
 // ============================================
-const SYNC_INTERVAL = 10 * 1000;           // 10 segundos (era 3)
+const SYNC_INTERVAL = 5 * 1000;           // 5 segundos (era 10) - sincronização mais frequente
 const DEBOUNCE_TIME = 5 * 1000;            // 5 segundos de debounce
 const CACHE_TTL = 60 * 1000;               // Cache válido por 60 segundos
 const MAX_ORDERS_PER_SYNC = 50;            // Limite de pedidos por sync
