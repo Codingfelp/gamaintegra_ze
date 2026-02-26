@@ -403,10 +403,16 @@ async function syncToLovable() {
         synced_at: timestamp
       };
       
-      // VERIFICAR SE REALMENTE MUDOU
-      if (hasOrderChanged(orderId, pedidoFormatado)) {
+      // VERIFICAR SE REALMENTE MUDOU OU SE É RECENTE (últimas 4 horas)
+      const isRecent = pedido.delivery_date_time && 
+        (new Date() - new Date(pedido.delivery_date_time)) < (4 * 60 * 60 * 1000);
+      
+      // Sempre enviar pedidos recentes OU que mudaram
+      if (isRecent || hasOrderChanged(orderId, pedidoFormatado)) {
         pedidosAlterados.push(pedidoFormatado);
-        console.log(`   📝 Pedido ${orderId} ALTERADO (status: ${pedido.delivery_status}, entregador: ${pedido.delivery_email_entregador || 'N/A'})`);
+        if (!isRecent) {
+          console.log(`   📝 Pedido ${orderId} ALTERADO (status: ${pedido.delivery_status})`);
+        }
       }
     }
     
