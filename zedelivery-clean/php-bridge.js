@@ -13,6 +13,14 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+// Importar módulo de push para Supabase
+let supabasePush = null;
+try {
+    supabasePush = require('./supabase-push');
+} catch (e) {
+    console.log('⚠️ supabase-push não disponível, push desabilitado');
+}
+
 const PHP_DIR = '/app/integrador/zeduplo';
 const TOKEN = 'e8194a871a0e6d26fe620d13f7baad86';
 
