@@ -769,7 +769,14 @@ async def confirmar_retirada_pedido(order_id: str, background_tasks: BackgroundT
         return {"success": False, "error": str(e)}
 
 
-# ============= ZÉ DELIVERY API (WEBHOOK/REST) =============
+# ============= INTEGRADOR API =============
+# A API do integrador é servida pelo PHP em /app/integrador/zeduplo/
+# Endpoints disponíveis:
+# - ze_pedido.php: Receber e processar pedidos
+# - ze_pedido_view.php: Processar itens e detalhes dos pedidos  
+# - ze_pedido_view_status.php: Atualizar status dos pedidos
+# - ze_pedido_id.php: Processar pedido por ID específico
+# Documentação: /app/docs/API_INTEGRADOR.md
 
 class ZeOrderWebhook(BaseModel):
     """Modelo para receber webhook de pedido do Zé Delivery"""
