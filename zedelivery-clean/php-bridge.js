@@ -337,7 +337,50 @@ async function atualizarStatusDireto(deliveryCode, statusCode, token, entregador
     }
     
     sql += ` WHERE delivery_code = '${deliveryCode}' AND delivery_ide_hub_delivery = '${token}' LIMIT 1`;
-    return await executarSQL(sql);
+    const result = await executarSQL(sql);
+    
+    // PUSH IMEDIATO: Enviar atualização de status para Supabase
+    if (supabasePush) {
+        try {
+            supabasePush.queueOrderForPush({
+                delivery_code: deliveryCode,
+                delivery_status: statusCode,
+                delivery_email_entregador: entregador || null
+            });
+        } catch (e) {
+            console.log('⚠️ Push para Supabase falhou:', e.message);
+        }
+    }
+    
+    return result;
+}
+
+/**
+ * Push manual de pedido completo para Supabase
+ * Usado quando queremos enviar dados completos (não só status)
+ * @param {object} orderData - Dados completos do pedido
+ * @returns {Promise<object>}
+ */
+async function pushToSupabase(orderData) {
+    if (!supabasePush) {
+        console.log('⚠️ supabase-push não disponível');
+        return { success: false, error: 'Push não disponível' };
+    }
+    
+    try {
+        return await supabasePush.pushOrderImmediate(orderData);
+    } catch (e) {
+        console.error('❌ Erro no push:', e.message);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * Força envio de todos os pedidos pendentes na fila
+ */
+async function flushSupabasePush() {
+    if (!supabasePush) return;
+    await supabasePush.flushPendingOrders();
 }
 
 module.exports = {
