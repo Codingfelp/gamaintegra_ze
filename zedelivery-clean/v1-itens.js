@@ -1956,6 +1956,41 @@ async function itensScript(page) {
                     const result = await view_pedido(pedidosData);
                     console.log("Resposta do PHP:", result);
                     
+                    // PUSH IMEDIATO PARA SUPABASE - Enviar dados completos
+                    try {
+                        const orderDataForPush = {
+                            delivery_code: id_pedido_info,
+                            delivery_telefone: customerPhone || '',
+                            delivery_cpf_cliente: cpfCliente || '',
+                            delivery_tipo_pedido: tipoDelivery || '',
+                            delivery_endereco_rota: enderecoRota || '',
+                            delivery_endereco_complemento: enderecoComplemento || '',
+                            delivery_endereco_bairro: enderecoBairro || '',
+                            delivery_endereco_cidade_uf: enderecoCidadeUF || '',
+                            delivery_endereco_cep: enderecoCep || '',
+                            delivery_desconto: desconto || 0,
+                            delivery_frete: frete || 0,
+                            delivery_subtotal: subTotal || 0,
+                            delivery_taxa_conveniencia: taxaConveniencia || 0,
+                            delivery_troco: troco || 0,
+                            delivery_codigo_entrega: codigoEntrega || '',
+                            delivery_obs: obsPedido || '',
+                            delivery_email_entregador: entregador || '',
+                            delivery_desconto_descricao: cupomDescricao || '',
+                            items: produtos.map(p => ({
+                                nome: p.nome,
+                                quantidade: p.quantidade,
+                                preco_unitario: parseFloat(p.preco) || 0,
+                                preco_total: parseFloat(p.precoTotal) || 0,
+                                imagem: p.imagem || ''
+                            }))
+                        };
+                        await phpBridge.pushToSupabase(orderDataForPush);
+                        console.log('✅ [PUSH] Dados do pedido enviados para Supabase');
+                    } catch (pushError) {
+                        console.log('⚠️ [PUSH] Erro no push para Supabase:', pushError.message);
+                    }
+                    
                     // Log de integração - sucesso
                     await integrationLogger.completeProcess(
                         processId,
