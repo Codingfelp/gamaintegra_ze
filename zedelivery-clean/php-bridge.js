@@ -393,5 +393,7 @@ module.exports = {
     pegarProximoPedidoStatus,
     atualizarStatus,
     executarSQL,
-    atualizarStatusDireto
+    atualizarStatusDireto,
+    pushToSupabase,
+    flushSupabasePush
 };
