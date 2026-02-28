@@ -204,6 +204,29 @@ function App() {
     }
   };
 
+  const excluirPedido = async (deliveryCode) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o pedido #${deliveryCode}?`)) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${API_URL}/api/pedidos/${deliveryCode}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Remover pedido da lista local
+        setPedidos(prev => prev.filter(p => p.delivery_code !== deliveryCode));
+        alert(`Pedido #${deliveryCode} excluído com sucesso!`);
+      } else {
+        alert(`Erro ao excluir: ${data.error || 'Erro desconhecido'}`);
+      }
+    } catch (err) {
+      console.error('Erro ao excluir pedido:', err);
+      alert('Erro ao excluir pedido');
+    }
+  };
+
   const controlService = async (service, action) => {
     setLoading(true);
     try {

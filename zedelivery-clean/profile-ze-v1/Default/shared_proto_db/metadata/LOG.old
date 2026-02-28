@@ -1,3 +1,3 @@
-2026/02/28-21:55:26.583 4c41 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/metadata/MANIFEST-000001
-2026/02/28-21:55:26.584 4c41 Recovering log #3
-2026/02/28-21:55:26.587 4c41 Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/metadata/000003.log 
+2026/02/28-22:07:07.954 826b Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/metadata/MANIFEST-000001
+2026/02/28-22:07:07.954 826b Recovering log #3
+2026/02/28-22:07:07.958 826b Reusing old log /app/zedelivery-clean/profile-ze-v1/Default/shared_proto_db/metadata/000003.log 
