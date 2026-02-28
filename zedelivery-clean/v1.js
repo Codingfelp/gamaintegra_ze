@@ -1761,13 +1761,13 @@ async function capturarTelefoneCliente(page) {
             return { success: false };
         });
         
-        if (!clickedEntregador) {
+        if (!clickedEntregador.success) {
             console.log('📞 [TELEFONE] Opção "O entregador não encontra o cliente" não encontrada');
             await page.keyboard.press('Escape');
             return '';
         }
         
-        console.log('📞 [TELEFONE] Clicou em "O entregador não encontra o cliente"');
+        console.log(`📞 [TELEFONE] Clicou em "O entregador não encontra o cliente" (${clickedEntregador.method})`);
         await sleep(1.5);
         
         // Clicar no botão "Confirmar"
