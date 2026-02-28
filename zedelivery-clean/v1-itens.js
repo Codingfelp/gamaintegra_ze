@@ -1591,34 +1591,54 @@ async function itensScript(page) {
                     return '';
                 });
                 
-                // Se não encontrou telefone visível, usar NOVO fluxo via modal (V2)
+                // Se não encontrou telefone visível, tentar fluxo via modal (V2)
+                // NOTA: Modal de telefone SÓ funciona para pedidos em rota (status 3)
                 if (!customerPhone || customerPhone.length < 10) {
-                    console.log('📞 [TELEFONE] Telefone não visível, usando fluxo V2 via modal...');
+                    console.log('📞 [TELEFONE] Telefone não visível na página de detalhes');
                     
-                    // Extrair ID do pedido 
-                    const orderId = id_pedido_info.replace(/\s+/g, '');
-                    
-                    // Extrair nome do cliente para ajudar a encontrar o card
-                    const customerNameForPhone = nome_cliente || '';
-                    
-                    // Ir para poc-orders para usar o fluxo de modal
-                    console.log('📞 [TELEFONE] Navegando para poc-orders...');
-                    await page.goto('https://seu.ze.delivery/poc-orders', {
-                        waitUntil: 'networkidle2',
-                        timeout: 30000
+                    // Verificar se pedido está em rota verificando o status na página
+                    const isEmRota = await page.evaluate(() => {
+                        const statusBadge = document.querySelector('hexa-v2-badge-status');
+                        if (statusBadge?.shadowRoot) {
+                            const statusText = statusBadge.shadowRoot.querySelector('span')?.textContent?.toLowerCase() || '';
+                            return statusText.includes('caminho') || statusText.includes('em rota') || statusText.includes('a caminho');
+                        }
+                        // Fallback: buscar texto na página
+                        const bodyText = document.body.innerText.toLowerCase();
+                        return bodyText.includes('a caminho') || bodyText.includes('em rota');
                     });
-                    await sleep(2);
                     
-                    // Usar novo módulo V2 de captura via modal
-                    customerPhone = await phoneCapture.capturePhoneViaModal(page, orderId, customerNameForPhone);
-                    
-                    // Voltar para página de detalhes do pedido após captura
-                    console.log('📞 [TELEFONE] Voltando para página de detalhes...');
-                    await page.goto(`https://seu.ze.delivery/order/${orderId}`, {
-                        waitUntil: 'networkidle2',
-                        timeout: 30000
-                    });
-                    await sleep(2);
+                    if (isEmRota) {
+                        console.log('📞 [TELEFONE] Pedido em rota, tentando fluxo V2 via modal...');
+                        
+                        // Extrair ID do pedido 
+                        const orderId = id_pedido_info.replace(/\s+/g, '');
+                        
+                        // Extrair nome do cliente para ajudar a encontrar o card
+                        const customerNameForPhone = nome_cliente || '';
+                        
+                        // Ir para poc-orders para usar o fluxo de modal
+                        console.log('📞 [TELEFONE] Navegando para poc-orders...');
+                        await page.goto('https://seu.ze.delivery/poc-orders', {
+                            waitUntil: 'networkidle2',
+                            timeout: 30000
+                        });
+                        await sleep(2);
+                        
+                        // Usar novo módulo V2 de captura via modal
+                        customerPhone = await phoneCapture.capturePhoneViaModal(page, orderId, customerNameForPhone);
+                        
+                        // Voltar para página de detalhes do pedido após captura
+                        console.log('📞 [TELEFONE] Voltando para página de detalhes...');
+                        await page.goto(`https://seu.ze.delivery/order/${orderId}`, {
+                            waitUntil: 'networkidle2',
+                            timeout: 30000
+                        });
+                        await sleep(2);
+                    } else {
+                        console.log('📞 [TELEFONE] ⚠️ Pedido NÃO está em rota - telefone não disponível ainda');
+                        // Não tentar capturar telefone - ele será capturado quando estiver em rota
+                    }
                 } else {
                     console.log('📞 [TELEFONE] Telefone já visível:', customerPhone);
                 }
