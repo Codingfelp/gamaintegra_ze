@@ -1,17 +1,9 @@
-2026/02/27-19:58:41.414 26c7 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
-2026/02/27-19:58:41.431 26c7 Recovering log #416
-2026/02/27-19:58:41.433 26c7 Level-0 table #419: started
-2026/02/27-19:58:41.445 26c7 Level-0 table #419: 23044 bytes OK
-2026/02/27-19:58:41.448 26c7 Delete type=0 #416
-2026/02/27-20:17:42.834 26c9 Level-0 table #422: started
-2026/02/27-20:17:42.837 26c9 Level-0 table #422: 22574 bytes OK
-2026/02/27-20:17:42.841 26c9 Delete type=0 #420
-2026/02/27-20:17:42.842 26c9 Compacting 4@0 + 1@1 files
-2026/02/27-20:17:42.850 26c9 Generated table #423@0: 46 keys, 5183 bytes
-2026/02/27-20:17:42.850 26c9 Compacted 4@0 + 1@1 files => 5183 bytes
-2026/02/27-20:17:42.852 26c9 compacted to: files[ 0 1 1 0 0 0 0 ]
-2026/02/27-20:17:42.852 26c9 Delete type=2 #412
-2026/02/27-20:17:42.852 26c9 Delete type=2 #414
-2026/02/27-20:17:42.852 26c9 Delete type=2 #422
-2026/02/27-20:17:42.852 26c9 Delete type=2 #417
-2026/02/27-20:17:42.852 26c9 Delete type=2 #419
+2026/02/27-22:34:18.642 2717 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
+2026/02/27-22:34:18.646 2717 Recovering log #434
+2026/02/27-22:34:18.647 2717 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/000434.log 
+2026/02/27-22:47:19.713 271a Level-0 table #438: started
+2026/02/27-22:47:19.716 271a Level-0 table #438: 21354 bytes OK
+2026/02/27-22:47:19.718 271a Delete type=0 #434
+2026/02/27-23:03:19.696 271a Level-0 table #440: started
+2026/02/27-23:03:19.699 271a Level-0 table #440: 20360 bytes OK
+2026/02/27-23:03:19.701 271a Delete type=0 #437
