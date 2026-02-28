@@ -608,6 +608,45 @@ async def reprocessar_pedido(delivery_code: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+@app.delete("/api/pedidos/{delivery_code}")
+async def excluir_pedido(delivery_code: str):
+    """
+    Exclui um pedido (soft delete - marca delivery_trash = 1).
+    O pedido não será mais exibido nas listagens.
+    """
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Verificar se o pedido existe
+        cursor.execute("SELECT delivery_id, delivery_code FROM delivery WHERE delivery_code = %s AND delivery_trash = 0", (delivery_code,))
+        pedido = cursor.fetchone()
+        
+        if not pedido:
+            raise HTTPException(status_code=404, detail="Pedido não encontrado")
+        
+        delivery_id = pedido['delivery_id']
+        
+        # Soft delete - marcar como trash
+        cursor.execute("""
+            UPDATE delivery SET delivery_trash = 1 
+            WHERE delivery_code = %s
+        """, (delivery_code,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return {
+            "success": True, 
+            "message": f"Pedido {delivery_code} excluído com sucesso",
+            "delivery_id": delivery_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @app.get("/api/services/logs")
 async def get_logs():
     """Retorna últimas linhas dos logs"""
