@@ -1,3 +1,6 @@
 2026/02/28-21:39:29.487 3f55 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Session Storage/MANIFEST-000001
 2026/02/28-21:39:29.488 3f55 Recovering log #49
 2026/02/28-21:39:29.489 3f55 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Session Storage/000049.log 
+2026/02/28-22:18:33.828 3f57 Level-0 table #53: started
+2026/02/28-22:18:33.832 3f57 Level-0 table #53: 10611 bytes OK
+2026/02/28-22:18:33.836 3f57 Delete type=0 #49
