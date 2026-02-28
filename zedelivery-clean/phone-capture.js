@@ -42,31 +42,76 @@ async function capturarTelefonePocOrders(page, orderId) {
         const phoneButtonClicked = await page.evaluate((orderId) => {
             // Buscar o link do pedido pelo ID
             // Formato: #link-to-order-{orderId}
-            const orderLink = document.querySelector(`#link-to-order-${orderId}`);
+            let orderLink = document.querySelector(`#link-to-order-${orderId}`);
+            
+            // Se não encontrar por ID, tentar buscar por texto do número do pedido
             if (!orderLink) {
-                console.log('Card do pedido não encontrado');
-                return { success: false, reason: 'card_not_found' };
+                // Formatar número: 154368633 -> "154 368 633"
+                const formattedNum = orderId.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
+                const allLinks = document.querySelectorAll('a[href*="poc-orders"], [id*="link-to-order"]');
+                for (const link of allLinks) {
+                    const text = link.textContent || '';
+                    if (text.includes(orderId) || text.includes(formattedNum)) {
+                        orderLink = link;
+                        break;
+                    }
+                }
+            }
+            
+            // Se ainda não encontrou, buscar em toda a página
+            if (!orderLink) {
+                const allDivs = document.querySelectorAll('[class*="card"], [class*="order"]');
+                for (const div of allDivs) {
+                    if (div.textContent?.includes(orderId) || div.innerHTML?.includes(orderId)) {
+                        orderLink = div;
+                        break;
+                    }
+                }
+            }
+            
+            if (!orderLink) {
+                // Listar IDs de pedidos disponíveis para debug
+                const availableOrders = [...document.querySelectorAll('[id*="link-to-order"]')]
+                    .map(el => el.id.replace('link-to-order-', ''));
+                return { success: false, reason: 'card_not_found', availableOrders };
             }
             
             // Dentro do card, buscar o div azul com ícone de telefone e nome do cliente
             // Seletor: div.css-ke2gsr.e1aa8wr60 que contém hexa-v2-icon
-            const phoneButton = orderLink.querySelector('div.css-ke2gsr.e1aa8wr60');
+            let phoneButton = orderLink.querySelector('div.css-ke2gsr.e1aa8wr60');
+            
             if (!phoneButton) {
-                // Tentar seletor alternativo
-                const altButton = orderLink.querySelector('[class*="css-ke2gsr"]');
-                if (altButton) {
-                    altButton.click();
-                    return { success: true, method: 'alt_selector' };
+                // Tentar seletores alternativos
+                phoneButton = orderLink.querySelector('[class*="css-ke2gsr"]') ||
+                              orderLink.querySelector('[class*="e1aa8wr60"]') ||
+                              orderLink.querySelector('div[color*="blue"]');
+            }
+            
+            if (!phoneButton) {
+                // Buscar qualquer div que contenha hexa-v2-icon dentro do card
+                const hexaIcons = orderLink.querySelectorAll('hexa-v2-icon');
+                for (const icon of hexaIcons) {
+                    const parentDiv = icon.closest('div');
+                    if (parentDiv && parentDiv !== orderLink) {
+                        phoneButton = parentDiv;
+                        break;
+                    }
                 }
-                return { success: false, reason: 'phone_button_not_found' };
+            }
+            
+            if (!phoneButton) {
+                return { success: false, reason: 'phone_button_not_found', cardFound: true };
             }
             
             phoneButton.click();
-            return { success: true, method: 'primary_selector' };
+            return { success: true, method: 'found_and_clicked' };
         }, orderIdClean);
         
         if (!phoneButtonClicked.success) {
-            console.log(`📞 ❌ Botão de telefone não encontrado: ${phoneButtonClicked.reason}`);
+            console.log(`📞 ❌ ${phoneButtonClicked.reason}`);
+            if (phoneButtonClicked.availableOrders) {
+                console.log(`📞 Pedidos disponíveis na página: ${phoneButtonClicked.availableOrders.join(', ')}`);
+            }
             return '';
         }
         
