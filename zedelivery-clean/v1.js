@@ -1660,47 +1660,92 @@ async function capturarTelefoneCliente(page) {
         // Aguardar modal abrir - "Qual é o motivo para o contato com o cliente?"
         console.log('📞 [TELEFONE] Aguardando modal de motivo...');
         
-        // Clicar em "Problemas com a entrega"
-        const clickedProblemas = await page.evaluate(() => {
-            const options = document.querySelectorAll('[role="option"], [role="button"], button, div[class*="option"], li');
-            for (const opt of options) {
-                const text = (opt.innerText || opt.textContent || '').toLowerCase();
-                if (text.includes('problemas com a entrega') || text.includes('problema na entrega') || text.includes('delivery problem')) {
-                    opt.click();
-                    return true;
-                }
-            }
-            // Tentar pelo índice se não encontrar pelo texto (segunda opção geralmente)
-            const radioButtons = document.querySelectorAll('input[type="radio"], [role="radio"]');
-            for (const radio of radioButtons) {
-                const label = radio.closest('label') || radio.parentElement;
-                const text = (label?.innerText || '').toLowerCase();
-                if (text.includes('problemas com a entrega') || text.includes('entrega')) {
-                    radio.click();
-                    return true;
-                }
-            }
-            return false;
-        });
+        // Clicar em "Problemas com a entrega" - COM RETRY E IDs específicos
+        let accordionExpanded = false;
+        const maxAttempts = 3;
         
-        if (!clickedProblemas) {
-            console.log('📞 [TELEFONE] Opção "Problemas com a entrega" não encontrada');
-            // Tentar fechar modal
+        for (let attempt = 1; attempt <= maxAttempts && !accordionExpanded; attempt++) {
+            console.log(`📞 [TELEFONE] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
+            
+            const clickedProblemas = await page.evaluate(() => {
+                // Estratégia 1: Buscar pelo ID específico do Zé Delivery
+                const el = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM > div');
+                if (el) { el.click(); return { success: true, method: 'by_id_div' }; }
+                
+                const container = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM');
+                if (container) { container.click(); return { success: true, method: 'by_id' }; }
+                
+                // Estratégia 2: Buscar por role e texto
+                const options = document.querySelectorAll('[role="option"], [role="button"], button, div[class*="option"], li');
+                for (const opt of options) {
+                    const text = (opt.innerText || opt.textContent || '').toLowerCase();
+                    if (text.includes('problemas com a entrega') || text.includes('problema na entrega') || text.includes('delivery problem')) {
+                        opt.click();
+                        return { success: true, method: 'role_option' };
+                    }
+                }
+                // Tentar pelo índice se não encontrar pelo texto (segunda opção geralmente)
+                const radioButtons = document.querySelectorAll('input[type="radio"], [role="radio"]');
+                for (const radio of radioButtons) {
+                    const label = radio.closest('label') || radio.parentElement;
+                    const text = (label?.innerText || '').toLowerCase();
+                    if (text.includes('problemas com a entrega') || text.includes('entrega')) {
+                        radio.click();
+                        return { success: true, method: 'radio_label' };
+                    }
+                }
+                return { success: false };
+            });
+            
+            if (!clickedProblemas.success) {
+                console.log('📞 [TELEFONE] Opção "Problemas com a entrega" não encontrada');
+                await sleep(1);
+                continue;
+            }
+            
+            console.log(`📞 [TELEFONE] Clicou em "Problemas com a entrega" (${clickedProblemas.method})`);
+            await sleep(2 + attempt);
+            
+            // Verificar se accordion expandiu
+            const checkExpansion = await page.evaluate(() => {
+                const radio = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
+                const bodyText = document.body.innerText.toLowerCase();
+                const hasText = bodyText.includes('entregador não encontra') || 
+                               bodyText.includes('entregador nao encontra') ||
+                               bodyText.includes('não encontra o cliente');
+                return { expanded: !!radio || hasText, foundById: !!radio };
+            });
+            
+            if (checkExpansion.expanded) {
+                console.log(`📞 [TELEFONE] Accordion expandiu na tentativa ${attempt}!`);
+                accordionExpanded = true;
+            } else {
+                console.log(`📞 [TELEFONE] Accordion não expandiu na tentativa ${attempt}`);
+            }
+        }
+        
+        if (!accordionExpanded) {
+            console.log('📞 [TELEFONE] ❌ Não foi possível expandir accordion após todas as tentativas');
             await page.keyboard.press('Escape');
             return '';
         }
         
-        console.log('📞 [TELEFONE] Clicou em "Problemas com a entrega"');
-        await sleep(1.5);
-        
         // Clicar em "O entregador não encontra o cliente"
         const clickedEntregador = await page.evaluate(() => {
+            // Estratégia 1: Buscar pelo ID específico
+            const radio = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
+            if (radio) { radio.click(); return { success: true, method: 'by_id' }; }
+            
+            const label = document.querySelector('label[for="REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER"]');
+            if (label) { label.click(); return { success: true, method: 'label_for' }; }
+            
+            // Estratégia 2: Buscar por role e texto
             const options = document.querySelectorAll('[role="option"], [role="button"], button, div[class*="option"], li, label');
             for (const opt of options) {
                 const text = (opt.innerText || opt.textContent || '').toLowerCase();
                 if (text.includes('entregador não encontra') || text.includes('não encontra o cliente') || text.includes('driver can\'t find')) {
                     opt.click();
-                    return true;
+                    return { success: true, method: 'role_option' };
                 }
             }
             // Tentar input radio
@@ -1710,10 +1755,10 @@ async function capturarTelefoneCliente(page) {
                 const text = (label?.innerText || '').toLowerCase();
                 if (text.includes('entregador não encontra') || text.includes('não encontra')) {
                     radio.click();
-                    return true;
+                    return { success: true, method: 'radio_label' };
                 }
             }
-            return false;
+            return { success: false };
         });
         
         if (!clickedEntregador) {
