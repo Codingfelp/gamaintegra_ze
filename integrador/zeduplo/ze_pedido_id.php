@@ -50,16 +50,22 @@ if ($DB->NumQuery($read_pedido) > '0') {
     // PRIORIDADE 2: Pedidos que foram validados mas não tiveram itens capturados
     // Isso acontece quando o pedido é entregue muito rápido antes de v1-itens processar
     // Buscar apenas pedidos das últimas 24 horas para não sobrecarregar
+    // CRITÉRIO: Pedidos sem itens OU pedidos antigos (>30min) sem endereço completo
     $read_pedido_sem_itens = $DB->ReadComposta("
         SELECT d.delivery_code 
         FROM delivery d
         WHERE d.delivery_ide_hub_delivery = '".$ide."'
-        AND (d.delivery_tem_itens IS NULL OR d.delivery_tem_itens = 0)
-        AND d.delivery_endereco_rota = '0'
         AND d.delivery_trash = 0
         AND d.delivery_status NOT IN (4, 5)
         AND d.delivery_date_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-        ORDER BY d.delivery_id DESC
+        AND (
+            (d.delivery_tem_itens IS NULL OR d.delivery_tem_itens = 0)
+            OR (
+                d.delivery_date_time < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+                AND (d.delivery_endereco_rota IS NULL OR d.delivery_endereco_rota = '' OR d.delivery_endereco_rota = '0')
+            )
+        )
+        ORDER BY d.delivery_date_time DESC
         LIMIT 1
     ");
     
