@@ -115,46 +115,73 @@ async function capturarTelefonePocOrders(page, orderId) {
         // PASSO 3: Clicar em "O entregador não encontra o cliente"
         console.log('📞 [PASSO 3] Buscando opção "O entregador não encontra o cliente"...');
         
+        // Aguardar o accordion expandir completamente
+        await sleep(1.5);
+        
         const opcaoClicked = await page.evaluate(() => {
+            // ESTRATÉGIA 1: Buscar texto exato em qualquer elemento
             const textos = [
                 'O entregador não encontra o cliente',
-                'entregador não encontra o cliente',
-                'não encontra o cliente'
+                'entregador não encontra o cliente'
             ];
             
             for (const texto of textos) {
-                const elements = document.querySelectorAll('*');
-                for (const el of elements) {
-                    const content = el.textContent?.trim().toLowerCase();
-                    if (content && content.includes(texto.toLowerCase())) {
-                        // Verificar se é um elemento clicável
-                        if (el.tagName === 'INPUT' || el.tagName === 'LABEL' || el.tagName === 'BUTTON') {
-                            el.click();
-                            return { success: true, element: el.tagName };
+                // Buscar em todos elementos de texto
+                const walker = document.createTreeWalker(
+                    document.body,
+                    NodeFilter.SHOW_TEXT,
+                    null,
+                    false
+                );
+                
+                while (walker.nextNode()) {
+                    const node = walker.currentNode;
+                    if (node.textContent.trim().toLowerCase().includes(texto.toLowerCase())) {
+                        // Encontrou! Clicar no elemento pai
+                        const parent = node.parentElement;
+                        if (parent) {
+                            // Subir até encontrar elemento clicável
+                            let clickTarget = parent;
+                            for (let i = 0; i < 5 && clickTarget; i++) {
+                                if (clickTarget.tagName === 'LABEL' || 
+                                    clickTarget.tagName === 'INPUT' ||
+                                    clickTarget.tagName === 'BUTTON' ||
+                                    clickTarget.onclick ||
+                                    clickTarget.getAttribute('role') === 'button' ||
+                                    clickTarget.classList.contains('clickable')) {
+                                    break;
+                                }
+                                clickTarget = clickTarget.parentElement;
+                            }
+                            clickTarget = clickTarget || parent;
+                            clickTarget.click();
+                            return { success: true, element: clickTarget.tagName, text: texto };
                         }
-                        // Buscar input ou label dentro
-                        const input = el.querySelector('input');
-                        if (input) {
-                            input.click();
-                            return { success: true, element: 'input_inside' };
-                        }
-                        const label = el.querySelector('label');
-                        if (label) {
-                            label.click();
-                            return { success: true, element: 'label_inside' };
-                        }
-                        // Clicar no próprio elemento
-                        el.click();
-                        return { success: true, element: el.tagName };
                     }
                 }
             }
             
-            // Tentar por data-testid ou ID específico
-            const radioEntregador = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
-            if (radioEntregador) {
-                radioEntregador.click();
-                return { success: true, element: 'radio_by_id' };
+            // ESTRATÉGIA 2: Buscar por elementos que contêm o texto
+            const allElements = document.querySelectorAll('label, span, p, div, li');
+            for (const el of allElements) {
+                const text = el.textContent?.trim().toLowerCase();
+                if (text && text.includes('entregador não encontra')) {
+                    el.click();
+                    return { success: true, element: el.tagName, method: 'querySelectorAll' };
+                }
+            }
+            
+            // ESTRATÉGIA 3: Clicar no primeiro radio dentro da seção expandida de "Problemas com a entrega"
+            const radioInputs = document.querySelectorAll('input[type="radio"]');
+            for (const radio of radioInputs) {
+                const label = radio.closest('label') || document.querySelector(`label[for="${radio.id}"]`);
+                if (label) {
+                    const labelText = label.textContent?.toLowerCase() || '';
+                    if (labelText.includes('entregador') || labelText.includes('não encontra')) {
+                        radio.click();
+                        return { success: true, element: 'radio', id: radio.id };
+                    }
+                }
             }
             
             return { success: false };
@@ -162,6 +189,11 @@ async function capturarTelefonePocOrders(page, orderId) {
         
         if (!opcaoClicked.success) {
             console.log('📞 ❌ Opção "O entregador não encontra o cliente" não encontrada');
+            // Tirar screenshot para debug
+            try {
+                await page.screenshot({ path: '/app/logs/phone-debug-step3.png', fullPage: false });
+                console.log('📞 Screenshot salvo em /app/logs/phone-debug-step3.png');
+            } catch (e) {}
             await fecharModal(page);
             return '';
         }
