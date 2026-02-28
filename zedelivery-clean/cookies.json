@@ -89,7 +89,7 @@
   },
   {
     "name": "_dd_s",
-    "value": "aid=7e90733b-31cb-4ff6-a6f0-f27accfecd60&rum=1&id=3a22554e-802a-45cb-9ee4-f720ef49c507&created=1772222327132&expire=1772223239916&logs=1",
+    "value": "aid=phone-capture-debug&rum=1&id=phone-capture-debug&created=1772222327132&expire=1772223239916&logs=1",
     "domain": "seu.ze.delivery",
     "path": "/",
     "expires": 1772223254,
