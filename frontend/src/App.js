@@ -1282,6 +1282,16 @@ function App() {
                               )}
                             </DialogContent>
                           </Dialog>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7 border-red-200 text-red-600 hover:bg-red-50"
+                            onClick={() => excluirPedido(pedido.delivery_code)}
+                            data-testid={`delete-pedido-${pedido.delivery_id}`}
+                          >
+                            Excluir
+                          </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
