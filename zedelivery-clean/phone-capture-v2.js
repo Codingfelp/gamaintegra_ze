@@ -34,30 +34,57 @@ async function capturePhoneViaModal(page, orderCode, customerName) {
         console.log('📞 [PASSO 1] Buscando card do pedido...');
         
         const cardClicked = await page.evaluate((code, name) => {
-            // Buscar todos os cards de pedidos na coluna de entregas em andamento
-            const cards = document.querySelectorAll('a[href*="poc-orders"], div[class*="order-card"], div[class*="OrderCard"]');
+            // Buscar na coluna "Em separação" (kanban-column-body-accepted-orders ou similar)
+            // Também buscar em outras colunas de pedidos em andamento
+            const columns = document.querySelectorAll('[class*="kanban-column"], [class*="column-body"], [data-testid*="column"]');
             
-            for (const card of cards) {
+            // Primeiro, tentar encontrar na coluna específica "Em separação"
+            for (const col of columns) {
+                const colText = col.textContent || '';
+                // Verificar se é a coluna de "Em separação" ou "Aceitos"
+                if (colText.includes('Em separação') || colText.includes('Aceito') || colText.includes('separação')) {
+                    // Buscar o card do pedido dentro desta coluna
+                    const cards = col.querySelectorAll('a[href*="order"], div[class*="card"], div[class*="Card"]');
+                    for (const card of cards) {
+                        const cardText = card.textContent || '';
+                        if (cardText.includes(code) || (name && cardText.toLowerCase().includes(name.toLowerCase()))) {
+                            // Clicar no nome do cliente para abrir o modal
+                            const clickTarget = card.querySelector('h5, h4, [class*="name"], [class*="customer"], span, p') || card;
+                            clickTarget.click();
+                            return { success: true, method: 'column_card', column: 'Em separação', found: cardText.substring(0, 50) };
+                        }
+                    }
+                }
+            }
+            
+            // Fallback: buscar em todas as colunas/cards
+            const allCards = document.querySelectorAll('a[href*="poc-orders"], a[href*="order"], div[class*="order-card"], div[class*="OrderCard"]');
+            
+            for (const card of allCards) {
                 const text = card.textContent || '';
-                // Verificar se o card contém o código do pedido OU o nome do cliente
                 if (text.includes(code) || (name && text.toLowerCase().includes(name.toLowerCase()))) {
-                    // Procurar o elemento clicável dentro do card (nome do cliente geralmente)
-                    const clickable = card.querySelector('[class*="customer"], [class*="name"], span, p') || card;
+                    const clickable = card.querySelector('[class*="customer"], [class*="name"], h5, h4, span, p') || card;
                     clickable.click();
-                    return { success: true, method: 'card_click', found: text.substring(0, 50) };
+                    return { success: true, method: 'fallback_card', found: text.substring(0, 50) };
                 }
             }
             
-            // Fallback: buscar por texto do número do pedido
-            const allElements = document.querySelectorAll('*');
+            // Último fallback: buscar por texto do número do pedido em qualquer elemento
+            const allElements = document.querySelectorAll('h5, h4, span, p, div');
             for (const el of allElements) {
-                if (el.textContent?.includes(`Nº ${code}`) || el.textContent?.includes(code)) {
+                const elText = el.textContent?.trim() || '';
+                if (elText.includes(`Nº ${code}`) || elText === code || elText.includes(code)) {
                     el.click();
-                    return { success: true, method: 'number_click' };
+                    return { success: true, method: 'text_match' };
                 }
             }
             
-            return { success: false, cardsFound: cards.length };
+            // Retornar info para debug
+            return { 
+                success: false, 
+                columnsFound: columns.length,
+                cardsFound: allCards.length 
+            };
         }, orderCode, customerName);
         
         if (!cardClicked.success) {
