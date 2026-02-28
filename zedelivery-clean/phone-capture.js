@@ -124,39 +124,99 @@ async function capturarTelefonePocOrders(page, orderId) {
         // Aguardar modal aparecer
         await sleep(2);
         
+        // Tirar screenshot antes de clicar para ver o estado
+        try {
+            await page.screenshot({ path: '/app/logs/phone-debug-step2-before.png', fullPage: true });
+        } catch (e) {}
+        
         const motivoClicked = await page.evaluate(() => {
-            // Buscar por div/span que contém "Problemas com a entrega"
-            const allElements = document.querySelectorAll('div, span, p, h4, label');
+            // ESTRATÉGIA DIFERENTE: Buscar o ACCORDION que contém "Problemas com a entrega"
+            // e clicar no header do accordion, não no texto
+            
+            // Primeiro, buscar elementos que parecem ser accordion headers
+            const accordionHeaders = document.querySelectorAll('[class*="accordion"], [role="button"], [class*="expandable"], [class*="header"], [class*="trigger"]');
+            
+            for (const header of accordionHeaders) {
+                if (header.textContent?.includes('Problemas com a entrega')) {
+                    header.click();
+                    return { success: true, method: 'accordion_header', tag: header.tagName };
+                }
+            }
+            
+            // Se não encontrou accordion, buscar div/span com o texto exato
+            // MAS clicar apenas uma vez no elemento pai correto
+            const allElements = document.querySelectorAll('h4, h5, span, p, div');
             for (const el of allElements) {
                 const text = el.textContent?.trim();
                 if (text === 'Problemas com a entrega') {
-                    el.click();
-                    return { success: true, tag: el.tagName };
+                    // Clicar no elemento mais próximo que seja clicável
+                    const clickTarget = el.closest('[role="button"]') || 
+                                       el.closest('[class*="accordion"]') || 
+                                       el.closest('[class*="clickable"]') ||
+                                       el;
+                    clickTarget.click();
+                    return { success: true, method: 'text_match', tag: clickTarget.tagName };
                 }
             }
-            return { success: false, reason: 'motivo_not_found' };
+            
+            // Listar o que está disponível
+            const available = [];
+            document.querySelectorAll('*').forEach(el => {
+                const t = el.textContent?.trim();
+                if (t && t.length > 5 && t.length < 100) {
+                    if (!available.includes(t)) available.push(t);
+                }
+            });
+            
+            return { success: false, reason: 'motivo_not_found', available: available.slice(0, 20) };
         });
         
         if (!motivoClicked.success) {
             console.log(`📞 ❌ Opção "Problemas com a entrega" não encontrada`);
+            if (motivoClicked.available) {
+                console.log('📞 Textos disponíveis:', motivoClicked.available.slice(0, 10));
+            }
             await fecharModal(page);
             return '';
         }
         
-        console.log('📞 ✓ "Problemas com a entrega" clicado');
+        console.log(`📞 ✓ "Problemas com a entrega" clicado (${motivoClicked.method})`);
         
-        // Aguardar accordion expandir COMPLETAMENTE - aumentado para 3.5s
-        await sleep(3.5);
+        // Aguardar accordion expandir COMPLETAMENTE - aumentado para 4s
+        await sleep(4);
         
-        // Verificar se ainda estamos no modal
-        const modalStillOpen = await page.evaluate(() => {
-            const modalTexts = ['motivo', 'contato', 'cliente', 'entregador'];
+        // Tirar screenshot após expansão
+        try {
+            await page.screenshot({ path: '/app/logs/phone-debug-step2-after.png', fullPage: true });
+        } catch (e) {}
+        
+        // Verificar se ainda estamos no modal verificando elementos específicos
+        const modalCheck = await page.evaluate(() => {
             const bodyText = document.body.innerText.toLowerCase();
-            return modalTexts.some(t => bodyText.includes(t));
+            const hasModal = bodyText.includes('motivo') || 
+                            bodyText.includes('entregador') || 
+                            bodyText.includes('problema no pagamento') ||
+                            bodyText.includes('qual é o motivo');
+            
+            // Contar quantos textos relevantes existem
+            const relevantTexts = [];
+            document.querySelectorAll('*').forEach(el => {
+                const t = el.textContent?.trim().toLowerCase();
+                if (t && (t.includes('entregador') || t.includes('cliente') || t.includes('problema'))) {
+                    if (!relevantTexts.includes(t)) relevantTexts.push(t);
+                }
+            });
+            
+            return { hasModal, relevantCount: relevantTexts.length, sample: relevantTexts.slice(0, 10) };
         });
         
-        if (!modalStillOpen) {
-            console.log('📞 ❌ Modal parece ter fechado após clicar em "Problemas com a entrega"');
+        console.log(`📞 Modal check: hasModal=${modalCheck.hasModal}, relevantCount=${modalCheck.relevantCount}`);
+        if (modalCheck.sample?.length > 0) {
+            console.log('📞 Textos relevantes:', modalCheck.sample.slice(0, 5));
+        }
+        
+        if (!modalCheck.hasModal || modalCheck.relevantCount < 2) {
+            console.log('📞 ❌ Modal parece ter fechado ou não expandiu corretamente');
             return '';
         }
         
