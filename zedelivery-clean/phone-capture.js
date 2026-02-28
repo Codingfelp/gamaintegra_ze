@@ -145,15 +145,27 @@ async function capturarTelefonePocOrders(page, orderId) {
         
         console.log('📞 ✓ "Problemas com a entrega" clicado');
         
-        // Aguardar accordion expandir COMPLETAMENTE
-        await sleep(2.5);
+        // Aguardar accordion expandir COMPLETAMENTE - aumentado para 3.5s
+        await sleep(3.5);
+        
+        // Verificar se ainda estamos no modal
+        const modalStillOpen = await page.evaluate(() => {
+            const modalTexts = ['motivo', 'contato', 'cliente', 'entregador'];
+            const bodyText = document.body.innerText.toLowerCase();
+            return modalTexts.some(t => bodyText.includes(t));
+        });
+        
+        if (!modalStillOpen) {
+            console.log('📞 ❌ Modal parece ter fechado após clicar em "Problemas com a entrega"');
+            return '';
+        }
         
         // PASSO 3: Clicar em "O entregador não encontra o cliente"
         console.log('📞 [PASSO 3] Buscando opção "O entregador não encontra o cliente"...');
         
         const opcaoClicked = await page.evaluate(() => {
             // Buscar todos elementos de texto que contêm "entregador não encontra"
-            const allElements = document.querySelectorAll('div, span, p, label, li');
+            const allElements = document.querySelectorAll('div, span, p, label, li, h4, h5');
             
             for (const el of allElements) {
                 const text = el.textContent?.trim().toLowerCase();
@@ -183,17 +195,26 @@ async function capturarTelefonePocOrders(page, orderId) {
                 }
             }
             
-            return { success: false, availableTexts: [...document.querySelectorAll('*')].slice(0, 100).map(e => e.textContent?.trim()).filter(t => t && t.length > 5 && t.length < 60).slice(0, 20) };
+            // Capturar textos disponíveis para debug - melhor
+            const availableTexts = [];
+            document.querySelectorAll('*').forEach(el => {
+                const t = el.textContent?.trim();
+                if (t && t.length > 3 && t.length < 80 && !availableTexts.includes(t)) {
+                    availableTexts.push(t);
+                }
+            });
+            
+            return { success: false, availableTexts: availableTexts.slice(0, 30) };
         });
         
         if (!opcaoClicked.success) {
             console.log('📞 ❌ Opção "O entregador não encontra o cliente" não encontrada');
             if (opcaoClicked.availableTexts) {
-                console.log('📞 Textos disponíveis:', opcaoClicked.availableTexts.slice(0, 10));
+                console.log('📞 Textos disponíveis:', opcaoClicked.availableTexts.slice(0, 15));
             }
             // Tirar screenshot para debug
             try {
-                await page.screenshot({ path: '/app/logs/phone-debug-step3.png', fullPage: false });
+                await page.screenshot({ path: '/app/logs/phone-debug-step3.png', fullPage: true });
                 console.log('📞 Screenshot salvo em /app/logs/phone-debug-step3.png');
             } catch (e) {}
             await fecharModal(page);
