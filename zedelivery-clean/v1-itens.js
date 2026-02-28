@@ -1592,24 +1592,31 @@ async function itensScript(page) {
                 });
                 
                 // Se não encontrou telefone visível, tentar fluxo via modal (V2)
-                // NOTA: Modal de telefone SÓ funciona para pedidos em rota (status 3)
+                // Telefone pode ser capturado para pedidos ACEITOS (status 2) na coluna "Em separação"
                 if (!customerPhone || customerPhone.length < 10) {
                     console.log('📞 [TELEFONE] Telefone não visível na página de detalhes');
                     
-                    // Verificar se pedido está em rota verificando o status na página
-                    const isEmRota = await page.evaluate(() => {
+                    // Verificar se pedido está aceito ou em rota (status 2 ou 3)
+                    const statusPermiteCaptura = await page.evaluate(() => {
                         const statusBadge = document.querySelector('hexa-v2-badge-status');
                         if (statusBadge?.shadowRoot) {
                             const statusText = statusBadge.shadowRoot.querySelector('span')?.textContent?.toLowerCase() || '';
-                            return statusText.includes('caminho') || statusText.includes('em rota') || statusText.includes('a caminho');
+                            // Aceito, Em separação, A caminho, Em rota
+                            return statusText.includes('aceito') || 
+                                   statusText.includes('separação') || 
+                                   statusText.includes('caminho') || 
+                                   statusText.includes('em rota');
                         }
                         // Fallback: buscar texto na página
                         const bodyText = document.body.innerText.toLowerCase();
-                        return bodyText.includes('a caminho') || bodyText.includes('em rota');
+                        return bodyText.includes('aceito') || 
+                               bodyText.includes('em separação') ||
+                               bodyText.includes('a caminho') || 
+                               bodyText.includes('em rota');
                     });
                     
-                    if (isEmRota) {
-                        console.log('📞 [TELEFONE] Pedido em rota, tentando fluxo V2 via modal...');
+                    if (statusPermiteCaptura) {
+                        console.log('📞 [TELEFONE] Pedido aceito/em separação, tentando fluxo V2 via modal...');
                         
                         // Extrair ID do pedido 
                         const orderId = id_pedido_info.replace(/\s+/g, '');
@@ -1636,8 +1643,7 @@ async function itensScript(page) {
                         });
                         await sleep(2);
                     } else {
-                        console.log('📞 [TELEFONE] ⚠️ Pedido NÃO está em rota - telefone não disponível ainda');
-                        // Não tentar capturar telefone - ele será capturado quando estiver em rota
+                        console.log('📞 [TELEFONE] ⚠️ Pedido não está aceito/em separação - telefone não disponível');
                     }
                 } else {
                     console.log('📞 [TELEFONE] Telefone já visível:', customerPhone);
