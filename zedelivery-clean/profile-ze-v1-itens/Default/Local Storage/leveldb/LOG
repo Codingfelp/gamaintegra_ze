@@ -4,3 +4,15 @@
 2026/02/28-23:24:53.499 28bf Level-0 table #518: started
 2026/02/28-23:24:53.502 28bf Level-0 table #518: 25441 bytes OK
 2026/02/28-23:24:53.507 28bf Delete type=0 #514
+2026/02/28-23:42:53.465 28bf Level-0 table #520: started
+2026/02/28-23:42:53.468 28bf Level-0 table #520: 24607 bytes OK
+2026/02/28-23:42:53.470 28bf Delete type=0 #517
+2026/02/28-23:42:53.475 28bf Compacting 4@0 + 1@1 files
+2026/02/28-23:42:53.478 28bf Generated table #521@0: 46 keys, 5495 bytes
+2026/02/28-23:42:53.478 28bf Compacted 4@0 + 1@1 files => 5495 bytes
+2026/02/28-23:42:53.480 28bf compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/02/28-23:42:53.480 28bf Delete type=2 #513
+2026/02/28-23:42:53.480 28bf Delete type=2 #518
+2026/02/28-23:42:53.480 28bf Delete type=2 #520
+2026/02/28-23:42:53.480 28bf Delete type=2 #510
+2026/02/28-23:42:53.481 28bf Delete type=2 #515
