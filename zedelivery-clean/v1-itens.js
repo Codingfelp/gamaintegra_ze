@@ -2039,6 +2039,7 @@ async function itensScript(page) {
                             delivery_telefone: customerPhone || '',
                             delivery_cpf_cliente: cpfCliente || '',
                             delivery_tipo_pedido: tipoDelivery || '',
+                            delivery_telefone: customerPhone || '',
                             delivery_endereco_rota: enderecoRota || '',
                             delivery_endereco_complemento: enderecoComplemento || '',
                             delivery_endereco_bairro: enderecoBairro || '',
