@@ -129,154 +129,222 @@ async function capturarTelefonePocOrders(page, orderId) {
             await page.screenshot({ path: '/app/logs/phone-debug-step2-before.png', fullPage: true });
         } catch (e) {}
         
-        const motivoClicked = await page.evaluate(() => {
-            // ESTRATÉGIA DIFERENTE: Buscar o ACCORDION que contém "Problemas com a entrega"
-            // e clicar no header do accordion, não no texto
+        // ESTRATÉGIA MELHORADA: Tentar múltiplas abordagens para expandir o accordion
+        let accordionExpanded = false;
+        let maxAttempts = 3;
+        
+        for (let attempt = 1; attempt <= maxAttempts && !accordionExpanded; attempt++) {
+            console.log(`📞 [PASSO 2] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
             
-            // Primeiro, buscar elementos que parecem ser accordion headers
-            const accordionHeaders = document.querySelectorAll('[class*="accordion"], [role="button"], [class*="expandable"], [class*="header"], [class*="trigger"]');
-            
-            for (const header of accordionHeaders) {
-                if (header.textContent?.includes('Problemas com a entrega')) {
-                    header.click();
-                    return { success: true, method: 'accordion_header', tag: header.tagName };
-                }
-            }
-            
-            // Se não encontrou accordion, buscar div/span com o texto exato
-            // MAS clicar apenas uma vez no elemento pai correto
-            const allElements = document.querySelectorAll('h4, h5, span, p, div');
-            for (const el of allElements) {
-                const text = el.textContent?.trim();
-                if (text === 'Problemas com a entrega') {
-                    // Clicar no elemento mais próximo que seja clicável
-                    const clickTarget = el.closest('[role="button"]') || 
-                                       el.closest('[class*="accordion"]') || 
-                                       el.closest('[class*="clickable"]') ||
-                                       el;
+            const motivoClicked = await page.evaluate((attemptNum) => {
+                // ESTRATÉGIA 1: Buscar pelo ID específico do Zé Delivery
+                // O modal usa IDs como #REASON_CATEGORY_DELIVERY_PROBLEM
+                const categoryById = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM');
+                if (categoryById) {
+                    // Clicar no div interno ou no próprio elemento
+                    const clickTarget = categoryById.querySelector('div') || categoryById;
                     clickTarget.click();
-                    return { success: true, method: 'text_match', tag: clickTarget.tagName };
+                    return { success: true, method: 'by_id', tag: clickTarget.tagName };
                 }
+                
+                // ESTRATÉGIA 2: Buscar elementos hexa-v2 que são accordions
+                const hexaAccordions = document.querySelectorAll('hexa-v2-accordion, [class*="accordion"]');
+                for (const acc of hexaAccordions) {
+                    if (acc.textContent?.includes('Problemas com a entrega')) {
+                        // Tentar clicar no header do accordion
+                        const header = acc.querySelector('[class*="header"], [class*="trigger"], button') || acc;
+                        header.click();
+                        return { success: true, method: 'hexa_accordion', tag: header.tagName };
+                    }
+                }
+                
+                // ESTRATÉGIA 3: Buscar radio buttons ou labels
+                const radios = document.querySelectorAll('input[type="radio"], label[for*="REASON"]');
+                for (const radio of radios) {
+                    if (radio.id?.includes('DELIVERY_PROBLEM') || radio.htmlFor?.includes('DELIVERY_PROBLEM')) {
+                        radio.click();
+                        return { success: true, method: 'radio_label', tag: radio.tagName };
+                    }
+                }
+                
+                // ESTRATÉGIA 4: Buscar div/span com o texto exato - usar seletores mais específicos
+                // Buscar elementos que são realmente clicáveis (não filhos de outros elementos)
+                const textElements = document.querySelectorAll('h4, h5, span, p, div, label');
+                const candidates = [];
+                
+                for (const el of textElements) {
+                    const text = el.textContent?.trim();
+                    if (text === 'Problemas com a entrega') {
+                        // Verificar se o pai é clicável (não queremos clicar em elementos aninhados múltiplas vezes)
+                        const parent = el.parentElement;
+                        const isClickable = el.onclick || el.getAttribute('role') === 'button' || 
+                                          parent?.onclick || parent?.getAttribute('role') === 'button';
+                        
+                        candidates.push({
+                            el: el,
+                            parent: parent,
+                            tagName: el.tagName,
+                            isClickable: isClickable,
+                            hasId: !!el.id || !!parent?.id
+                        });
+                    }
+                }
+                
+                // Priorizar elemento com ID ou que seja clicável
+                if (candidates.length > 0) {
+                    // Ordenar por prioridade
+                    candidates.sort((a, b) => {
+                        if (a.hasId && !b.hasId) return -1;
+                        if (b.hasId && !a.hasId) return 1;
+                        if (a.isClickable && !b.isClickable) return -1;
+                        if (b.isClickable && !a.isClickable) return 1;
+                        return 0;
+                    });
+                    
+                    const best = candidates[0];
+                    // Clicar no parent se for um div/container, senão no elemento
+                    const clickTarget = (best.parent && best.parent.tagName !== 'BODY') ? best.parent : best.el;
+                    clickTarget.click();
+                    return { success: true, method: 'text_match_prioritized', tag: clickTarget.tagName, attempt: attemptNum };
+                }
+                
+                // Listar o que está disponível para debug
+                const available = [];
+                document.querySelectorAll('*').forEach(el => {
+                    const t = el.textContent?.trim();
+                    if (t && t.length > 5 && t.length < 100) {
+                        if (!available.includes(t)) available.push(t);
+                    }
+                });
+                
+                return { success: false, reason: 'motivo_not_found', available: available.slice(0, 20) };
+            }, attempt);
+            
+            if (!motivoClicked.success) {
+                console.log(`📞 ❌ Opção "Problemas com a entrega" não encontrada na tentativa ${attempt}`);
+                if (motivoClicked.available) {
+                    console.log('📞 Textos disponíveis:', motivoClicked.available.slice(0, 10));
+                }
+                await sleep(1);
+                continue;
             }
             
-            // Listar o que está disponível
-            const available = [];
-            document.querySelectorAll('*').forEach(el => {
-                const t = el.textContent?.trim();
-                if (t && t.length > 5 && t.length < 100) {
-                    if (!available.includes(t)) available.push(t);
-                }
+            console.log(`📞 ✓ "Problemas com a entrega" clicado (${motivoClicked.method})`);
+            
+            // Aguardar accordion expandir - tempo progressivo
+            await sleep(2 + attempt);
+            
+            // Verificar se o accordion expandiu (se a opção "entregador" está visível)
+            const expansionCheck = await page.evaluate(() => {
+                const bodyText = document.body.innerText.toLowerCase();
+                const hasEntregadorOption = bodyText.includes('entregador não encontra') ||
+                                           bodyText.includes('o entregador não encontra') ||
+                                           bodyText.includes('entregador nao encontra');
+                
+                // Também verificar por ID específico
+                const entregadorById = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
+                
+                return {
+                    hasEntregadorOption: hasEntregadorOption || !!entregadorById,
+                    foundById: !!entregadorById
+                };
             });
             
-            return { success: false, reason: 'motivo_not_found', available: available.slice(0, 20) };
-        });
-        
-        if (!motivoClicked.success) {
-            console.log(`📞 ❌ Opção "Problemas com a entrega" não encontrada`);
-            if (motivoClicked.available) {
-                console.log('📞 Textos disponíveis:', motivoClicked.available.slice(0, 10));
+            if (expansionCheck.hasEntregadorOption) {
+                console.log(`📞 ✓ Accordion expandiu na tentativa ${attempt}! (foundById: ${expansionCheck.foundById})`);
+                accordionExpanded = true;
+            } else {
+                console.log(`📞 ⚠️ Accordion não expandiu na tentativa ${attempt}, tentando novamente...`);
             }
-            await fecharModal(page);
-            return '';
         }
         
-        console.log(`📞 ✓ "Problemas com a entrega" clicado (${motivoClicked.method})`);
-        
-        // Aguardar accordion expandir COMPLETAMENTE - aumentado para 4s
-        await sleep(4);
-        
-        // Tirar screenshot após expansão
+        // Tirar screenshot após tentativas
         try {
             await page.screenshot({ path: '/app/logs/phone-debug-step2-after.png', fullPage: true });
         } catch (e) {}
         
-        // Verificar se ainda estamos no modal verificando elementos específicos
-        const modalCheck = await page.evaluate(() => {
-            // Buscar especificamente por textos que indicam que o accordion expandiu
-            const bodyText = document.body.innerText.toLowerCase();
+        if (!accordionExpanded) {
+            console.log('📞 ❌ Não foi possível expandir o accordion após todas as tentativas');
             
-            // Estes textos indicam que estamos no modal E o accordion expandiu
-            const hasEntregadorOption = bodyText.includes('entregador não encontra') ||
-                                       bodyText.includes('o entregador não encontra');
-            const hasProblemaEntrega = bodyText.includes('problemas com a entrega');
+            // Salvar HTML para debug
+            try {
+                const html = await page.content();
+                fs.writeFileSync('/app/logs/phone-debug-modal.html', html);
+                console.log('📞 HTML do modal salvo em /app/logs/phone-debug-modal.html');
+            } catch (e) {}
             
-            // Buscar textos visíveis (não scripts)
-            const visibleTexts = [];
-            document.querySelectorAll('span, p, div, label, h4, h5, li').forEach(el => {
-                // Verificar se elemento está visível
-                const style = window.getComputedStyle(el);
-                if (style.display !== 'none' && style.visibility !== 'hidden' && el.offsetParent !== null) {
-                    const t = el.textContent?.trim();
-                    if (t && t.length > 3 && t.length < 100 && !t.includes('function') && !t.includes('script')) {
-                        if (!visibleTexts.includes(t)) visibleTexts.push(t);
-                    }
-                }
-            });
-            
-            return { 
-                hasModal: hasProblemaEntrega, 
-                hasEntregadorOption,
-                visibleTexts: visibleTexts.slice(0, 15) 
-            };
-        });
-        
-        console.log(`📞 Modal check: hasModal=${modalCheck.hasModal}, hasEntregadorOption=${modalCheck.hasEntregadorOption}`);
-        if (modalCheck.visibleTexts?.length > 0) {
-            console.log('📞 Textos visíveis:', modalCheck.visibleTexts.slice(0, 8));
-        }
-        
-        // Se o accordion já expandiu e tem a opção do entregador, pular para o passo 3
-        if (modalCheck.hasEntregadorOption) {
-            console.log('📞 ✓ Accordion já expandiu, opção do entregador visível');
-        } else if (!modalCheck.hasModal) {
-            console.log('📞 ❌ Modal parece ter fechado');
+            await fecharModal(page);
             return '';
-        } else {
-            console.log('📞 ⚠️ Modal aberto mas opção do entregador ainda não visível, aguardando mais...');
-            await sleep(2);
         }
         
         // PASSO 3: Clicar em "O entregador não encontra o cliente"
         console.log('📞 [PASSO 3] Buscando opção "O entregador não encontra o cliente"...');
         
         const opcaoClicked = await page.evaluate(() => {
-            // Buscar todos elementos de texto que contêm "entregador não encontra"
-            const allElements = document.querySelectorAll('div, span, p, label, li, h4, h5');
+            // ESTRATÉGIA 1: Buscar pelo ID específico
+            const radioById = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
+            if (radioById) {
+                radioById.click();
+                return { success: true, element: 'by_id', text: 'REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER' };
+            }
             
-            for (const el of allElements) {
-                const text = el.textContent?.trim().toLowerCase();
-                // Match exato ou parcial
-                if (text === 'o entregador não encontra o cliente' || 
-                    text === 'entregador não encontra o cliente' ||
-                    (text && text.includes('entregador') && text.includes('não encontra'))) {
-                    
-                    console.log('Encontrado:', text);
-                    el.click();
-                    return { success: true, element: el.tagName, text: text.substring(0, 50) };
+            // ESTRATÉGIA 2: Buscar label associada ao ID
+            const labelById = document.querySelector('label[for="REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER"]');
+            if (labelById) {
+                labelById.click();
+                return { success: true, element: 'label_for_id', text: 'label for REASON_ITEM' };
+            }
+            
+            // ESTRATÉGIA 3: Buscar radio buttons que contêm texto relacionado
+            const radioInputs = document.querySelectorAll('input[type="radio"]');
+            for (const radio of radioInputs) {
+                // Verificar ID do radio
+                if (radio.id?.toLowerCase().includes('delivery') && radio.id?.toLowerCase().includes('find')) {
+                    radio.click();
+                    return { success: true, element: 'radio_by_partial_id', text: radio.id };
+                }
+                
+                // Verificar label associada
+                const label = document.querySelector(`label[for="${radio.id}"]`);
+                if (label && label.textContent?.toLowerCase().includes('não encontra')) {
+                    radio.click();
+                    return { success: true, element: 'radio_by_label_text', text: label.textContent.substring(0, 50) };
                 }
             }
             
-            // Fallback: buscar qualquer elemento clicável na área expandida
-            const accordionContent = document.querySelector('[class*="accordion"]') || 
-                                     document.querySelector('[class*="expandable"]') ||
-                                     document.querySelector('[class*="collapse"]');
-            if (accordionContent) {
-                const items = accordionContent.querySelectorAll('div, span, label');
-                for (const item of items) {
-                    const t = item.textContent?.toLowerCase() || '';
-                    if (t.includes('entregador')) {
-                        item.click();
-                        return { success: true, element: 'accordion_item' };
+            // ESTRATÉGIA 4: Buscar por texto em elementos clicáveis
+            const clickableElements = document.querySelectorAll('div, span, p, label, li, button');
+            
+            for (const el of clickableElements) {
+                const text = el.textContent?.trim().toLowerCase();
+                // Match exato ou parcial - mais variações
+                if (text === 'o entregador não encontra o cliente' || 
+                    text === 'entregador não encontra o cliente' ||
+                    text === 'o entregador nao encontra o cliente' ||
+                    (text && text.includes('entregador') && text.includes('n') && text.includes('encontra'))) {
+                    
+                    // Verificar se é o elemento direto ou um container
+                    const children = el.children;
+                    const hasOnlyText = children.length === 0 || 
+                                       (children.length === 1 && children[0].tagName === 'SPAN');
+                    
+                    if (hasOnlyText || el.tagName === 'LABEL' || el.tagName === 'LI') {
+                        el.click();
+                        return { success: true, element: el.tagName, text: text.substring(0, 50) };
                     }
                 }
             }
             
-            // Capturar textos disponíveis para debug - melhor
+            // Capturar textos disponíveis para debug - melhorado
             const availableTexts = [];
-            document.querySelectorAll('*').forEach(el => {
-                const t = el.textContent?.trim();
-                if (t && t.length > 3 && t.length < 80 && !availableTexts.includes(t)) {
-                    availableTexts.push(t);
+            const visibleElements = document.querySelectorAll('span, p, div, label, li');
+            visibleElements.forEach(el => {
+                const style = window.getComputedStyle(el);
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                    const t = el.textContent?.trim();
+                    if (t && t.length > 3 && t.length < 80 && !availableTexts.includes(t)) {
+                        availableTexts.push(t);
+                    }
                 }
             });
             
@@ -297,7 +365,7 @@ async function capturarTelefonePocOrders(page, orderId) {
             return '';
         }
         
-        console.log(`📞 ✓ Opção selecionada (${opcaoClicked.element})`);
+        console.log(`📞 ✓ Opção selecionada (${opcaoClicked.element}: ${opcaoClicked.text})`);
         await sleep(1);
         
         // PASSO 4: Clicar no botão "Confirmar"
