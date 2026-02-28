@@ -1087,22 +1087,23 @@ function App() {
                           R$ {parseFloat(pedido.delivery_total || 0).toFixed(2)}
                         </td>
                         <td className="p-3 text-center">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-xs h-7 border-gray-200"
-                                onClick={() => {
-                                  setSelectedPedido(pedido);
-                                  fetchPedidoDetails(pedido.delivery_id);
-                                }}
-                                data-testid={`view-pedido-${pedido.delivery_id}`}
-                              >
-                                Ver
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="bg-white max-w-3xl max-h-[90vh] overflow-y-auto">
+                          <div className="flex items-center justify-center gap-1">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs h-7 border-gray-200"
+                                  onClick={() => {
+                                    setSelectedPedido(pedido);
+                                    fetchPedidoDetails(pedido.delivery_id);
+                                  }}
+                                  data-testid={`view-pedido-${pedido.delivery_id}`}
+                                >
+                                  Ver
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="bg-white max-w-3xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle className="text-gray-900 flex items-center gap-3">
                                   Pedido #{selectedPedido?.delivery_code}
