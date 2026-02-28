@@ -391,8 +391,6 @@ async function capturarTelefoneViaFluxo(page) {
         }
         
         console.log(`📞 [TELEFONE] ✓ Selecionou opção (${clicouEntregador.method})`);
-
-        console.log('📞 [TELEFONE] ✓ Selecionou "O entregador não encontra o cliente"');
         await sleep(1);
 
         // PASSO 5: Clicar em "Confirmar"
