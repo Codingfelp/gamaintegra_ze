@@ -339,18 +339,10 @@ async function atualizarStatusDireto(deliveryCode, statusCode, token, entregador
     sql += ` WHERE delivery_code = '${deliveryCode}' AND delivery_ide_hub_delivery = '${token}' LIMIT 1`;
     const result = await executarSQL(sql);
     
-    // PUSH IMEDIATO: Enviar atualização de status para Supabase
-    if (supabasePush) {
-        try {
-            supabasePush.queueOrderForPush({
-                delivery_code: deliveryCode,
-                delivery_status: statusCode,
-                delivery_email_entregador: entregador || null
-            });
-        } catch (e) {
-            console.log('⚠️ Push para Supabase falhou:', e.message);
-        }
-    }
+    // PUSH IMEDIATO: NÃO enviar push aqui - apenas atualização de status
+    // O sync-cron.js vai enviar os dados completos
+    // Isso evita sobrescrever dados completos com dados parciais
+    console.log(`📝 [STATUS] Pedido ${deliveryCode} atualizado para status ${statusCode}`);
     
     return result;
 }
