@@ -10,13 +10,13 @@ $DB = new Database();
 $FE = new Ferraments();
 $ide = addslashes($_GET['ide']);
 
-// PRIORIDADE 0 (MAIS ALTA): Pedidos EM ROTA (status 3) sem telefone - CAPTURAR URGENTE!
-// Telefone só pode ser capturado via modal quando pedido está A CAMINHO (status 3)
+// PRIORIDADE 0 (MAIS ALTA): Pedidos ACEITOS (status 2) sem telefone - CAPTURAR URGENTE!
+// Telefone pode ser capturado na coluna "Em separação" (status 2)
 $read_pedido_urgente = $DB->ReadComposta("
     SELECT d.delivery_code 
     FROM delivery d
     WHERE d.delivery_ide_hub_delivery = '".$ide."'
-    AND d.delivery_status = 3
+    AND d.delivery_status = 2
     AND (d.delivery_telefone IS NULL OR d.delivery_telefone = '' OR d.delivery_telefone = '0')
     AND d.delivery_trash = 0
     AND d.delivery_date_time >= DATE_SUB(NOW(), INTERVAL 4 HOUR)
