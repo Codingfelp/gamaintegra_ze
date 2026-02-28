@@ -293,53 +293,104 @@ async function capturarTelefoneViaFluxo(page) {
         await sleep(2);
         try { await page.screenshot({ path: '/app/logs/telefone-modal-aberto.png' }); } catch(e) {}
 
-        // PASSO 3: Clicar em "Problemas com a entrega"
-        const clicouProblemas = await page.evaluate(() => {
-            const el = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM > div');
-            if (el) { el.click(); return true; }
+        // PASSO 3: Clicar em "Problemas com a entrega" - COM RETRY
+        let accordionExpanded = false;
+        const maxAttempts = 3;
+        
+        for (let attempt = 1; attempt <= maxAttempts && !accordionExpanded; attempt++) {
+            console.log(`📞 [TELEFONE] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
             
-            // Fallback por texto
-            for (const div of document.querySelectorAll('div, label, li')) {
-                if (div.textContent.trim().toLowerCase().includes('problemas com a entrega')) {
-                    div.click(); return true;
+            const clicouProblemas = await page.evaluate(() => {
+                // Estratégia 1: Buscar pelo ID específico
+                const el = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM > div');
+                if (el) { el.click(); return { success: true, method: 'by_id' }; }
+                
+                // Estratégia 2: Clicar no container do ID
+                const container = document.querySelector('#REASON_CATEGORY_DELIVERY_PROBLEM');
+                if (container) { container.click(); return { success: true, method: 'container' }; }
+                
+                // Fallback por texto
+                for (const div of document.querySelectorAll('div, label, li, span')) {
+                    const text = div.textContent?.trim();
+                    if (text === 'Problemas com a entrega') {
+                        const clickTarget = div.parentElement || div;
+                        clickTarget.click();
+                        return { success: true, method: 'text_match' };
+                    }
                 }
-            }
-            return false;
-        });
+                return { success: false };
+            });
 
-        if (!clicouProblemas) {
-            console.log('📞 [TELEFONE] Opção "Problemas com a entrega" não encontrada');
-            try { await page.screenshot({ path: '/app/logs/telefone-sem-problemas.png' }); } catch(e) {}
+            if (!clicouProblemas.success) {
+                console.log('📞 [TELEFONE] Opção "Problemas com a entrega" não encontrada');
+                try { await page.screenshot({ path: '/app/logs/telefone-sem-problemas.png' }); } catch(e) {}
+                continue;
+            }
+
+            console.log(`📞 [TELEFONE] ✓ Clicou em "Problemas com a entrega" (${clicouProblemas.method})`);
+            await sleep(2 + attempt); // Aguardar mais tempo em cada tentativa
+            
+            // Verificar se o accordion expandiu
+            const expansionCheck = await page.evaluate(() => {
+                const radio = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
+                const bodyText = document.body.innerText.toLowerCase();
+                const hasText = bodyText.includes('entregador não encontra') || 
+                               bodyText.includes('entregador nao encontra');
+                return { expanded: !!radio || hasText, foundById: !!radio };
+            });
+            
+            if (expansionCheck.expanded) {
+                console.log(`📞 [TELEFONE] ✓ Accordion expandiu na tentativa ${attempt}!`);
+                accordionExpanded = true;
+            } else {
+                console.log(`📞 [TELEFONE] ⚠️ Accordion não expandiu na tentativa ${attempt}`);
+            }
+        }
+
+        if (!accordionExpanded) {
+            console.log('📞 [TELEFONE] ❌ Não foi possível expandir o accordion');
+            try { await page.screenshot({ path: '/app/logs/telefone-accordion-fail.png' }); } catch(e) {}
             await page.keyboard.press('Escape');
             return '';
         }
 
-        console.log('📞 [TELEFONE] ✓ Expandiu "Problemas com a entrega"');
-        await sleep(2);
-
         // PASSO 4: Clicar no radio "O entregador não encontra o cliente"
         const clicouEntregador = await page.evaluate(() => {
+            // Estratégia 1: Buscar pelo ID
             const radio = document.querySelector('#REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER');
-            if (radio) { radio.click(); return true; }
+            if (radio) { radio.click(); return { success: true, method: 'by_id' }; }
 
+            // Estratégia 2: Buscar label pelo for
             const label = document.querySelector('label[for="REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER"]');
-            if (label) { label.click(); return true; }
+            if (label) { label.click(); return { success: true, method: 'label_for' }; }
 
-            // Fallback por texto
-            for (const el of document.querySelectorAll('label, div, span, input[type="radio"]')) {
-                if (el.textContent.trim().toLowerCase().includes('não encontra o cliente')) {
-                    el.click(); return true;
+            // Estratégia 3: Buscar input por ID parcial
+            const inputs = document.querySelectorAll('input[type="radio"]');
+            for (const input of inputs) {
+                if (input.id?.toLowerCase().includes('delivery') && input.id?.toLowerCase().includes('find')) {
+                    input.click();
+                    return { success: true, method: 'partial_id' };
                 }
             }
-            return false;
+
+            // Fallback por texto
+            for (const el of document.querySelectorAll('label, div, span, li')) {
+                const text = el.textContent?.trim().toLowerCase();
+                if (text && text.includes('não encontra o cliente')) {
+                    el.click(); return { success: true, method: 'text_match' };
+                }
+            }
+            return { success: false };
         });
 
-        if (!clicouEntregador) {
+        if (!clicouEntregador.success) {
             console.log('📞 [TELEFONE] Radio "entregador não encontra" não encontrado');
             try { await page.screenshot({ path: '/app/logs/telefone-sem-radio.png' }); } catch(e) {}
             await page.keyboard.press('Escape');
             return '';
         }
+        
+        console.log(`📞 [TELEFONE] ✓ Selecionou opção (${clicouEntregador.method})`);
 
         console.log('📞 [TELEFONE] ✓ Selecionou "O entregador não encontra o cliente"');
         await sleep(1);
