@@ -1,15 +1,24 @@
-2026/02/28-00:14:24.958 253a Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
-2026/02/28-00:14:24.968 253a Recovering log #439
-2026/02/28-00:14:24.972 253a Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/000439.log 
-2026/02/28-00:22:26.282 2543 Level-0 table #443: started
-2026/02/28-00:22:26.288 2543 Level-0 table #443: 21053 bytes OK
-2026/02/28-00:22:26.292 2543 Delete type=0 #439
-2026/02/28-00:22:26.294 2543 Compacting 4@0 + 1@1 files
-2026/02/28-00:22:26.302 2543 Generated table #444@0: 46 keys, 5223 bytes
-2026/02/28-00:22:26.303 2543 Compacted 4@0 + 1@1 files => 5223 bytes
-2026/02/28-00:22:26.304 2543 compacted to: files[ 0 1 1 0 0 0 0 ]
-2026/02/28-00:22:26.305 2543 Delete type=2 #433
-2026/02/28-00:22:26.305 2543 Delete type=2 #443
-2026/02/28-00:22:26.305 2543 Delete type=2 #435
-2026/02/28-00:22:26.305 2543 Delete type=2 #440
-2026/02/28-00:22:26.305 2543 Delete type=2 #438
+2026/02/28-00:36:21.820 3a3a Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
+2026/02/28-00:36:21.824 3a3a Recovering log #442
+2026/02/28-00:36:21.827 3a3a Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/000442.log 
+2026/02/28-00:40:22.639 3a3a Level-0 table #447: started
+2026/02/28-00:40:22.643 3a3a Level-0 table #447: 23162 bytes OK
+2026/02/28-00:40:22.645 3a3a Delete type=0 #442
+2026/02/28-00:58:22.629 3a3f Level-0 table #449: started
+2026/02/28-00:58:22.632 3a3f Level-0 table #449: 23009 bytes OK
+2026/02/28-00:58:22.642 3a3f Delete type=0 #446
+2026/02/28-01:18:22.629 3a3f Level-0 table #451: started
+2026/02/28-01:18:22.632 3a3f Level-0 table #451: 22773 bytes OK
+2026/02/28-01:18:22.637 3a3f Delete type=0 #448
+2026/02/28-01:37:22.630 3a3a Level-0 table #453: started
+2026/02/28-01:37:22.634 3a3a Level-0 table #453: 23318 bytes OK
+2026/02/28-01:37:22.642 3a3a Delete type=0 #450
+2026/02/28-01:37:22.644 3a3f Compacting 4@0 + 1@1 files
+2026/02/28-01:37:22.653 3a3f Generated table #454@0: 46 keys, 5244 bytes
+2026/02/28-01:37:22.653 3a3f Compacted 4@0 + 1@1 files => 5244 bytes
+2026/02/28-01:37:22.654 3a3f compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/02/28-01:37:22.655 3a3f Delete type=2 #453
+2026/02/28-01:37:22.655 3a3f Delete type=2 #447
+2026/02/28-01:37:22.655 3a3f Delete type=2 #451
+2026/02/28-01:37:22.655 3a3f Delete type=2 #444
+2026/02/28-01:37:22.655 3a3f Delete type=2 #449

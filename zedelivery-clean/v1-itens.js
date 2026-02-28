@@ -1542,10 +1542,25 @@ async function itensScript(page) {
                     return '';
                 });
                 
-                // Se não encontrou telefone visível, usar o fluxo do modal
+                // Se não encontrou telefone visível, usar NOVO fluxo via poc-orders
                 if (!customerPhone || customerPhone.length < 10) {
-                    console.log('📞 [TELEFONE] Telefone não visível, executando fluxo do modal...');
-                    customerPhone = await capturarTelefoneViaFluxo(page);
+                    console.log('📞 [TELEFONE] Telefone não visível, usando fluxo poc-orders...');
+                    
+                    // Extrair ID do pedido 
+                    const orderId = id_pedido_info.replace(/\s+/g, '');
+                    
+                    // Usar novo módulo de captura via poc-orders
+                    customerPhone = await phoneCapture.capturarTelefonePocOrders(page, orderId);
+                    
+                    // Voltar para página de detalhes do pedido após captura
+                    if (customerPhone) {
+                        console.log('📞 [TELEFONE] Voltando para página de detalhes...');
+                        await page.goto(`https://seu.ze.delivery/order/${orderId}`, {
+                            waitUntil: 'networkidle2',
+                            timeout: 30000
+                        });
+                        await sleep(2);
+                    }
                 } else {
                     console.log('📞 [TELEFONE] Telefone já visível:', customerPhone);
                 }
@@ -1558,7 +1573,9 @@ async function itensScript(page) {
                 }
                 
                 console.log(`📞 Telefone capturado: ${customerPhone || '(vazio)'}`);
-
+                if (!customerPhone) {
+                    console.log('📞 ⚠️ AVISO: Telefone não capturado para este pedido');
+                }
                 // Capturar nome do entregador
                 let entregador = await capturarEntregador(page);
                 console.log('Entregador:', entregador || '(não encontrado)');
