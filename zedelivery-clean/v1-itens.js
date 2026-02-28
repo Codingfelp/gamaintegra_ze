@@ -6,7 +6,7 @@ const phpBridge = require('./php-bridge');
 const sessionManager = require('./session-manager');
 const integrationLogger = require('./integration-logger');
 const updateController = require('./update-controller');
-const phoneCapture = require('./phone-capture');
+const phoneCapture = require('./phone-capture-v2'); // V2 - Módulo atualizado
 
 // ============== CONFIGURAÇÃO DE OPERAÇÃO 24/7 ==============
 // Estratégia: Reiniciar automaticamente a cada 4 horas para evitar memory leaks
