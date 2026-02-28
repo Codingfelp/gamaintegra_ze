@@ -192,32 +192,48 @@ async function capturarTelefonePocOrders(page, orderId) {
         
         // Verificar se ainda estamos no modal verificando elementos específicos
         const modalCheck = await page.evaluate(() => {
+            // Buscar especificamente por textos que indicam que o accordion expandiu
             const bodyText = document.body.innerText.toLowerCase();
-            const hasModal = bodyText.includes('motivo') || 
-                            bodyText.includes('entregador') || 
-                            bodyText.includes('problema no pagamento') ||
-                            bodyText.includes('qual é o motivo');
             
-            // Contar quantos textos relevantes existem
-            const relevantTexts = [];
-            document.querySelectorAll('*').forEach(el => {
-                const t = el.textContent?.trim().toLowerCase();
-                if (t && (t.includes('entregador') || t.includes('cliente') || t.includes('problema'))) {
-                    if (!relevantTexts.includes(t)) relevantTexts.push(t);
+            // Estes textos indicam que estamos no modal E o accordion expandiu
+            const hasEntregadorOption = bodyText.includes('entregador não encontra') ||
+                                       bodyText.includes('o entregador não encontra');
+            const hasProblemaEntrega = bodyText.includes('problemas com a entrega');
+            
+            // Buscar textos visíveis (não scripts)
+            const visibleTexts = [];
+            document.querySelectorAll('span, p, div, label, h4, h5, li').forEach(el => {
+                // Verificar se elemento está visível
+                const style = window.getComputedStyle(el);
+                if (style.display !== 'none' && style.visibility !== 'hidden' && el.offsetParent !== null) {
+                    const t = el.textContent?.trim();
+                    if (t && t.length > 3 && t.length < 100 && !t.includes('function') && !t.includes('script')) {
+                        if (!visibleTexts.includes(t)) visibleTexts.push(t);
+                    }
                 }
             });
             
-            return { hasModal, relevantCount: relevantTexts.length, sample: relevantTexts.slice(0, 10) };
+            return { 
+                hasModal: hasProblemaEntrega, 
+                hasEntregadorOption,
+                visibleTexts: visibleTexts.slice(0, 15) 
+            };
         });
         
-        console.log(`📞 Modal check: hasModal=${modalCheck.hasModal}, relevantCount=${modalCheck.relevantCount}`);
-        if (modalCheck.sample?.length > 0) {
-            console.log('📞 Textos relevantes:', modalCheck.sample.slice(0, 5));
+        console.log(`📞 Modal check: hasModal=${modalCheck.hasModal}, hasEntregadorOption=${modalCheck.hasEntregadorOption}`);
+        if (modalCheck.visibleTexts?.length > 0) {
+            console.log('📞 Textos visíveis:', modalCheck.visibleTexts.slice(0, 8));
         }
         
-        if (!modalCheck.hasModal || modalCheck.relevantCount < 2) {
-            console.log('📞 ❌ Modal parece ter fechado ou não expandiu corretamente');
+        // Se o accordion já expandiu e tem a opção do entregador, pular para o passo 3
+        if (modalCheck.hasEntregadorOption) {
+            console.log('📞 ✓ Accordion já expandiu, opção do entregador visível');
+        } else if (!modalCheck.hasModal) {
+            console.log('📞 ❌ Modal parece ter fechado');
             return '';
+        } else {
+            console.log('📞 ⚠️ Modal aberto mas opção do entregador ainda não visível, aguardando mais...');
+            await sleep(2);
         }
         
         // PASSO 3: Clicar em "O entregador não encontra o cliente"
