@@ -76,30 +76,19 @@ async function capturarTelefonePocOrders(page, orderId) {
         // PASSO 2: Verificar se modal de motivo abriu e clicar em "Problemas com a entrega"
         console.log('📞 [PASSO 2] Buscando modal de motivo...');
         
+        // Aguardar modal aparecer
+        await sleep(2);
+        
         const motivoClicked = await page.evaluate(() => {
-            // Buscar texto "Problemas com a entrega" no modal
-            const allElements = document.querySelectorAll('*');
+            // Buscar por div/span que contém "Problemas com a entrega"
+            const allElements = document.querySelectorAll('div, span, p, h4, label');
             for (const el of allElements) {
                 const text = el.textContent?.trim();
                 if (text === 'Problemas com a entrega') {
-                    // Clicar no elemento pai que expande o accordion
-                    const clickable = el.closest('[class*="accordion"]') || el.closest('[class*="clickable"]') || el.parentElement || el;
-                    clickable.click();
-                    return { success: true };
+                    el.click();
+                    return { success: true, tag: el.tagName };
                 }
             }
-            
-            // Tentar por span/p/div diretamente
-            for (const tag of ['span', 'p', 'div', 'h4', 'h5']) {
-                const elements = document.querySelectorAll(tag);
-                for (const el of elements) {
-                    if (el.textContent?.trim() === 'Problemas com a entrega') {
-                        el.click();
-                        return { success: true, tag };
-                    }
-                }
-            }
-            
             return { success: false, reason: 'motivo_not_found' };
         });
         
@@ -110,85 +99,53 @@ async function capturarTelefonePocOrders(page, orderId) {
         }
         
         console.log('📞 ✓ "Problemas com a entrega" clicado');
-        await sleep(1.5);
+        
+        // Aguardar accordion expandir COMPLETAMENTE
+        await sleep(2.5);
         
         // PASSO 3: Clicar em "O entregador não encontra o cliente"
         console.log('📞 [PASSO 3] Buscando opção "O entregador não encontra o cliente"...');
         
-        // Aguardar o accordion expandir completamente
-        await sleep(1.5);
-        
         const opcaoClicked = await page.evaluate(() => {
-            // ESTRATÉGIA 1: Buscar texto exato em qualquer elemento
-            const textos = [
-                'O entregador não encontra o cliente',
-                'entregador não encontra o cliente'
-            ];
+            // Buscar todos elementos de texto que contêm "entregador não encontra"
+            const allElements = document.querySelectorAll('div, span, p, label, li');
             
-            for (const texto of textos) {
-                // Buscar em todos elementos de texto
-                const walker = document.createTreeWalker(
-                    document.body,
-                    NodeFilter.SHOW_TEXT,
-                    null,
-                    false
-                );
-                
-                while (walker.nextNode()) {
-                    const node = walker.currentNode;
-                    if (node.textContent.trim().toLowerCase().includes(texto.toLowerCase())) {
-                        // Encontrou! Clicar no elemento pai
-                        const parent = node.parentElement;
-                        if (parent) {
-                            // Subir até encontrar elemento clicável
-                            let clickTarget = parent;
-                            for (let i = 0; i < 5 && clickTarget; i++) {
-                                if (clickTarget.tagName === 'LABEL' || 
-                                    clickTarget.tagName === 'INPUT' ||
-                                    clickTarget.tagName === 'BUTTON' ||
-                                    clickTarget.onclick ||
-                                    clickTarget.getAttribute('role') === 'button' ||
-                                    clickTarget.classList.contains('clickable')) {
-                                    break;
-                                }
-                                clickTarget = clickTarget.parentElement;
-                            }
-                            clickTarget = clickTarget || parent;
-                            clickTarget.click();
-                            return { success: true, element: clickTarget.tagName, text: texto };
-                        }
-                    }
-                }
-            }
-            
-            // ESTRATÉGIA 2: Buscar por elementos que contêm o texto
-            const allElements = document.querySelectorAll('label, span, p, div, li');
             for (const el of allElements) {
                 const text = el.textContent?.trim().toLowerCase();
-                if (text && text.includes('entregador não encontra')) {
+                // Match exato ou parcial
+                if (text === 'o entregador não encontra o cliente' || 
+                    text === 'entregador não encontra o cliente' ||
+                    (text && text.includes('entregador') && text.includes('não encontra'))) {
+                    
+                    console.log('Encontrado:', text);
                     el.click();
-                    return { success: true, element: el.tagName, method: 'querySelectorAll' };
+                    return { success: true, element: el.tagName, text: text.substring(0, 50) };
                 }
             }
             
-            // ESTRATÉGIA 3: Clicar no primeiro radio dentro da seção expandida de "Problemas com a entrega"
-            const radioInputs = document.querySelectorAll('input[type="radio"]');
-            for (const radio of radioInputs) {
-                const label = radio.closest('label') || document.querySelector(`label[for="${radio.id}"]`);
-                if (label) {
-                    const labelText = label.textContent?.toLowerCase() || '';
-                    if (labelText.includes('entregador') || labelText.includes('não encontra')) {
-                        radio.click();
-                        return { success: true, element: 'radio', id: radio.id };
+            // Fallback: buscar qualquer elemento clicável na área expandida
+            const accordionContent = document.querySelector('[class*="accordion"]') || 
+                                     document.querySelector('[class*="expandable"]') ||
+                                     document.querySelector('[class*="collapse"]');
+            if (accordionContent) {
+                const items = accordionContent.querySelectorAll('div, span, label');
+                for (const item of items) {
+                    const t = item.textContent?.toLowerCase() || '';
+                    if (t.includes('entregador')) {
+                        item.click();
+                        return { success: true, element: 'accordion_item' };
                     }
                 }
             }
             
-            return { success: false };
+            return { success: false, availableTexts: [...document.querySelectorAll('*')].slice(0, 100).map(e => e.textContent?.trim()).filter(t => t && t.length > 5 && t.length < 60).slice(0, 20) };
         });
         
         if (!opcaoClicked.success) {
             console.log('📞 ❌ Opção "O entregador não encontra o cliente" não encontrada');
+            if (opcaoClicked.availableTexts) {
+                console.log('📞 Textos disponíveis:', opcaoClicked.availableTexts.slice(0, 10));
+            }
             // Tirar screenshot para debug
             try {
                 await page.screenshot({ path: '/app/logs/phone-debug-step3.png', fullPage: false });
