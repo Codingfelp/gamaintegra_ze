@@ -360,7 +360,7 @@ curl -X POST http://localhost:8001/api/webhook/confirmar-retirada \
   -d '{"order_id": "472230265", "code": "1234"}'
 ```
 
-**Documentação completa**: `/docs/API_SISTEMA_EXTERNO.md`
+**Documentação completa**: `/docs/API.md`
 
 ---
 
