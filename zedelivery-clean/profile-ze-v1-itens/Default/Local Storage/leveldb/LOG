@@ -22,3 +22,15 @@
 2026/03/02-04:43:09.402 3cb8 Level-0 table #571: started
 2026/03/02-04:43:09.405 3cb8 Level-0 table #571: 20394 bytes OK
 2026/03/02-04:43:09.408 3cb8 Delete type=0 #568
+2026/03/02-05:00:09.403 3cb8 Level-0 table #573: started
+2026/03/02-05:00:09.407 3cb8 Level-0 table #573: 20787 bytes OK
+2026/03/02-05:00:09.410 3cb8 Delete type=0 #570
+2026/03/02-05:00:09.413 3cb8 Compacting 4@0 + 1@1 files
+2026/03/02-05:00:09.423 3cb8 Generated table #574@0: 46 keys, 5218 bytes
+2026/03/02-05:00:09.423 3cb8 Compacted 4@0 + 1@1 files => 5218 bytes
+2026/03/02-05:00:09.427 3cb8 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/03/02-05:00:09.427 3cb8 Delete type=2 #565
+2026/03/02-05:00:09.428 3cb8 Delete type=2 #571
+2026/03/02-05:00:09.428 3cb8 Delete type=2 #573
+2026/03/02-05:00:09.428 3cb8 Delete type=2 #567
+2026/03/02-05:00:09.428 3cb8 Delete type=2 #569
