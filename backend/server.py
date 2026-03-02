@@ -17,6 +17,14 @@ import time
 import threading
 from dotenv import load_dotenv
 
+# Importar módulo de webhooks
+from webhook_module import (
+    get_webhook_config, save_webhook_config, get_pedido_completo,
+    enviar_webhook, webhook_pedido_novo, webhook_pedido_status,
+    webhook_pedido_detalhes, webhook_retirada_pendente,
+    get_pedidos_desde, get_pedidos_por_status, STATUS_MAP
+)
+
 # Carregar variáveis de ambiente do arquivo .env (com caminho explícito)
 env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 if os.path.exists(env_path):
