@@ -1,23 +1,33 @@
 /**
- * Phone Capture Module v3 - Captura telefone do cliente
+ * =============================================================================
+ * MÓDULO DE CAPTURA DE TELEFONE - VERSÃO 3
+ * =============================================================================
  * 
- * FLUXO (baseado nos HTMLs fornecidos em 2026-03-02):
+ * Este módulo é responsável por extrair o telefone do cliente através do
+ * fluxo de modal do Zé Delivery.
+ * 
+ * FLUXO DE CAPTURA:
  * 1. Pedido aceito presente na coluna "EM SEPARAÇÃO" no kanban
- * 2. Procurar elemento do botão de telefone (ícone de telefone + primeiro nome do cliente)
- * 3. Clicar no botão para abrir modal de motivo ("Qual é o motivo para o contato com o cliente?")
- * 4. Modal aberto, procurar "Problemas com a entrega" na seleção para expandir opções
- * 5. Opções expandidas, procurar "O entregador não encontra o cliente" (primeira opção)
- * 6. Clicar na opção selecionada
- * 7. Encontrar e clicar no botão "Confirmar"
- * 8. Verificar se modal de "Dados para contato" abriu
- * 9. Capturar número abaixo de "Ligue para"
+ * 2. Procurar elemento do botão de telefone (ícone de telefone + nome do cliente)
+ * 3. Clicar no botão para abrir modal "Qual é o motivo para o contato?"
+ * 4. Modal aberto, selecionar "Problemas com a entrega" para expandir opções
+ * 5. Selecionar "O entregador não encontra o cliente" (primeira opção)
+ * 6. Clicar no botão "Confirmar"
+ * 7. Modal de "Dados para contato" abre com o telefone
+ * 8. Capturar número abaixo de "Ligue para"
  * 
- * SELETORES IDENTIFICADOS:
+ * SELETORES CSS UTILIZADOS:
  * - Coluna Em Separação: #kanban-column-body-in-separation-orders
  * - Modal de telefone: #view-consumer-phone-modals
  * - Problemas com entrega: #REASON_CATEGORY_DELIVERY_PROBLEM
  * - Entregador não encontra: #REASON_ITEM_DELIVERY_DOES_NOT_FIND_THE_CUSTOMER
  * - Botão confirmar: hexa-v2-button com texto "Confirmar"
+ * 
+ * IMPORTANTE: Os seletores podem mudar quando o Zé Delivery atualizar o site.
+ * Se a captura parar de funcionar, é necessário inspecionar o HTML do site
+ * e atualizar os seletores neste arquivo.
+ * 
+ * =============================================================================
  */
 
 const fs = require('fs');
