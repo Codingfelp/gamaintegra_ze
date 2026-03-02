@@ -22,9 +22,6 @@ Antes de começar, certifique-se de ter instalado:
 git clone https://github.com/SEU_USUARIO/integrador-ze-delivery.git
 cd integrador-ze-delivery
 ```
-
----
-
 ## Passo 2: Configurar Banco de Dados
 
 O banco MySQL está hospedado no Railway (nuvem). Não é necessário instalar MySQL localmente.

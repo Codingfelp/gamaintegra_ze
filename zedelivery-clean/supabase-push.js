@@ -10,8 +10,8 @@ const fs = require('fs');
 const path = require('path');
 
 // Configuração do Supabase
-const SUPABASE_URL = process.env.LOVABLE_SUPABASE_URL || 'https://uppkjvovtvlgwfciqrbt.supabase.co';
-const ZE_SYNC_KEY = process.env.LOVABLE_ZE_SYNC_KEY || 'ze-sync-2026-mmjjzahms6m1lxfwomn0q25kquc7eun8';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://uppkjvovtvlgwfciqrbt.supabase.co';
+const ZE_SYNC_KEY = process.env.ZE_SYNC_KEY || 'ze-sync-2026-mmjjzahms6m1lxfwomn0q25kquc7eun8';
 
 // Fila de pedidos para envio em batch (evita muitas requisições)
 let pendingOrders = [];

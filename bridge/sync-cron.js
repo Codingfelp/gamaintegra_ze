@@ -425,11 +425,11 @@ async function syncToLovable() {
     console.log(`📦 ${pedidosAlterados.length}/${pedidos.length} pedidos com alterações`);
 
     // Verificar configuração Lovable
-    const LOVABLE_URL = process.env.LOVABLE_SUPABASE_URL;
-    const LOVABLE_KEY = process.env.LOVABLE_ZE_SYNC_KEY;
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SYNC_KEY = process.env.ZE_SYNC_KEY;
     const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!LOVABLE_URL) {
+    if (!SUPABASE_URL) {
       console.log('⚠️  Lovable Cloud não configurado');
       fs.writeFileSync('/app/logs/sync-debug.json', JSON.stringify(pedidosAlterados, null, 2));
       return;
@@ -451,21 +451,21 @@ async function syncToLovable() {
 
     // Salvar debug
     fs.writeFileSync('/app/logs/sync-payload.json', JSON.stringify(payload, null, 2));
-    console.log(`📤 Enviando ${pedidosAlterados.length} pedidos para ${LOVABLE_URL}...`);
+    console.log(`📤 Enviando ${pedidosAlterados.length} pedidos para ${SUPABASE_URL}...`);
     
     // Tentar Edge Function primeiro
     let syncSuccess = false;
     
-    if (LOVABLE_KEY) {
+    if (SYNC_KEY) {
       try {
         const response = await fetch(
-          `${LOVABLE_URL}/functions/v1/ze-sync-mysql`,
+          `${SUPABASE_URL}/functions/v1/ze-sync-mysql`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${LOVABLE_KEY}`,
-              'x-api-key': LOVABLE_KEY,
+              'Authorization': `Bearer ${SYNC_KEY}`,
+              'x-api-key': SYNC_KEY,
             },
             body: JSON.stringify(payload),
           }

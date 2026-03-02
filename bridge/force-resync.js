@@ -187,10 +187,10 @@ async function forceResync() {
     });
 
     // Verificar configuração Lovable
-    const LOVABLE_URL = process.env.LOVABLE_SUPABASE_URL;
-    const LOVABLE_KEY = process.env.LOVABLE_ZE_SYNC_KEY;
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SYNC_KEY = process.env.ZE_SYNC_KEY;
 
-    if (!LOVABLE_URL || !LOVABLE_KEY) {
+    if (!SUPABASE_URL || !SYNC_KEY) {
       console.log('\n⚠️  Lovable Cloud não configurado');
       fs.writeFileSync('/app/logs/force-resync-payload.json', JSON.stringify(pedidosFormatados, null, 2));
       console.log('   Payload salvo em /app/logs/force-resync-payload.json');
@@ -216,12 +216,12 @@ async function forceResync() {
 
       try {
         const response = await fetch(
-          `${LOVABLE_URL}/functions/v1/ze-sync-mysql`,
+          `${SUPABASE_URL}/functions/v1/ze-sync-mysql`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${LOVABLE_KEY}`,
+              'Authorization': `Bearer ${SYNC_KEY}`,
             },
             body: JSON.stringify(payload),
           }

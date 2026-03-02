@@ -71,10 +71,10 @@ app.post('/sync', async (req, res) => {
     console.log(`📦 Sincronizando ${pedidos.length} pedidos...`);
     
     // Verificar se há configuração do Lovable
-    const LOVABLE_URL = process.env.LOVABLE_SUPABASE_URL;
-    const LOVABLE_KEY = process.env.LOVABLE_ZE_SYNC_KEY;
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SYNC_KEY = process.env.ZE_SYNC_KEY;
     
-    if (!LOVABLE_URL || !LOVABLE_KEY) {
+    if (!SUPABASE_URL || !SYNC_KEY) {
       console.log('⚠️ Lovable Cloud não configurado, retornando apenas dados locais');
       return res.json({ 
         success: true, 
@@ -87,12 +87,12 @@ app.post('/sync', async (req, res) => {
     
     // Enviar para Edge Function do Lovable
     const response = await fetch(
-      `${LOVABLE_URL}/functions/v1/ze-sync-mysql`,
+      `${SUPABASE_URL}/functions/v1/ze-sync-mysql`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${LOVABLE_KEY}`,
+          'Authorization': `Bearer ${SYNC_KEY}`,
         },
         body: JSON.stringify({ pedidos }),
       }
