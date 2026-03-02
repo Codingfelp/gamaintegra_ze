@@ -116,7 +116,7 @@ Desenvolvido para capturar pedidos, aceitar automaticamente, extrair informaçõ
 │
 ├── docs/                       # Documentação
 │   ├── API_INTEGRADOR.md     # Doc da API do integrador PHP
-│   ├── API_SISTEMA_EXTERNO.md # Doc da API para sistemas externos
+│   ├── API_SISTEMA_GAMATAURI.md # Doc da API para sistemas externos
 │   └── FLUXOS_IMPLEMENTADOS.md # Doc dos fluxos automatizados
 │
 └── docker/
