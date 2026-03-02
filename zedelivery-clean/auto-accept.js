@@ -33,7 +33,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @returns {Promise<Array>} - Lista de IDs de pedidos pendentes
  */
 async function getPendingOrders(page) {
-    console.log(' [AUTO-ACCEPT] Buscando pedidos pendentes na coluna "Novos"...');
+    console.log('[AUTO-ACCEPT] Buscando pedidos pendentes na coluna "Novos"...');
     
     try {
         const orders = await page.evaluate(() => {
@@ -116,7 +116,7 @@ async function acceptOrder(page, orderId) {
     
     try {
         // PASSO 1: Clicar no card do pedido para abrir modal
-        console.log(' [PASSO 1] Clicando no card do pedido...');
+        console.log('[PASSO 1] Clicando no card do pedido...');
         
         const cardClicked = await page.evaluate((id) => {
             const selectors = [
@@ -138,7 +138,7 @@ async function acceptOrder(page, orderId) {
         }, orderId);
         
         if (!cardClicked.success) {
-            console.log('  Card do pedido não encontrado');
+            console.log('Card do pedido não encontrado');
             return false;
         }
         
@@ -151,7 +151,7 @@ async function acceptOrder(page, orderId) {
         } catch (e) {}
         
         // PASSO 2: Verificar se modal abriu
-        console.log(' [PASSO 2] Verificando se modal abriu...');
+        console.log('[PASSO 2] Verificando se modal abriu...');
         
         const modalState = await page.evaluate(() => {
             const modalSelectors = [
@@ -181,11 +181,11 @@ async function acceptOrder(page, orderId) {
         });
         
         if (!modalState.modalOpen) {
-            console.log('  Modal não detectado, tentando continuar...');
+            console.log('Modal não detectado, tentando continuar...');
         }
         
         // PASSO 3: Clicar no botão "Aceitar"
-        console.log(' [PASSO 3] Clicando no botão "Aceitar"...');
+        console.log('[PASSO 3] Clicando no botão "Aceitar"...');
         
         const acceptClicked = await page.evaluate(() => {
             // Estratégia 1: Buscar por ID/data-testid
@@ -240,7 +240,7 @@ async function acceptOrder(page, orderId) {
         });
         
         if (!acceptClicked.success) {
-            console.log('  Botão "Aceitar" não encontrado');
+            console.log('Botão "Aceitar" não encontrado');
             try {
                 await page.screenshot({ path: `/app/logs/accept-no-button-${orderId}.png`, fullPage: false });
             } catch (e) {}
@@ -256,7 +256,7 @@ async function acceptOrder(page, orderId) {
         } catch (e) {}
         
         // PASSO 4: Verificar se pedido foi aceito (não está mais na coluna de novos)
-        console.log(' [PASSO 4] Verificando se pedido foi aceito...');
+        console.log('[PASSO 4] Verificando se pedido foi aceito...');
         
         const verifyResult = await page.evaluate((id) => {
             // Verificar se o card ainda está na coluna de novos
@@ -290,7 +290,7 @@ async function acceptOrder(page, orderId) {
         return false;
         
     } catch (error) {
-        console.error(`  Erro ao aceitar pedido #${orderId}:`, error.message);
+        console.error(`Erro ao aceitar pedido #${orderId}:`, error.message);
         return false;
     }
 }
@@ -301,7 +301,7 @@ async function acceptOrder(page, orderId) {
  * @returns {Promise<Object>} - Resultado com pedidos aceitos e falhas
  */
 async function runAutoAccept(page) {
-    console.log(' [AUTO-ACCEPT] Iniciando fluxo de aceite automático...');
+    console.log('[AUTO-ACCEPT] Iniciando fluxo de aceite automático...');
     
     const results = {
         accepted: [],
@@ -322,7 +322,7 @@ async function runAutoAccept(page) {
         const pendingOrders = await getPendingOrders(page);
         
         if (pendingOrders.length === 0) {
-            console.log('  Nenhum pedido pendente encontrado');
+            console.log('Nenhum pedido pendente encontrado');
             return results;
         }
         
