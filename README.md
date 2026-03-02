@@ -171,7 +171,7 @@ npm install -g yarn
 ### 1. Clonar o Repositório
 
 ```bash
-git clone https://github.com/SEU_USUARIO/integrador-ze-delivery.git
+git clone https://github.com/Codingfelp/gamaintegra_ze.git
 cd integrador-ze-delivery
 ```
 
