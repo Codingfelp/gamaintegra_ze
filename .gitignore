@@ -89,3 +89,7 @@ zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
 
 # Pasta do sistema
 .emergent/
+-e 
+# Environment files
+*.env
+*.env.*

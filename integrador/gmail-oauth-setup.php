@@ -84,7 +84,7 @@ $authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query([
     </style>
 </head>
 <body>
-    <h1>🔐 Gmail OAuth Setup</h1>
+    <h1> Gmail OAuth Setup</h1>
     
     <div class="step">
         <h3>Passo 1: Autorizar acesso ao Gmail</h3>
