@@ -73,7 +73,6 @@ MYSQL_PASSWORD=eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU
 MYSQL_DATABASE=railway
 EOF
 ```
-
 ### Testar Backend:
 
 ```bash
