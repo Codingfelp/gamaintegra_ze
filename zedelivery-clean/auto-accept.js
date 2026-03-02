@@ -1,16 +1,26 @@
 /**
- * Auto-Accept Module - Aceite automático de pedidos
+ * =============================================================================
+ * MÓDULO DE ACEITE AUTOMÁTICO DE PEDIDOS
+ * =============================================================================
  * 
- * FLUXO:
+ * Este módulo é responsável por aceitar automaticamente pedidos que chegam
+ * na coluna "Novos" do kanban do Zé Delivery.
+ * 
+ * FLUXO DE ACEITE:
  * 1. Pedido pendente chega na coluna "Novos" do kanban
- * 2. Clicar no card do pedido para abrir modal
- * 3. Modal aberto, procurar botão "Aceitar" e clicar
- * 4. Verificar se status mudou de "Pendente" para "Aceito"
+ * 2. Clicar no card do pedido para abrir o modal de detalhes
+ * 3. Modal aberto, procurar o botão "Aceitar" e clicar
+ * 4. Verificar se o status mudou de "Pendente" para "Aceito"
  * 
- * SELETORES IDENTIFICADOS:
+ * SELETORES CSS UTILIZADOS:
  * - Coluna novos: #kanban-column-body-new-orders
  * - Botão aceitar: #accept-button, [data-testid="accept-button"]
- * - Cards: .order-card, [id^="link-to-order-"]
+ * - Cards de pedido: [id^="link-to-order-"]
+ * 
+ * IMPORTANTE: Os seletores podem mudar quando o Zé Delivery atualizar o site.
+ * Se o aceite parar de funcionar, inspecione o HTML e atualize os seletores.
+ * 
+ * =============================================================================
  */
 
 const fs = require('fs');
