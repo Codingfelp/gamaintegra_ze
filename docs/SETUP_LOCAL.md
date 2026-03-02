@@ -83,7 +83,6 @@ uvicorn server:app --host 0.0.0.0 --port 8001 --reload
 curl http://localhost:8001/api/health
 # Deve retornar: {"status":"healthy"}
 ```
-
 ---
 
 ## Passo 4: Configurar Frontend (React)
