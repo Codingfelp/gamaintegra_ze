@@ -57,10 +57,10 @@ git push origin feature/nome-da-feature
 - Funções assíncronas com `async/await`
 - Comentários em português explicando a lógica
 - Console.log com emojis para facilitar leitura dos logs:
-  - 📞 para telefone
-  - ✅ para sucesso
-  - ❌ para erro
-  - 🔍 para busca
+  -  para telefone
+  -  para sucesso
+  -  para erro
+  -  para busca
 
 ### Python (Backend)
 - Siga PEP 8

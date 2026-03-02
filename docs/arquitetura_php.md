@@ -1,12 +1,12 @@
 # Arquitetura PHP do Sistema Zé Delivery
 
-## ⚠️ ARQUITETURA REFATORADA - PHP É CLI + GMAIL API
+## ARQUITETURA REFATORADA - PHP É CLI + GMAIL API
 
 **Data da última atualização:** 03/02/2026
 
 ---
 
-## 🎉 MIGRAÇÃO IMAP → GMAIL API CONCLUÍDA
+## MIGRAÇÃO IMAP → GMAIL API CONCLUÍDA
 
 ### Problema Anterior (IMAP)
 - `php-imap` é extensão problemática em containers
@@ -85,7 +85,7 @@ $GMAIL_CONFIG = [
 ];
 ```
 
-**⚠️ O refresh_token não expira** - uma vez obtido, funciona indefinidamente.
+** O refresh_token não expira** - uma vez obtido, funciona indefinidamente.
 
 ---
 
@@ -97,8 +97,7 @@ $GMAIL_CONFIG = [
 | IMAP trava em alguns containers   | REST API sempre funciona            |
 | Senha de app pode ser revogada    | OAuth 2.0 com refresh automático    |
 | Timeout de 60+ segundos           | Resposta em < 5 segundos            |
-| Preview OK, Produção falha        | Ambos funcionam igual               |
-
+| Preview OK, Produção falha        | Ambos funcionam igual               
 ---
 
 ## Arquivos Principais
