@@ -112,7 +112,6 @@ yarn start
 
 # Acessar http://localhost:3000 no navegador
 ```
-
 ---
 
 ## Passo 5: Configurar Scraper (Node.js/Puppeteer)

@@ -1,39 +1,5 @@
-2026/03/02-03:52:08.446 3cb8 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
-2026/03/02-03:52:08.453 3cb8 Recovering log #560
-2026/03/02-03:52:08.453 3cb8 Reusing old log /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/000560.log 
-2026/03/02-03:54:09.402 3cbb Level-0 table #564: started
-2026/03/02-03:54:09.405 3cbb Level-0 table #564: 23852 bytes OK
-2026/03/02-03:54:09.409 3cbb Delete type=0 #560
-2026/03/02-03:54:09.409 3cbb Compacting 4@0 + 1@1 files
-2026/03/02-03:54:09.412 3cbb Generated table #565@0: 46 keys, 5165 bytes
-2026/03/02-03:54:09.412 3cbb Compacted 4@0 + 1@1 files => 5165 bytes
-2026/03/02-03:54:09.416 3cbb compacted to: files[ 0 1 1 0 0 0 0 ]
-2026/03/02-03:54:09.417 3cbb Delete type=2 #554
-2026/03/02-03:54:09.417 3cbb Delete type=2 #561
-2026/03/02-03:54:09.417 3cbb Delete type=2 #556
-2026/03/02-03:54:09.417 3cbb Delete type=2 #559
-2026/03/02-03:54:09.417 3cbb Delete type=2 #564
-2026/03/02-04:11:09.402 3cb8 Level-0 table #567: started
-2026/03/02-04:11:09.406 3cb8 Level-0 table #567: 21417 bytes OK
-2026/03/02-04:11:09.409 3cb8 Delete type=0 #563
-2026/03/02-04:27:09.402 3cb8 Level-0 table #569: started
-2026/03/02-04:27:09.415 3cb8 Level-0 table #569: 20070 bytes OK
-2026/03/02-04:27:09.418 3cb8 Delete type=0 #566
-2026/03/02-04:43:09.402 3cb8 Level-0 table #571: started
-2026/03/02-04:43:09.405 3cb8 Level-0 table #571: 20394 bytes OK
-2026/03/02-04:43:09.408 3cb8 Delete type=0 #568
-2026/03/02-05:00:09.403 3cb8 Level-0 table #573: started
-2026/03/02-05:00:09.407 3cb8 Level-0 table #573: 20787 bytes OK
-2026/03/02-05:00:09.410 3cb8 Delete type=0 #570
-2026/03/02-05:00:09.413 3cb8 Compacting 4@0 + 1@1 files
-2026/03/02-05:00:09.423 3cb8 Generated table #574@0: 46 keys, 5218 bytes
-2026/03/02-05:00:09.423 3cb8 Compacted 4@0 + 1@1 files => 5218 bytes
-2026/03/02-05:00:09.427 3cb8 compacted to: files[ 0 1 1 0 0 0 0 ]
-2026/03/02-05:00:09.427 3cb8 Delete type=2 #565
-2026/03/02-05:00:09.428 3cb8 Delete type=2 #571
-2026/03/02-05:00:09.428 3cb8 Delete type=2 #573
-2026/03/02-05:00:09.428 3cb8 Delete type=2 #567
-2026/03/02-05:00:09.428 3cb8 Delete type=2 #569
-2026/03/02-05:17:09.402 3cbb Level-0 table #576: started
-2026/03/02-05:17:09.405 3cbb Level-0 table #576: 20994 bytes OK
-2026/03/02-05:17:09.407 3cbb Delete type=0 #572
+2026/03/02-07:51:59.400 2ff9 Reusing MANIFEST /app/zedelivery-clean/profile-ze-v1-itens/Default/Local Storage/leveldb/MANIFEST-000001
+2026/03/02-07:51:59.423 2ff9 Recovering log #575
+2026/03/02-07:51:59.425 2ff9 Level-0 table #578: started
+2026/03/02-07:51:59.430 2ff9 Level-0 table #578: 20806 bytes OK
+2026/03/02-07:51:59.433 2ff9 Delete type=0 #575
