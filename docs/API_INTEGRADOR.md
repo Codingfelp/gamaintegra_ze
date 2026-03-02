@@ -463,4 +463,4 @@ Password: eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU
 Database: railway
 ```
 
-**⚠️ ATENÇÃO:** Estas credenciais são de produção. Use com cuidado e não exponha publicamente.
+** ATENÇÃO:** Estas credenciais são de produção. Use com cuidado e não exponha publicamente.
