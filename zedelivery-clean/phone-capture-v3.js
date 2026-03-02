@@ -40,7 +40,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @returns {Promise<Array>} - Lista de pedidos
  */
 async function getOrdersInSeparation(page) {
-    console.log('📱 [PHONE-V3] Buscando pedidos na coluna "Em Separação"...');
+    console.log(' [PHONE-V3] Buscando pedidos na coluna "Em Separação"...');
     
     try {
         const orders = await page.evaluate(() => {
@@ -66,15 +66,15 @@ async function getOrdersInSeparation(page) {
         });
         
         if (orders.error) {
-            console.log(`📱 ⚠️ ${orders.error}`);
+            console.log(`  ${orders.error}`);
             return [];
         }
         
-        console.log(`📱 ✓ Encontrados ${orders.total} pedidos em separação`);
+        console.log(`  Encontrados ${orders.total} pedidos em separação`);
         return orders.orders;
         
     } catch (error) {
-        console.error('📱 ❌ Erro ao buscar pedidos:', error.message);
+        console.error('  Erro ao buscar pedidos:', error.message);
         return [];
     }
 }
@@ -87,11 +87,11 @@ async function getOrdersInSeparation(page) {
  * @returns {Promise<string>} - Telefone capturado ou string vazia
  */
 async function capturePhoneForOrder(page, orderId, customerName = '') {
-    console.log(`📞 [PHONE-V3] Iniciando captura para pedido #${orderId} (${customerName})`);
+    console.log(` [PHONE-V3] Iniciando captura para pedido #${orderId} (${customerName})`);
     
     try {
         // PASSO 1: Clicar no card do pedido na coluna Em Separação
-        console.log('📞 [PASSO 1] Clicando no card do pedido...');
+        console.log(' [PASSO 1] Clicando no card do pedido...');
         
         const cardClicked = await page.evaluate((id) => {
             const card = document.querySelector(`#link-to-order-${id}`);
@@ -103,14 +103,14 @@ async function capturePhoneForOrder(page, orderId, customerName = '') {
         }, orderId);
         
         if (!cardClicked.success) {
-            console.log('📞 ❌ Card do pedido não encontrado');
+            console.log('  Card do pedido não encontrado');
             return '';
         }
         
         await sleep(2000);
         
         // PASSO 2: Procurar botão de telefone (ícone + nome do cliente)
-        console.log('📞 [PASSO 2] Buscando botão de telefone...');
+        console.log(' [PASSO 2] Buscando botão de telefone...');
         
         const phoneButtonClicked = await page.evaluate(() => {
             // Estratégia 1: Buscar por ID específico
@@ -170,12 +170,12 @@ async function capturePhoneForOrder(page, orderId, customerName = '') {
         });
         
         if (!phoneButtonClicked.success) {
-            console.log('📞 ❌ Botão de telefone não encontrado');
+            console.log('  Botão de telefone não encontrado');
             try { await page.screenshot({ path: `/app/logs/phone-v3-no-btn-${orderId}.png` }); } catch(e) {}
             return '';
         }
         
-        console.log(`📞 ✓ Botão de telefone clicado via ${phoneButtonClicked.method}`);
+        console.log(`  Botão de telefone clicado via ${phoneButtonClicked.method}`);
         await sleep(2000);
         
         // Screenshot após clicar no botão
@@ -184,12 +184,12 @@ async function capturePhoneForOrder(page, orderId, customerName = '') {
         } catch (e) {}
         
         // PASSO 3: Verificar se modal de motivo abriu e clicar em "Problemas com a entrega"
-        console.log('📞 [PASSO 3] Procurando "Problemas com a entrega"...');
+        console.log(' [PASSO 3] Procurando "Problemas com a entrega"...');
         
         // Primeiro verificar se o telefone já está visível (pode pular modal)
         let phoneFound = await extractPhone(page);
         if (phoneFound) {
-            console.log(`📞 ✅ TELEFONE CAPTURADO DIRETAMENTE: ${phoneFound}`);
+            console.log(`  TELEFONE CAPTURADO DIRETAMENTE: ${phoneFound}`);
             await closeModal(page);
             return phoneFound;
         }
@@ -226,15 +226,15 @@ async function capturePhoneForOrder(page, orderId, customerName = '') {
         });
         
         if (!problemsClicked.success) {
-            console.log('📞 ⚠️ "Problemas com a entrega" não encontrado');
+            console.log('  "Problemas com a entrega" não encontrado');
         } else {
-            console.log(`📞 ✓ "Problemas com a entrega" clicado via ${problemsClicked.method}`);
+            console.log(`  "Problemas com a entrega" clicado via ${problemsClicked.method}`);
         }
         
         await sleep(1500);
         
         // PASSO 4: Clicar em "O entregador não encontra o cliente"
-        console.log('📞 [PASSO 4] Procurando "O entregador não encontra o cliente"...');
+        console.log(' [PASSO 4] Procurando "O entregador não encontra o cliente"...');
         
         const deliveryClicked = await page.evaluate(() => {
             // Estratégia 1: Buscar por ID específico
@@ -280,15 +280,15 @@ async function capturePhoneForOrder(page, orderId, customerName = '') {
         });
         
         if (!deliveryClicked.success) {
-            console.log('📞 ⚠️ "O entregador não encontra o cliente" não encontrado');
+            console.log('  "O entregador não encontra o cliente" não encontrado');
         } else {
-            console.log(`📞 ✓ Opção selecionada via ${deliveryClicked.method}`);
+            console.log(`  Opção selecionada via ${deliveryClicked.method}`);
         }
         
         await sleep(1000);
         
         // PASSO 5: Scroll leve e clicar em "Confirmar"
-        console.log('📞 [PASSO 5] Clicando em "Confirmar"...');
+        console.log(' [PASSO 5] Clicando em "Confirmar"...');
         
         // Scroll leve para garantir que o botão está visível
         await page.evaluate(() => {
@@ -335,9 +335,9 @@ async function capturePhoneForOrder(page, orderId, customerName = '') {
         });
         
         if (!confirmClicked.success) {
-            console.log('📞 ⚠️ Botão "Confirmar" não encontrado');
+            console.log('  Botão "Confirmar" não encontrado');
         } else {
-            console.log(`📞 ✓ "Confirmar" clicado via ${confirmClicked.method}`);
+            console.log(`  "Confirmar" clicado via ${confirmClicked.method}`);
         }
         
         await sleep(3000);
@@ -348,7 +348,7 @@ async function capturePhoneForOrder(page, orderId, customerName = '') {
         } catch (e) {}
         
         // PASSO 6: Verificar se modal "Dados para contato" abriu e extrair telefone
-        console.log('📞 [PASSO 6] Extraindo telefone...');
+        console.log(' [PASSO 6] Extraindo telefone...');
         
         phoneFound = await extractPhone(page);
         
@@ -356,15 +356,15 @@ async function capturePhoneForOrder(page, orderId, customerName = '') {
         await closeModal(page);
         
         if (phoneFound) {
-            console.log(`📞 ✅ TELEFONE CAPTURADO: ${phoneFound}`);
+            console.log(`  TELEFONE CAPTURADO: ${phoneFound}`);
             return phoneFound;
         }
         
-        console.log('📞 ❌ Telefone não encontrado');
+        console.log('  Telefone não encontrado');
         return '';
         
     } catch (error) {
-        console.error(`📞 ❌ Erro na captura: ${error.message}`);
+        console.error(`  Erro na captura: ${error.message}`);
         try { await page.screenshot({ path: `/app/logs/phone-v3-error-${orderId}.png` }); } catch (e) {}
         return '';
     }

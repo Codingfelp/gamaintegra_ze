@@ -59,7 +59,7 @@ function isHorarioOperacao() {
 function shouldRestart() {
     const runtime = Date.now() - START_TIME;
     if (runtime >= MAX_RUNTIME_MS) {
-        console.log(`🔄 [v1-itens] Tempo de execução (${(runtime/1000/60/60).toFixed(2)}h) excedeu limite. Reiniciando...`);
+        console.log(` [v1-itens] Tempo de execução (${(runtime/1000/60/60).toFixed(2)}h) excedeu limite. Reiniciando...`);
         return true;
     }
     return false;
@@ -74,7 +74,7 @@ function logMemoryUsage() {
 setInterval(() => {
     logMemoryUsage();
     if (shouldRestart()) {
-        console.log('🔄 [v1-itens] Iniciando reinício preventivo para evitar problemas de memória...');
+        console.log(' [v1-itens] Iniciando reinício preventivo para evitar problemas de memória...');
         process.exit(0); // Supervisor irá reiniciar automaticamente
     }
 }, 30 * 60 * 1000);
@@ -96,7 +96,7 @@ async function sleep(sec) {
 async function marcarCheckbox(page) {
     const hostHandle = await page.$('hexa-v2-checkbox[name="test-checkbox"]');
     if (!hostHandle) {
-        console.log("❌ Checkbox não encontrado!");
+        console.log(" Checkbox não encontrado!");
         return;
     }
 
@@ -111,9 +111,9 @@ async function marcarCheckbox(page) {
 
         if (!checked) {
             await inputHandle.click(); // marca se ainda não estiver marcado
-            console.log("✅ Checkbox 'Manter conectado' marcado!");
+            console.log(" Checkbox 'Manter conectado' marcado!");
         } else {
-            console.log("ℹ️ Checkbox já estava marcado.");
+            console.log(" Checkbox já estava marcado.");
         }
     }
 
@@ -155,17 +155,17 @@ async function pegarDupla() {
             const codigo = await phpBridge.pegarCodigo2FA(30000);
             
             if (codigo && codigo.length === 6) {
-                console.log(`✅ Código 2FA encontrado: ${codigo}`);
+                console.log(` Código 2FA encontrado: ${codigo}`);
                 return codigo;
             }
             
             if (codigo === null || codigo === 0 || codigo === '0') {
                 console.log('⏳ Nenhum email de 2FA encontrado ainda...');
             } else {
-                console.log(`⚠️ Resposta inesperada do Gmail: ${JSON.stringify(codigo)}`);
+                console.log(` Resposta inesperada do Gmail: ${JSON.stringify(codigo)}`);
             }
         } catch (error) {
-            console.error("❌ Erro ao buscar código 2FA:", error.message);
+            console.error(" Erro ao buscar código 2FA:", error.message);
         }
         
         console.log(`⏳ Aguardando 8 segundos antes da próxima tentativa...`);
@@ -196,7 +196,7 @@ async function pegar_id_pedido() {
         const result = await phpBridge.pegarProximoPedido();
         // O php-bridge agora retorna {id, prioridade}
         if (result && result.id) {
-            console.log(`📋 Próximo pedido: ${result.id} (${result.prioridade})`);
+            console.log(` Próximo pedido: ${result.id} (${result.prioridade})`);
             return result.id;
         }
         return 0;
@@ -258,7 +258,7 @@ async function getTextFromShadowOrNormal(page, selector, innerSelector = null) {
  */
 async function capturarTelefoneViaFluxo(page) {
     try {
-        console.log('📞 [TELEFONE] Iniciando captura via fluxo modal...');
+        console.log(' [TELEFONE] Iniciando captura via fluxo modal...');
 
         // Screenshot inicial para debug
         try {
@@ -285,7 +285,7 @@ async function capturarTelefoneViaFluxo(page) {
         });
 
         if (telefoneJaVisivel) {
-            console.log('📞 [TELEFONE] Já estava visível:', telefoneJaVisivel);
+            console.log(' [TELEFONE] Já estava visível:', telefoneJaVisivel);
             return telefoneJaVisivel;
         }
 
@@ -318,12 +318,12 @@ async function capturarTelefoneViaFluxo(page) {
         });
 
         if (!clicouVerTelefone) {
-            console.log('📞 [TELEFONE] Botão "Ver telefone" não encontrado');
+            console.log(' [TELEFONE] Botão "Ver telefone" não encontrado');
             try { await page.screenshot({ path: '/app/logs/telefone-sem-botao.png' }); } catch(e) {}
             return '';
         }
 
-        console.log('📞 [TELEFONE] ✓ Clicou em "Ver telefone"');
+        console.log(' [TELEFONE]  Clicou em "Ver telefone"');
         await sleep(2);
         try { await page.screenshot({ path: '/app/logs/telefone-modal-aberto.png' }); } catch(e) {}
 
@@ -332,7 +332,7 @@ async function capturarTelefoneViaFluxo(page) {
         const maxAttempts = 3;
         
         for (let attempt = 1; attempt <= maxAttempts && !accordionExpanded; attempt++) {
-            console.log(`📞 [TELEFONE] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
+            console.log(` [TELEFONE] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
             
             const clicouProblemas = await page.evaluate(() => {
                 // Estratégia 1: Buscar pelo ID específico
@@ -356,12 +356,12 @@ async function capturarTelefoneViaFluxo(page) {
             });
 
             if (!clicouProblemas.success) {
-                console.log('📞 [TELEFONE] Opção "Problemas com a entrega" não encontrada');
+                console.log(' [TELEFONE] Opção "Problemas com a entrega" não encontrada');
                 try { await page.screenshot({ path: '/app/logs/telefone-sem-problemas.png' }); } catch(e) {}
                 continue;
             }
 
-            console.log(`📞 [TELEFONE] ✓ Clicou em "Problemas com a entrega" (${clicouProblemas.method})`);
+            console.log(` [TELEFONE]  Clicou em "Problemas com a entrega" (${clicouProblemas.method})`);
             await sleep(2 + attempt); // Aguardar mais tempo em cada tentativa
             
             // Verificar se o accordion expandiu
@@ -374,15 +374,15 @@ async function capturarTelefoneViaFluxo(page) {
             });
             
             if (expansionCheck.expanded) {
-                console.log(`📞 [TELEFONE] ✓ Accordion expandiu na tentativa ${attempt}!`);
+                console.log(` [TELEFONE]  Accordion expandiu na tentativa ${attempt}!`);
                 accordionExpanded = true;
             } else {
-                console.log(`📞 [TELEFONE] ⚠️ Accordion não expandiu na tentativa ${attempt}`);
+                console.log(` [TELEFONE]  Accordion não expandiu na tentativa ${attempt}`);
             }
         }
 
         if (!accordionExpanded) {
-            console.log('📞 [TELEFONE] ❌ Não foi possível expandir o accordion');
+            console.log(' [TELEFONE]  Não foi possível expandir o accordion');
             try { await page.screenshot({ path: '/app/logs/telefone-accordion-fail.png' }); } catch(e) {}
             await page.keyboard.press('Escape');
             return '';
@@ -418,13 +418,13 @@ async function capturarTelefoneViaFluxo(page) {
         });
 
         if (!clicouEntregador.success) {
-            console.log('📞 [TELEFONE] Radio "entregador não encontra" não encontrado');
+            console.log(' [TELEFONE] Radio "entregador não encontra" não encontrado');
             try { await page.screenshot({ path: '/app/logs/telefone-sem-radio.png' }); } catch(e) {}
             await page.keyboard.press('Escape');
             return '';
         }
         
-        console.log(`📞 [TELEFONE] ✓ Selecionou opção (${clicouEntregador.method})`);
+        console.log(` [TELEFONE]  Selecionou opção (${clicouEntregador.method})`);
         await sleep(1);
 
         // PASSO 5: Clicar em "Confirmar"
@@ -455,13 +455,13 @@ async function capturarTelefoneViaFluxo(page) {
         });
 
         if (!clicouConfirmar) {
-            console.log('📞 [TELEFONE] Botão "Confirmar" não encontrado');
+            console.log(' [TELEFONE] Botão "Confirmar" não encontrado');
             try { await page.screenshot({ path: '/app/logs/telefone-sem-confirmar.png' }); } catch(e) {}
             await page.keyboard.press('Escape');
             return '';
         }
 
-        console.log('📞 [TELEFONE] ✓ Clicou em "Confirmar"');
+        console.log(' [TELEFONE]  Clicou em "Confirmar"');
         
         // Aguardar telefone aparecer (4 segundos)
         await sleep(4);
@@ -503,15 +503,15 @@ async function capturarTelefoneViaFluxo(page) {
         });
 
         if (telefone && telefone.length >= 10) {
-            console.log('📞 [TELEFONE] ✅ Capturado:', telefone);
+            console.log(' [TELEFONE]  Capturado:', telefone);
             return telefone;
         }
 
-        console.log('📞 [TELEFONE] ❌ Não encontrado após fluxo completo');
+        console.log(' [TELEFONE]  Não encontrado após fluxo completo');
         return '';
 
     } catch (error) {
-        console.error('📞 [TELEFONE] Erro:', error.message);
+        console.error(' [TELEFONE] Erro:', error.message);
         try {
             await page.screenshot({ path: '/app/logs/telefone-erro.png' });
             await page.keyboard.press('Escape');
@@ -630,16 +630,16 @@ async function fazerLogin(page) {
                 )
             ]);
         } catch (err) {
-            console.error("❌ [fazerLogin] Erro ao obter código de verificação:", err.message);
+            console.error(" [fazerLogin] Erro ao obter código de verificação:", err.message);
             throw err;
         }
 
         if (!verificationCode || verificationCode.length !== 6) {
-            console.error("❌ [fazerLogin] Código de verificação inválido ou não recebido.");
+            console.error(" [fazerLogin] Código de verificação inválido ou não recebido.");
             throw new Error("Código 2FA inválido");
         }
 
-        console.log(`✅ [fazerLogin] Código 2FA recebido: ${verificationCode}`);
+        console.log(` [fazerLogin] Código 2FA recebido: ${verificationCode}`);
 
         for (let index = 0; index < verificationCode.length; index++) {
             const inputSelector = `#verification-code-input-${index}`;
@@ -654,7 +654,7 @@ async function fazerLogin(page) {
             console.log('⏳ [fazerLogin] Aguardando navegação após 2FA...');
             await page.waitForNavigation({ timeout: 30000, waitUntil: 'networkidle2' });
         } catch (e) {
-            console.error("❌ [fazerLogin] Falha ao navegar após envio do código.");
+            console.error(" [fazerLogin] Falha ao navegar após envio do código.");
             throw e;
         }
 
@@ -665,10 +665,10 @@ async function fazerLogin(page) {
         await sleep(5);
         
         const currentUrl = page.url();
-        console.log(`📍 [fazerLogin] URL atual: ${currentUrl}`);
+        console.log(` [fazerLogin] URL atual: ${currentUrl}`);
         
         if (currentUrl.includes('login')) {
-            console.log('⚠️ [fazerLogin] Ainda na página de login, verificando novamente...');
+            console.log(' [fazerLogin] Ainda na página de login, verificando novamente...');
             
             await sleep(10);
             
@@ -680,22 +680,22 @@ async function fazerLogin(page) {
                     throw new Error("2FA necessário - reiniciando");
                 }
                 
-                console.error('❌ [fazerLogin] Login falhou');
+                console.error(' [fazerLogin] Login falhou');
                 throw new Error("Login falhou");
             }
         }
         
-        console.log("✅ [fazerLogin] Login concluído sem necessidade de 2FA!");
+        console.log(" [fazerLogin] Login concluído sem necessidade de 2FA!");
     }
     
     const finalUrl = page.url();
-    console.log(`📍 [fazerLogin] URL final: ${finalUrl}`);
+    console.log(` [fazerLogin] URL final: ${finalUrl}`);
     
     if (finalUrl.includes('login')) {
         throw new Error("Login não completou - ainda na página de login");
     }
     
-    console.log('✅ [fazerLogin] Login verificado com sucesso!');
+    console.log(' [fazerLogin] Login verificado com sucesso!');
     
     // IMPORTANTE: Salvar cookies após login bem sucedido
     try {
@@ -710,7 +710,7 @@ async function fazerLogin(page) {
             await sessionManager.saveCookiesToDB('profile-ze-v1-itens', cookies);
         }
     } catch (saveError) {
-        console.error('⚠️ [fazerLogin] Erro ao salvar cookies:', saveError.message);
+        console.error(' [fazerLogin] Erro ao salvar cookies:', saveError.message);
     }
 }
 
@@ -725,7 +725,7 @@ async function pedidoScript(page) {
             // 🔹 Aguarda até 10 segundos pelo seletor da tabela
             const ready = await waitForSafe(page, "#order-history-table-body", 10000);
             if (!ready) {
-                console.log("❌ Timeout esperando a tabela, recarregando...");
+                console.log(" Timeout esperando a tabela, recarregando...");
                 await page.reload({ waitUntil: "networkidle2" });
                 continue;
             }
@@ -789,7 +789,7 @@ async function pedidoScript(page) {
 
             // 🔹 Se não encontrar pedidos, recarrega a página
             if (tableData.length === 0) {
-                console.log("⚠️ Nenhum pedido encontrado. Atualizando a página...");
+                console.log(" Nenhum pedido encontrado. Atualizando a página...");
                 await page.reload({ waitUntil: "networkidle2" });
                 await sleep(5);
                 continue;
@@ -816,7 +816,7 @@ async function pedidoScript(page) {
             console.log(error);
             // 🔴 Se o seletor não for encontrado, recarrega a página e tenta de novo
             console.log(
-                "❌ Erro ao encontrar a tabela de pedidos. Recarregando a página..."
+                " Erro ao encontrar a tabela de pedidos. Recarregando a página..."
             );
             await page.reload({ waitUntil: "networkidle2" });
             await sleep(5);
@@ -848,7 +848,7 @@ async function itensScript(page) {
                 );
 
                 console.log("═══════════════════════════════════════════════════════");
-                console.log("📦 [CAPTURA] INICIANDO CAPTURA DO PEDIDO: " + encodeURIComponent(id_pedido_info));
+                console.log(" [CAPTURA] INICIANDO CAPTURA DO PEDIDO: " + encodeURIComponent(id_pedido_info));
                 console.log("═══════════════════════════════════════════════════════");
 
                 // Aguardar carregamento da página
@@ -861,7 +861,7 @@ async function itensScript(page) {
                 
                 // Aguardar área de impressão carregar
                 await page.waitForSelector('#print-content', { timeout: 10000 }).catch(() => {
-                    console.log('⚠️ [CAPTURA] Área de impressão não encontrada');
+                    console.log(' [CAPTURA] Área de impressão não encontrada');
                 });
                 
                 // Capturar TODOS os dados de uma vez da área de impressão
@@ -1083,7 +1083,7 @@ async function itensScript(page) {
                     return resultado;
                 });
                 
-                console.log('📄 [CAPTURA] Dados da área de impressão:', JSON.stringify(dadosPrintArea, null, 2));
+                console.log(' [CAPTURA] Dados da área de impressão:', JSON.stringify(dadosPrintArea, null, 2));
                 
                 // Usar os dados capturados da área de impressão
                 let tipoDelivery = dadosPrintArea.tipoPedido;
@@ -1113,7 +1113,7 @@ async function itensScript(page) {
                 // O preço no Shadow DOM é o PREÇO TOTAL DA LINHA
                 // Calculamos: precoUnitario = precoTotal / quantidade
                 // =====================================================
-                console.log('📦 [ITENS] Capturando itens via Shadow DOM (fonte principal)...');
+                console.log(' [ITENS] Capturando itens via Shadow DOM (fonte principal)...');
                 
                 let temProdutos = false;
                 
@@ -1160,22 +1160,22 @@ async function itensScript(page) {
                     if (produtosShadow.length > 0 && produtosShadow.some(p => p.nome && p.nome.length > 2)) {
                         produtos = produtosShadow;
                         temProdutos = true;
-                        console.log(`📦 [ITENS] ✅ ${produtos.length} produto(s) via Shadow DOM`);
+                        console.log(` [ITENS]  ${produtos.length} produto(s) via Shadow DOM`);
                         // Log detalhado para debug
                         produtos.forEach(p => {
-                            console.log(`   📦 ${p.quantidade}x ${p.nome} - Unit: R$${p.preco} | Total: R$${p.precoTotal}`);
+                            console.log(`    ${p.quantidade}x ${p.nome} - Unit: R$${p.preco} | Total: R$${p.precoTotal}`);
                         });
                     } else {
-                        console.log('📦 [ITENS] ⚠️ Shadow DOM não retornou itens válidos');
+                        console.log(' [ITENS]  Shadow DOM não retornou itens válidos');
                     }
                 } catch (e) {
-                    console.log('📦 [ITENS] ❌ Falha no Shadow DOM:', e.message);
+                    console.log(' [ITENS]  Falha no Shadow DOM:', e.message);
                 }
                 
                 // FALLBACK: Se Shadow DOM falhou, tentar área de impressão #bought-items
                 // NOTA: Na área de impressão, o preço mostrado é UNITÁRIO (diferente do Shadow DOM)
                 if (!temProdutos) {
-                    console.log('📦 [ITENS] ⚠️ Usando FALLBACK: área de impressão (preço = unitário)...');
+                    console.log(' [ITENS]  Usando FALLBACK: área de impressão (preço = unitário)...');
                     
                     // Debug: verificar se elementos existem
                     const debugInfo = await page.evaluate(() => {
@@ -1191,7 +1191,7 @@ async function itensScript(page) {
                             sampleTestIds: allTestIds
                         };
                     });
-                    console.log('📦 [ITENS] Debug:', JSON.stringify(debugInfo));
+                    console.log(' [ITENS] Debug:', JSON.stringify(debugInfo));
                     
                     produtos = await page.evaluate(() => {
                         const items = [];
@@ -1237,12 +1237,12 @@ async function itensScript(page) {
                         return items;
                     });
                     
-                    console.log(`📦 [ITENS] Capturados ${produtos.length} item(s) via área de impressão`);
+                    console.log(` [ITENS] Capturados ${produtos.length} item(s) via área de impressão`);
                 }
                 
                 // Se ainda não encontrou, tentar estratégia alternativa
                 if (produtos.length === 0) {
-                    console.log('📦 [ITENS] Tentando capturar itens via estratégia alternativa...');
+                    console.log(' [ITENS] Tentando capturar itens via estratégia alternativa...');
                     
                     produtos = await page.evaluate(() => {
                         const items = [];
@@ -1289,7 +1289,7 @@ async function itensScript(page) {
                     });
                 }
                 
-                console.log(`📦 [ITENS] ${produtos.length} produto(s) capturado(s)`);
+                console.log(` [ITENS] ${produtos.length} produto(s) capturado(s)`);
 
                 // DEBUG: Salvar HTML da página para análise
                 const pageHTML = await page.content();
@@ -1300,7 +1300,7 @@ async function itensScript(page) {
                 // =====================================================
                 // CAPTURA DE CPF DO CLIENTE
                 // =====================================================
-                console.log('📋 [CPF] Capturando CPF do cliente...');
+                console.log(' [CPF] Capturando CPF do cliente...');
                 
                 // Usar CPF já capturado da área de impressão, se disponível
                 let cpfCliente = cpfCapturado || '';
@@ -1374,12 +1374,12 @@ async function itensScript(page) {
                 }
                 
                 cpfCliente = cpfCliente ? cpfCliente.replace(/\./g, "").replace(/-/g, "").trim() : '';
-                console.log('📋 [CPF] Capturado:', cpfCliente || '(vazio)');
+                console.log(' [CPF] Capturado:', cpfCliente || '(vazio)');
 
                 // =====================================================
                 // CAPTURA DE ENDEREÇO COMPLETO
                 // =====================================================
-                console.log('📍 [ENDEREÇO] Capturando endereço...');
+                console.log(' [ENDEREÇO] Capturando endereço...');
                 
                 // ESTRATÉGIA PRINCIPAL: Área de impressão (dados em texto plano)
                 let enderecoImpressao = await page.evaluate(() => {
@@ -1417,7 +1417,7 @@ async function itensScript(page) {
                     return resultado;
                 });
                 
-                console.log('📍 [ENDEREÇO] Via impressão:', enderecoImpressao);
+                console.log(' [ENDEREÇO] Via impressão:', enderecoImpressao);
                 
                 // Usar valores da área de impressão OU os já capturados anteriormente
                 if (enderecoImpressao.rua && enderecoImpressao.rua.length > 3) {
@@ -1470,7 +1470,7 @@ async function itensScript(page) {
                     });
                 }
                 enderecoRota = enderecoRota.replace(/-+/g, " ").replace(/\s+/g, " ").trim();
-                console.log('📍 [ENDEREÇO] Rota:', enderecoRota || '(vazio)');
+                console.log(' [ENDEREÇO] Rota:', enderecoRota || '(vazio)');
 
                 // Complemento - fallback via Shadow DOM se não veio da área de impressão
                 if (!enderecoComplemento || enderecoComplemento.length < 2) {
@@ -1497,29 +1497,29 @@ async function itensScript(page) {
                 }
                 enderecoBairro = enderecoBairro.replace(/-+/g, "").trim();
                 
-                console.log('📍 [ENDEREÇO] Bairro:', enderecoBairro || '(vazio)');
-                console.log('📍 [ENDEREÇO] Complemento:', enderecoComplemento || '(vazio)');
-                console.log('📍 [ENDEREÇO] Cidade/UF:', enderecoCidadeUF || '(vazio)');
-                console.log('📍 [ENDEREÇO] CEP:', enderecoCep || '(vazio)');
+                console.log(' [ENDEREÇO] Bairro:', enderecoBairro || '(vazio)');
+                console.log(' [ENDEREÇO] Complemento:', enderecoComplemento || '(vazio)');
+                console.log(' [ENDEREÇO] Cidade/UF:', enderecoCidadeUF || '(vazio)');
+                console.log(' [ENDEREÇO] CEP:', enderecoCep || '(vazio)');
 
                 // =====================================================
                 // VALIDAÇÃO E FALLBACK DE VALORES FINANCEIROS
                 // Os valores já foram capturados em dadosPrintArea (linhas ~908-990)
                 // Aqui apenas fazemos fallback via Shadow DOM se necessário
                 // =====================================================
-                console.log('💰 [VALORES] Verificando valores financeiros já capturados...');
-                console.log('💰 [VALORES] Subtotal:', subTotal || '(vazio)');
-                console.log('💰 [VALORES] Frete:', frete || '(vazio)');
-                console.log('💰 [VALORES] Desconto:', desconto || '0');
-                console.log('💰 [VALORES] Taxa Conveniência:', taxaConveniencia || '0');
-                console.log('💰 [VALORES] Troco:', troco || '0');
+                console.log(' [VALORES] Verificando valores financeiros já capturados...');
+                console.log(' [VALORES] Subtotal:', subTotal || '(vazio)');
+                console.log(' [VALORES] Frete:', frete || '(vazio)');
+                console.log(' [VALORES] Desconto:', desconto || '0');
+                console.log(' [VALORES] Taxa Conveniência:', taxaConveniencia || '0');
+                console.log(' [VALORES] Troco:', troco || '0');
                 
                 // FALLBACK via Shadow DOM apenas se valores estiverem vazios
                 if (!subTotal) {
                     const subTotalShadow = await getTextFromShadowOrNormal(page, "#subtotal");
                     if (subTotalShadow && subTotalShadow !== '-') {
                         subTotal = subTotalShadow.replace("R$", "").replace(",", ".").trim();
-                        console.log('💰 [VALORES] Subtotal via Shadow DOM:', subTotal);
+                        console.log(' [VALORES] Subtotal via Shadow DOM:', subTotal);
                     }
                 }
                 
@@ -1527,7 +1527,7 @@ async function itensScript(page) {
                     const freteShadow = await getTextFromShadowOrNormal(page, "#freight");
                     if (freteShadow && freteShadow !== '-') {
                         frete = freteShadow.replace("R$", "").replace(",", ".").trim();
-                        console.log('💰 [VALORES] Frete via Shadow DOM:', frete);
+                        console.log(' [VALORES] Frete via Shadow DOM:', frete);
                     }
                 }
                 
@@ -1535,7 +1535,7 @@ async function itensScript(page) {
                     const descontoShadow = await getTextFromShadowOrNormal(page, "#total-discount");
                     if (descontoShadow && descontoShadow !== '-') {
                         desconto = descontoShadow.replace("R$", "").replace(",", ".").replace("-", "").trim();
-                        console.log('💰 [VALORES] Desconto via Shadow DOM:', desconto);
+                        console.log(' [VALORES] Desconto via Shadow DOM:', desconto);
                     }
                 }
                 
@@ -1543,17 +1543,17 @@ async function itensScript(page) {
                     const taxaShadow = await getTextFromShadowOrNormal(page, "#serviceFee");
                     if (taxaShadow && taxaShadow !== '-') {
                         taxaConveniencia = taxaShadow.replace("R$", "").replace(",", ".").trim();
-                        console.log('💰 [VALORES] Taxa Conveniência via Shadow DOM:', taxaConveniencia);
+                        console.log(' [VALORES] Taxa Conveniência via Shadow DOM:', taxaConveniencia);
                     }
                 }
                 
-                console.log('💰 [VALORES] FINAIS - Subtotal:', subTotal || '(vazio)', '| Frete:', frete || '0', '| Desconto:', desconto || '0', '| Taxa:', taxaConveniencia || '0', '| Troco:', troco || '0');
+                console.log(' [VALORES] FINAIS - Subtotal:', subTotal || '(vazio)', '| Frete:', frete || '0', '| Desconto:', desconto || '0', '| Taxa:', taxaConveniencia || '0', '| Troco:', troco || '0');
 
                 // =====================================================
                 // CAPTURA DE TELEFONE DO CLIENTE
                 // O telefone só aparece após seguir o fluxo do modal
                 // =====================================================
-                console.log('📞 [TELEFONE] Iniciando captura de telefone...');
+                console.log(' [TELEFONE] Iniciando captura de telefone...');
                 
                 let customerPhone = '';
                 
@@ -1628,7 +1628,7 @@ async function itensScript(page) {
                 // Se não encontrou telefone visível, tentar fluxo via modal (V2)
                 // Telefone pode ser capturado para pedidos ACEITOS (status 2) na coluna "Em separação"
                 if (!customerPhone || customerPhone.length < 10) {
-                    console.log('📞 [TELEFONE] Telefone não visível na página de detalhes');
+                    console.log(' [TELEFONE] Telefone não visível na página de detalhes');
                     
                     // Verificar se pedido está aceito ou em rota (status 2 ou 3)
                     const statusPermiteCaptura = await page.evaluate(() => {
@@ -1650,7 +1650,7 @@ async function itensScript(page) {
                     });
                     
                     if (statusPermiteCaptura) {
-                        console.log('📞 [TELEFONE] Pedido aceito/em separação, tentando fluxo V2 via modal...');
+                        console.log(' [TELEFONE] Pedido aceito/em separação, tentando fluxo V2 via modal...');
                         
                         // Extrair ID do pedido 
                         const orderId = id_pedido_info.replace(/\s+/g, '');
@@ -1659,7 +1659,7 @@ async function itensScript(page) {
                         const customerNameForPhone = nome_cliente || '';
                         
                         // Ir para poc-orders para usar o fluxo de modal
-                        console.log('📞 [TELEFONE] Navegando para poc-orders...');
+                        console.log(' [TELEFONE] Navegando para poc-orders...');
                         await page.goto('https://seu.ze.delivery/poc-orders', {
                             waitUntil: 'networkidle2',
                             timeout: 30000
@@ -1670,17 +1670,17 @@ async function itensScript(page) {
                         customerPhone = await phoneCapture.capturePhoneViaModal(page, orderId, customerNameForPhone);
                         
                         // Voltar para página de detalhes do pedido após captura
-                        console.log('📞 [TELEFONE] Voltando para página de detalhes...');
+                        console.log(' [TELEFONE] Voltando para página de detalhes...');
                         await page.goto(`https://seu.ze.delivery/order/${orderId}`, {
                             waitUntil: 'networkidle2',
                             timeout: 30000
                         });
                         await sleep(2);
                     } else {
-                        console.log('📞 [TELEFONE] ⚠️ Pedido não está aceito/em separação - telefone não disponível');
+                        console.log(' [TELEFONE]  Pedido não está aceito/em separação - telefone não disponível');
                     }
                 } else {
-                    console.log('📞 [TELEFONE] Telefone já visível:', customerPhone);
+                    console.log(' [TELEFONE] Telefone já visível:', customerPhone);
                 }
                 
                 customerPhone = customerPhone.replace(/\D/g, "").trim(); // Só números
@@ -1690,9 +1690,9 @@ async function itensScript(page) {
                     customerPhone = customerPhone.substring(2);
                 }
                 
-                console.log(`📞 Telefone capturado: ${customerPhone || '(vazio)'}`);
+                console.log(` Telefone capturado: ${customerPhone || '(vazio)'}`);
                 if (!customerPhone) {
-                    console.log('📞 ⚠️ AVISO: Telefone não capturado para este pedido');
+                    console.log('  AVISO: Telefone não capturado para este pedido');
                 }
                 // Capturar nome do entregador
                 let entregador = await capturarEntregador(page);
@@ -1835,7 +1835,7 @@ async function itensScript(page) {
                 // =====================================================
                 // CAPTURA DO CÓDIGO DE ENTREGA/COLETA
                 // =====================================================
-                console.log('🏷️ [CÓDIGO] Capturando código de entrega...');
+                console.log(' [CÓDIGO] Capturando código de entrega...');
                 
                 // Só busca código se não foi capturado anteriormente da área de impressão
                 if (!codigoEntrega) {
@@ -1890,7 +1890,7 @@ async function itensScript(page) {
                     }
                 }
                 
-                console.log('🏷️ [CÓDIGO] Código de entrega:', codigoEntrega || '(vazio)');
+                console.log(' [CÓDIGO] Código de entrega:', codigoEntrega || '(vazio)');
 
                 let obsPedido = await getTextFromShadowOrNormal(page, "#observation");
 
@@ -1939,35 +1939,35 @@ async function itensScript(page) {
                 // RESUMO DO QUE FOI CAPTURADO
                 // =====================================================
                 console.log('═══════════════════════════════════════════════════════');
-                console.log('📦 RESUMO DA CAPTURA DO PEDIDO ' + id_pedido_info);
+                console.log(' RESUMO DA CAPTURA DO PEDIDO ' + id_pedido_info);
                 console.log('═══════════════════════════════════════════════════════');
                 
                 // Se houver campos não capturados, mostrar alerta
                 if (camposNaoCapturados.length > 0) {
-                    console.log('⚠️ ATENÇÃO: CAMPOS NÃO CAPTURADOS:');
-                    console.log('   ❌ ' + camposNaoCapturados.join('\n   ❌ '));
+                    console.log(' ATENÇÃO: CAMPOS NÃO CAPTURADOS:');
+                    console.log('    ' + camposNaoCapturados.join('\n    '));
                     console.log('───────────────────────────────────────────────────────');
                 }
                 
-                console.log('🚚 Tipo Delivery:', tipoDelivery || '❌ NÃO CAPTURADO');
-                console.log('📋 CPF:', cpfCliente || '❌ NÃO CAPTURADO');
-                console.log('📞 Telefone:', customerPhone || '❌ NÃO CAPTURADO');
-                console.log('📍 Endereço:', enderecoRota || (tipoDelivery === 'Pedido Retirada' ? '(Retirada - sem endereço)' : '❌ NÃO CAPTURADO'));
-                console.log('📍 Bairro:', enderecoBairro || (tipoDelivery === 'Pedido Retirada' ? '(Retirada)' : '❌ NÃO CAPTURADO'));
-                console.log('📍 Cidade/UF:', enderecoCidadeUF || '(vazio)');
-                console.log('📍 CEP:', enderecoCep || '(vazio)');
-                console.log('📍 Complemento:', enderecoComplemento || '(vazio)');
-                console.log('💰 Frete:', frete || '0');
-                console.log('💰 Desconto:', desconto || '0');
-                console.log('💰 SubTotal:', subTotal || '❌ NÃO CAPTURADO');
-                console.log('💰 Taxa Conveniência:', taxaConveniencia || '0');
-                console.log('💰 Troco:', troco || '0');
-                console.log('🏷️ Código Entrega:', codigoEntrega || (tipoDelivery === 'Pedido Retirada' ? '(Retirada)' : '❌ NÃO CAPTURADO'));
+                console.log('🚚 Tipo Delivery:', tipoDelivery || ' NÃO CAPTURADO');
+                console.log(' CPF:', cpfCliente || ' NÃO CAPTURADO');
+                console.log(' Telefone:', customerPhone || ' NÃO CAPTURADO');
+                console.log(' Endereço:', enderecoRota || (tipoDelivery === 'Pedido Retirada' ? '(Retirada - sem endereço)' : ' NÃO CAPTURADO'));
+                console.log(' Bairro:', enderecoBairro || (tipoDelivery === 'Pedido Retirada' ? '(Retirada)' : ' NÃO CAPTURADO'));
+                console.log(' Cidade/UF:', enderecoCidadeUF || '(vazio)');
+                console.log(' CEP:', enderecoCep || '(vazio)');
+                console.log(' Complemento:', enderecoComplemento || '(vazio)');
+                console.log(' Frete:', frete || '0');
+                console.log(' Desconto:', desconto || '0');
+                console.log(' SubTotal:', subTotal || ' NÃO CAPTURADO');
+                console.log(' Taxa Conveniência:', taxaConveniencia || '0');
+                console.log(' Troco:', troco || '0');
+                console.log(' Código Entrega:', codigoEntrega || (tipoDelivery === 'Pedido Retirada' ? '(Retirada)' : ' NÃO CAPTURADO'));
                 console.log('🎟️ Cupom Descrição:', cupomDescricao || '(sem cupom)');
-                console.log('📝 Observação:', obsPedido || '(vazia)');
-                console.log('📊 Status:', statusPedido || '❌ NÃO CAPTURADO');
+                console.log(' Observação:', obsPedido || '(vazia)');
+                console.log('📊 Status:', statusPedido || ' NÃO CAPTURADO');
                 console.log('🚴 Entregador:', entregador || '(não encontrado)');
-                console.log('📦 Qtd Itens:', produtos.length);
+                console.log(' Qtd Itens:', produtos.length);
                 if (produtos.length > 0) {
                     console.log('   Itens:');
                     produtos.forEach(p => {
@@ -1976,14 +1976,14 @@ async function itensScript(page) {
                         console.log(`     ${p.quantidade}x ${p.nome} - Unit: R$${precoUnit} | Total: R$${precoTotal}`);
                     });
                 } else {
-                    console.log('   ❌ NENHUM ITEM CAPTURADO!');
+                    console.log('    NENHUM ITEM CAPTURADO!');
                 }
                 
                 // Status final da captura
                 if (camposNaoCapturados.length === 0) {
-                    console.log('✅ CAPTURA COMPLETA - Todos os campos capturados com sucesso!');
+                    console.log(' CAPTURA COMPLETA - Todos os campos capturados com sucesso!');
                 } else {
-                    console.log(`⚠️ CAPTURA INCOMPLETA - ${camposNaoCapturados.length} campo(s) faltando`);
+                    console.log(` CAPTURA INCOMPLETA - ${camposNaoCapturados.length} campo(s) faltando`);
                 }
                 console.log('═══════════════════════════════════════════════════════');
 
@@ -1993,7 +1993,7 @@ async function itensScript(page) {
                 // Se não tiver produtos, criar pelo menos um registro para enviar os dados do pedido
                 let pedidosData;
                 if (produtos.length === 0) {
-                    console.log('⚠️ [ITENS] Nenhum item encontrado, criando registro sem itens...');
+                    console.log(' [ITENS] Nenhum item encontrado, criando registro sem itens...');
                     pedidosData = [{
                         id: encodeURIComponent(id_pedido_info),
                         tags: { id: '', nome: '', quantidade: '', preco: '', precoTotal: '', imagem: '' },
@@ -2051,21 +2051,21 @@ async function itensScript(page) {
                 console.log("═══════════════════════════════════════════════════════");
                 console.log("📊 [RESUMO] CAMPOS CAPTURADOS:");
                 console.log("═══════════════════════════════════════════════════════");
-                console.log(`  📋 CPF: ${cpfCliente || '❌ NÃO CAPTURADO'}`);
-                console.log(`  📦 Tipo Pedido: ${tipoDelivery || '❌ NÃO CAPTURADO'}`);
-                console.log(`  📍 Endereço: ${enderecoRota || '❌ NÃO CAPTURADO'}`);
+                console.log(`   CPF: ${cpfCliente || ' NÃO CAPTURADO'}`);
+                console.log(`   Tipo Pedido: ${tipoDelivery || ' NÃO CAPTURADO'}`);
+                console.log(`   Endereço: ${enderecoRota || ' NÃO CAPTURADO'}`);
                 console.log(`  🏠 Complemento: ${enderecoComplemento || '(vazio)'}`);
-                console.log(`  🏘️ Bairro: ${enderecoBairro || '❌ NÃO CAPTURADO'}`);
+                console.log(`  🏘️ Bairro: ${enderecoBairro || ' NÃO CAPTURADO'}`);
                 console.log(`  🏙️ Cidade/UF: ${enderecoCidadeUF || '(vazio)'}`);
                 console.log(`  📮 CEP: ${enderecoCep || '(vazio)'}`);
-                console.log(`  🏷️ Código Entrega: ${codigoEntrega || '❌ NÃO CAPTURADO'}`);
-                console.log(`  📦 Itens: ${produtos.length} produto(s)`);
-                console.log(`  💰 Subtotal: ${subTotal || '❌ NÃO CAPTURADO'}`);
+                console.log(`   Código Entrega: ${codigoEntrega || ' NÃO CAPTURADO'}`);
+                console.log(`   Itens: ${produtos.length} produto(s)`);
+                console.log(`   Subtotal: ${subTotal || ' NÃO CAPTURADO'}`);
                 console.log(`  🚚 Frete: ${frete || '0'}`);
                 console.log(`  🎁 Desconto: ${desconto || '0'}`);
                 console.log(`  💳 Taxa Conveniência: ${taxaConveniencia || '0'}`);
                 console.log(`  💵 Troco: ${troco || '0'}`);
-                console.log(`  📞 Telefone: ${customerPhone || '(não capturado)'}`);
+                console.log(`   Telefone: ${customerPhone || '(não capturado)'}`);
                 console.log(`  🎟️ Cupom Descrição: ${cupomDescricao || '(sem cupom)'}`);
                 console.log("═══════════════════════════════════════════════════════");
                 
@@ -2080,9 +2080,9 @@ async function itensScript(page) {
                 if (produtos.length === 0) camposFaltando.push('Itens');
                 
                 if (camposFaltando.length > 0) {
-                    console.log(`⚠️ [ALERTA] CAMPOS CRÍTICOS NÃO CAPTURADOS: ${camposFaltando.join(', ')}`);
+                    console.log(` [ALERTA] CAMPOS CRÍTICOS NÃO CAPTURADOS: ${camposFaltando.join(', ')}`);
                 } else {
-                    console.log(`✅ [SUCESSO] Todos os campos críticos foram capturados!`);
+                    console.log(` [SUCESSO] Todos os campos críticos foram capturados!`);
                 }
                 console.log("═══════════════════════════════════════════════════════");
                 
@@ -2123,9 +2123,9 @@ async function itensScript(page) {
                             }))
                         };
                         await phpBridge.pushToSupabase(orderDataForPush);
-                        console.log('✅ [PUSH] Dados do pedido enviados para Supabase');
+                        console.log(' [PUSH] Dados do pedido enviados para Supabase');
                     } catch (pushError) {
-                        console.log('⚠️ [PUSH] Erro no push para Supabase:', pushError.message);
+                        console.log(' [PUSH] Erro no push para Supabase:', pushError.message);
                     }
                     
                     // Log de integração - sucesso
@@ -2386,7 +2386,7 @@ async function aceitaScript(browser, cookies) {
                             console.log('[ACEITA] ⏳ Botão disponível, clicando...');
                             const startTime = Date.now();
                             await button.click();
-                            console.log('[ACEITA] ✓ Botão clicado!');
+                            console.log('[ACEITA]  Botão clicado!');
 
                             // Aguardar modal aparecer
                             await sleep(0.5);
@@ -2394,7 +2394,7 @@ async function aceitaScript(browser, cookies) {
                             const aceitarPedidoButton = await page.$('#orders-details-modal-button-accept');
                             if (aceitarPedidoButton) {
                                 await aceitarPedidoButton.click();
-                                console.log('[ACEITA] ✓ Botão Aceitar Pedido clicado!');
+                                console.log('[ACEITA]  Botão Aceitar Pedido clicado!');
                                 
                                 // VERIFICAÇÃO DE SUCESSO: Aguardar mudança de status
                                 let aceitoComSucesso = false;
@@ -2419,7 +2419,7 @@ async function aceitaScript(browser, cookies) {
                                     if (modalFechado || msgSucesso) {
                                         aceitoComSucesso = true;
                                         const elapsed = Date.now() - startTime;
-                                        console.log(`[ACEITA] ✅ Pedido ACEITO com sucesso em ${elapsed}ms!`);
+                                        console.log(`[ACEITA]  Pedido ACEITO com sucesso em ${elapsed}ms!`);
                                         break;
                                     }
                                     
@@ -2427,7 +2427,7 @@ async function aceitaScript(browser, cookies) {
                                 }
                                 
                                 if (!aceitoComSucesso) {
-                                    console.log('[ACEITA] ⚠️ Não foi possível confirmar o aceite. Recarregando...');
+                                    console.log('[ACEITA]  Não foi possível confirmar o aceite. Recarregando...');
                                 }
                                 
                                 await sleep(2);
@@ -2479,7 +2479,7 @@ async function serverScript(page) {
             // 🔹 Aguarda até 10 segundos pelo seletor da tabela
             const ready = await waitForSafe(page, "#order-history-table-body", 10000);
             if (!ready) {
-                console.log("❌ Timeout esperando a tabela, recarregando...");
+                console.log(" Timeout esperando a tabela, recarregando...");
                 await page.reload({ waitUntil: "networkidle2" });
                 continue;
             }
@@ -2543,7 +2543,7 @@ async function serverScript(page) {
 
             // 🔹 Se não encontrar pedidos, recarrega a página
             if (tableData.length === 0) {
-                console.log("⚠️ Nenhum pedido encontrado. Atualizando a página...");
+                console.log(" Nenhum pedido encontrado. Atualizando a página...");
                 await page.reload({ waitUntil: "networkidle2" });
                 await sleep(5);
                 continue;
@@ -2570,7 +2570,7 @@ async function serverScript(page) {
             console.log(error);
             // 🔴 Se o seletor não for encontrado, recarrega a página e tenta de novo
             console.log(
-                "❌ Erro ao encontrar a tabela de pedidos. Recarregando a página..."
+                " Erro ao encontrar a tabela de pedidos. Recarregando a página..."
             );
             await page.reload({ waitUntil: "networkidle2" });
             await sleep(5);
@@ -2580,7 +2580,7 @@ async function serverScript(page) {
 }
 
 async function criarJanelaItens(cookies) {
-    console.log('🔄 Iniciando janela ITENS...');
+    console.log(' Iniciando janela ITENS...');
 
     const browser = await puppeteer.launch({
         headless: false,
@@ -2600,7 +2600,7 @@ async function criarJanelaItens(cookies) {
 }
 
 async function criarJanelaStatus(cookies) {
-    console.log('🔄 Iniciando janela STATUS...');
+    console.log(' Iniciando janela STATUS...');
 
     const browser = await puppeteer.launch({
         headless: false,
@@ -2620,20 +2620,20 @@ async function criarJanelaStatus(cookies) {
 }
 
 (async () => {
-    console.log('🚀 [v1-itens] Iniciando script de itens...');
+    console.log(' [v1-itens] Iniciando script de itens...');
     const isProduction = process.env.NODE_ENV === 'production';
     const PROFILE_NAME = sessionManager.PROFILE_NAME_V1_ITENS;
     
-    console.log(`📍 [v1-itens] Ambiente: ${isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
+    console.log(` [v1-itens] Ambiente: ${isProduction ? 'PRODUÇÃO' : 'DESENVOLVIMENTO'}`);
     
     // Inicializar tabela de sessão no banco
-    console.log('🔧 [v1-itens] Inicializando sistema de sessão...');
+    console.log(' [v1-itens] Inicializando sistema de sessão...');
     await sessionManager.initSessionTable();
     
     // Em produção (Railway), usar Chromium do sistema
     const executablePath = isProduction ? '/usr/bin/chromium' : undefined;
     if (executablePath) {
-        console.log(`📍 [v1-itens] Usando Chromium: ${executablePath}`);
+        console.log(` [v1-itens] Usando Chromium: ${executablePath}`);
     }
     
     const browser = await puppeteer.launch({ 
@@ -2649,7 +2649,7 @@ async function criarJanelaStatus(cookies) {
             '--disable-software-rasterizer',
         ] 
     });
-    console.log('✅ [v1-itens] Browser iniciado');
+    console.log(' [v1-itens] Browser iniciado');
     
     const page1 = await browser.newPage();
     const { width, height } = await page1.evaluate(() => {
@@ -2662,7 +2662,7 @@ async function criarJanelaStatus(cookies) {
     // Em produção, rodar indefinidamente. Em dev, timeout de ~20 minutos.
     if (!isProduction) {
         setTimeout(async () => {
-            console.log('⏰ [DEV] Fechando aplicação após 20 minutos...');
+            console.log(' [DEV] Fechando aplicação após 20 minutos...');
             await browser.close();
             process.exit(0);
         }, 1250000);
@@ -2677,31 +2677,31 @@ async function criarJanelaStatus(cookies) {
     // 2. Se falhar, tentar usar perfil local do Chromium
     // 3. Se ainda falhar, fazer login com 2FA
     
-    console.log('🔄 [v1-itens] Tentando restaurar sessão do banco...');
+    console.log(' [v1-itens] Tentando restaurar sessão do banco...');
     let sessionRestored = await sessionManager.restoreSession(page1, PROFILE_NAME);
     
     if (!sessionRestored) {
-        console.log('🌐 [v1-itens] Sessão não restaurada do banco, verificando perfil local...');
+        console.log(' [v1-itens] Sessão não restaurada do banco, verificando perfil local...');
         await page1.goto("https://seu.ze.delivery/home", { waitUntil: 'networkidle2', timeout: 60000 });
-        console.log('📍 [v1-itens] URL atual:', page1.url());
+        console.log(' [v1-itens] URL atual:', page1.url());
 
         if (page1.url().includes("login")) {
             console.log("🔑 [v1-itens] Sessão expirada, fazendo login novamente...");
             try {
                 await fazerLogin(page1);
-                console.log("✅ [v1-itens] Login concluído!");
+                console.log(" [v1-itens] Login concluído!");
                 
                 // Salvar nova sessão no banco
                 console.log('💾 [v1-itens] Salvando nova sessão no banco...');
                 await sessionManager.saveSession(page1, PROFILE_NAME);
             } catch (loginError) {
-                console.error("❌ [v1-itens] Erro no login:", loginError.message);
-                console.log("🔄 [v1-itens] Reiniciando em 30s...");
+                console.error(" [v1-itens] Erro no login:", loginError.message);
+                console.log(" [v1-itens] Reiniciando em 30s...");
                 await sleep(30);
                 process.exit(1);
             }
         } else {
-            console.log('✅ [v1-itens] Sessão ativa via perfil local');
+            console.log(' [v1-itens] Sessão ativa via perfil local');
             // Salvar sessão válida no banco para próximas vezes
             await sessionManager.saveSession(page1, PROFILE_NAME);
         }
@@ -2718,17 +2718,17 @@ async function criarJanelaStatus(cookies) {
     await page2.setCookie(...cookies);
     
     // INICIAR SALVAMENTO PERIÓDICO DE SESSÃO
-    console.log(`🔄 [v1-itens] Iniciando salvamento periódico de sessão a cada ${SESSION_SAVE_INTERVAL/1000}s`);
+    console.log(` [v1-itens] Iniciando salvamento periódico de sessão a cada ${SESSION_SAVE_INTERVAL/1000}s`);
     setInterval(async () => {
         try {
             console.log('💾 [v1-itens] Salvando sessão periodicamente...');
             await sessionManager.saveSession(page1, PROFILE_NAME);
         } catch (error) {
-            console.error('❌ [v1-itens] Erro ao salvar sessão:', error.message);
+            console.error(' [v1-itens] Erro ao salvar sessão:', error.message);
         }
     }, SESSION_SAVE_INTERVAL);
 
-    console.log('🚀 [v1-itens] Iniciando script de itens...');
+    console.log(' [v1-itens] Iniciando script de itens...');
     
     // AGORA, CADA ABA EXECUTA UM DOS SEUS SCRIPTS
     await Promise.allSettled([
@@ -2739,6 +2739,6 @@ async function criarJanelaStatus(cookies) {
         //statusScript(page5)     // aba 5
     ]);
 })().catch(err => {
-    console.error('❌ [v1-itens] Erro fatal:', err.message);
+    console.error(' [v1-itens] Erro fatal:', err.message);
     process.exit(1);
 });

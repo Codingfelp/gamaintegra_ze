@@ -40,7 +40,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
  * @returns {Promise<Array>} - Lista de pedidos de retirada
  */
 async function getPickupOrdersInSeparation(page) {
-    console.log('📦 [PICKUP] Buscando pedidos de retirada na coluna "Em Separação"...');
+    console.log(' [PICKUP] Buscando pedidos de retirada na coluna "Em Separação"...');
     
     try {
         const orders = await page.evaluate(() => {
@@ -76,15 +76,15 @@ async function getPickupOrdersInSeparation(page) {
         });
         
         if (orders.error) {
-            console.log(`📦 ⚠️ ${orders.error}`);
+            console.log(`  ${orders.error}`);
             return [];
         }
         
-        console.log(`📦 ✓ Encontrados ${orders.total} pedidos de retirada`);
+        console.log(`  Encontrados ${orders.total} pedidos de retirada`);
         return orders.orders;
         
     } catch (error) {
-        console.error('📦 ❌ Erro ao buscar pedidos:', error.message);
+        console.error('  Erro ao buscar pedidos:', error.message);
         return [];
     }
 }
@@ -97,11 +97,11 @@ async function getPickupOrdersInSeparation(page) {
  * @returns {Promise<boolean>} - true se confirmado com sucesso
  */
 async function confirmPickup(page, orderId, code) {
-    console.log(`📦 [PICKUP] Confirmando retirada do pedido #${orderId} com código ${code}`);
+    console.log(` [PICKUP] Confirmando retirada do pedido #${orderId} com código ${code}`);
     
     // Validar código
     if (!code || code.length !== 4 || !/^\d{4}$/.test(code)) {
-        console.log('📦 ❌ Código inválido. Deve ter exatamente 4 dígitos numéricos.');
+        console.log('  Código inválido. Deve ter exatamente 4 dígitos numéricos.');
         return false;
     }
     
@@ -109,7 +109,7 @@ async function confirmPickup(page, orderId, code) {
     
     try {
         // PASSO 1: Clicar no card do pedido
-        console.log('📦 [PASSO 1] Clicando no card do pedido...');
+        console.log(' [PASSO 1] Clicando no card do pedido...');
         
         const cardClicked = await page.evaluate((id) => {
             const card = document.querySelector(`#link-to-order-${id}`);
@@ -121,7 +121,7 @@ async function confirmPickup(page, orderId, code) {
         }, orderId);
         
         if (!cardClicked.success) {
-            console.log('📦 ❌ Card do pedido não encontrado');
+            console.log('  Card do pedido não encontrado');
             return false;
         }
         
@@ -133,7 +133,7 @@ async function confirmPickup(page, orderId, code) {
         } catch (e) {}
         
         // PASSO 2: Encontrar e clicar no botão "Confirmar" (primeiro modal)
-        console.log('📦 [PASSO 2] Clicando no botão "Confirmar"...');
+        console.log(' [PASSO 2] Clicando no botão "Confirmar"...');
         
         const firstConfirmClicked = await page.evaluate(() => {
             // Buscar entre os 3 botões: Cancelar, Imprimir, Confirmar
@@ -162,11 +162,11 @@ async function confirmPickup(page, orderId, code) {
         });
         
         if (!firstConfirmClicked.success) {
-            console.log('📦 ❌ Botão "Confirmar" não encontrado no modal do pedido');
+            console.log('  Botão "Confirmar" não encontrado no modal do pedido');
             return false;
         }
         
-        console.log(`📦 ✓ Botão "Confirmar" clicado via ${firstConfirmClicked.method}`);
+        console.log(`  Botão "Confirmar" clicado via ${firstConfirmClicked.method}`);
         await sleep(2000);
         
         // Screenshot após primeiro confirmar
@@ -175,7 +175,7 @@ async function confirmPickup(page, orderId, code) {
         } catch (e) {}
         
         // PASSO 3: Identificar os 4 inputs do código e inserir cada dígito
-        console.log('📦 [PASSO 3] Inserindo código de confirmação...');
+        console.log(' [PASSO 3] Inserindo código de confirmação...');
         
         const codeInserted = await page.evaluate((digits) => {
             // Buscar inputs de código (geralmente são 4 inputs type="text" ou type="tel")
@@ -235,11 +235,11 @@ async function confirmPickup(page, orderId, code) {
         }, codeDigits);
         
         if (!codeInserted.success) {
-            console.log(`📦 ❌ Erro ao inserir código: ${codeInserted.error}`);
+            console.log(`  Erro ao inserir código: ${codeInserted.error}`);
             return false;
         }
         
-        console.log(`📦 ✓ Código inserido (${codeInserted.inputsFound} inputs)`);
+        console.log(`  Código inserido (${codeInserted.inputsFound} inputs)`);
         await sleep(1000);
         
         // Screenshot após inserir código
@@ -248,7 +248,7 @@ async function confirmPickup(page, orderId, code) {
         } catch (e) {}
         
         // PASSO 4: Clicar no botão "Confirmar" final
-        console.log('📦 [PASSO 4] Clicando no botão "Confirmar" final...');
+        console.log(' [PASSO 4] Clicando no botão "Confirmar" final...');
         
         const finalConfirmClicked = await page.evaluate(() => {
             const buttons = document.querySelectorAll('hexa-v2-button, button');
@@ -276,9 +276,9 @@ async function confirmPickup(page, orderId, code) {
         });
         
         if (!finalConfirmClicked.success) {
-            console.log('📦 ⚠️ Botão "Confirmar" final não encontrado');
+            console.log('  Botão "Confirmar" final não encontrado');
         } else {
-            console.log('📦 ✓ Confirmação final enviada');
+            console.log('  Confirmação final enviada');
         }
         
         await sleep(3000);
@@ -289,7 +289,7 @@ async function confirmPickup(page, orderId, code) {
         } catch (e) {}
         
         // PASSO 5: Verificar se pedido foi confirmado
-        console.log('📦 [PASSO 5] Verificando status do pedido...');
+        console.log(' [PASSO 5] Verificando status do pedido...');
         
         const verified = await page.evaluate((id) => {
             // Verificar se pedido saiu da coluna Em Separação
@@ -308,15 +308,15 @@ async function confirmPickup(page, orderId, code) {
         }, orderId);
         
         if (!verified.stillInSeparation || verified.hasSuccessMessage) {
-            console.log(`📦 ✅ PEDIDO #${orderId} CONFIRMADO COM SUCESSO!`);
+            console.log(`  PEDIDO #${orderId} CONFIRMADO COM SUCESSO!`);
             return true;
         }
         
-        console.log(`📦 ⚠️ Status do pedido #${orderId} não confirmado`);
+        console.log(`  Status do pedido #${orderId} não confirmado`);
         return false;
         
     } catch (error) {
-        console.error(`📦 ❌ Erro ao confirmar pedido #${orderId}:`, error.message);
+        console.error(`  Erro ao confirmar pedido #${orderId}:`, error.message);
         try {
             await page.screenshot({ path: `/app/logs/pickup-error-${orderId}.png` });
         } catch (e) {}

@@ -35,7 +35,6 @@ Usuário: root
 Senha: eHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU
 Database: railway
 ```
-
 ### Testar Conexão:
 
 ```bash
