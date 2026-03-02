@@ -840,6 +840,312 @@ async def confirmar_retirada_pedido(order_id: str, background_tasks: BackgroundT
 # - ze_pedido_id.php: Processar pedido por ID específico
 # Documentação: /app/docs/API_INTEGRADOR.md
 
+
+# ============= WEBHOOKS PARA SISTEMA EXTERNO =============
+
+class WebhookConfigRequest(BaseModel):
+    url: str
+    secret: Optional[str] = None
+    eventos: Optional[List[str]] = None
+
+@app.get("/api/webhooks/config")
+async def get_webhook_configuracao():
+    """Retorna configuração atual do webhook"""
+    config = get_webhook_config()
+    # Ocultar secret parcialmente
+    if config.get('secret'):
+        config['secret'] = config['secret'][:4] + '****'
+    return {"success": True, "config": config}
+
+@app.post("/api/webhooks/configurar")
+async def configurar_webhook(request: WebhookConfigRequest):
+    """
+    Configura URL do webhook para receber notificações
+    
+    Eventos disponíveis:
+    - pedido.novo: Quando um pedido novo é capturado
+    - pedido.status: Quando o status do pedido muda
+    - pedido.detalhes: Quando detalhes são atualizados (telefone, itens, etc)
+    - pedido.retirada_pendente: Quando pedido de retirada aguarda código
+    
+    Exemplo:
+    POST /api/webhooks/configurar
+    {
+        "url": "https://seu-sistema.com/webhook/ze-delivery",
+        "secret": "sua-chave-secreta",
+        "eventos": ["pedido.novo", "pedido.status", "pedido.detalhes"]
+    }
+    """
+    try:
+        if not request.url.startswith(('http://', 'https://')):
+            return {"success": False, "error": "URL inválida"}
+        
+        config = {
+            'url': request.url,
+            'secret': request.secret,
+            'ativo': True,
+            'eventos': request.eventos or ['pedido.novo', 'pedido.status', 'pedido.detalhes', 'pedido.retirada_pendente']
+        }
+        
+        save_webhook_config(config)
+        
+        return {
+            "success": True,
+            "message": "Webhook configurado com sucesso",
+            "config": {
+                "url": config['url'],
+                "ativo": config['ativo'],
+                "eventos": config['eventos']
+            }
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/webhooks/desativar")
+async def desativar_webhook():
+    """Desativa o webhook"""
+    config = get_webhook_config()
+    config['ativo'] = False
+    save_webhook_config(config)
+    return {"success": True, "message": "Webhook desativado"}
+
+@app.post("/api/webhooks/testar")
+async def testar_webhook(background_tasks: BackgroundTasks):
+    """Envia um webhook de teste para a URL configurada"""
+    config = get_webhook_config()
+    
+    if not config.get('url'):
+        return {"success": False, "error": "Nenhuma URL configurada"}
+    
+    if not config.get('ativo'):
+        return {"success": False, "error": "Webhook está desativado"}
+    
+    # Buscar um pedido para enviar como teste
+    try:
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT delivery_code FROM delivery ORDER BY delivery_id DESC LIMIT 1")
+        pedido = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if pedido:
+            enviar_webhook('teste', pedido['delivery_code'], {'mensagem': 'Este é um webhook de teste'})
+            return {"success": True, "message": f"Webhook de teste enviado com pedido #{pedido['delivery_code']}"}
+        else:
+            return {"success": False, "error": "Nenhum pedido encontrado para teste"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+# ============= ENDPOINTS PARA SISTEMA EXTERNO =============
+
+@app.get("/api/pedido/{pedido_id}")
+async def get_pedido_completo_endpoint(pedido_id: str):
+    """
+    Retorna todos os dados de um pedido específico
+    
+    Exemplo: GET /api/pedido/472230265
+    
+    Retorna:
+    - numero_pedido, status, cliente (nome, cpf, telefone)
+    - endereco (logradouro, complemento, bairro, cidade_uf, cep)
+    - codigo_entrega, tipo_pedido, itens
+    - valores (subtotal, frete, taxa, troco, desconto, total)
+    - forma_pagamento, observacoes, datas
+    """
+    pedido = get_pedido_completo(pedido_id)
+    
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+    
+    return {"success": True, "pedido": pedido}
+
+@app.get("/api/sync")
+async def sync_pedidos(
+    desde: Optional[str] = None,
+    status: Optional[int] = None,
+    limit: int = 100
+):
+    """
+    Endpoint de sincronização para sistema externo
+    
+    Parâmetros:
+    - desde: Timestamp ISO (ex: 2026-03-02T10:00:00) - busca pedidos desde essa data
+    - status: Código do status (0=Pendente, 1=Entregue, 2=Aceito, 3=A caminho, 4=Cancelado, 5=Rejeitado, 6=Expirado)
+    - limit: Máximo de pedidos (default: 100)
+    
+    Exemplo: GET /api/sync?desde=2026-03-02T10:00:00&limit=50
+    Exemplo: GET /api/sync?status=2&limit=20
+    """
+    try:
+        if desde:
+            pedidos = get_pedidos_desde(desde, limit)
+        elif status is not None:
+            pedidos = get_pedidos_por_status(status, limit)
+        else:
+            # Sem filtro, buscar os mais recentes
+            conn = get_db()
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("""
+                SELECT delivery_code FROM delivery 
+                WHERE delivery_trash = 0
+                ORDER BY delivery_date_time DESC 
+                LIMIT %s
+            """, (limit,))
+            codigos = [row['delivery_code'] for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            
+            pedidos = []
+            for codigo in codigos:
+                pedido = get_pedido_completo(codigo)
+                if pedido:
+                    pedidos.append(pedido)
+        
+        return {
+            "success": True,
+            "total": len(pedidos),
+            "timestamp": datetime.now().isoformat(),
+            "pedidos": pedidos
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+class AtualizarStatusRequest(BaseModel):
+    status: int
+    observacao: Optional[str] = None
+
+@app.post("/api/pedido/{pedido_id}/status")
+async def atualizar_status_pedido(pedido_id: str, request: AtualizarStatusRequest, background_tasks: BackgroundTasks):
+    """
+    Atualiza status de um pedido
+    
+    Status disponíveis:
+    - 0: Pendente
+    - 1: Entregue
+    - 2: Aceito
+    - 3: A caminho
+    - 4: Cancelado
+    - 5: Rejeitado
+    - 6: Expirado
+    
+    Exemplo:
+    POST /api/pedido/472230265/status
+    {"status": 3, "observacao": "Saiu para entrega"}
+    """
+    try:
+        if request.status not in STATUS_MAP:
+            return {"success": False, "error": f"Status inválido. Use: {list(STATUS_MAP.keys())}"}
+        
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        
+        # Buscar status anterior
+        cursor.execute("SELECT delivery_status FROM delivery WHERE delivery_code = %s", (pedido_id,))
+        pedido = cursor.fetchone()
+        
+        if not pedido:
+            cursor.close()
+            conn.close()
+            return {"success": False, "error": "Pedido não encontrado"}
+        
+        status_anterior = pedido['delivery_status']
+        
+        # Atualizar status
+        if request.observacao:
+            cursor.execute("""
+                UPDATE delivery 
+                SET delivery_status = %s, delivery_obs = CONCAT(IFNULL(delivery_obs, ''), '\n', %s)
+                WHERE delivery_code = %s
+            """, (request.status, f"[{datetime.now().isoformat()}] {request.observacao}", pedido_id))
+        else:
+            cursor.execute("""
+                UPDATE delivery SET delivery_status = %s WHERE delivery_code = %s
+            """, (request.status, pedido_id))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        # Disparar webhook em background
+        background_tasks.add_task(webhook_pedido_status, pedido_id, status_anterior, request.status)
+        
+        return {
+            "success": True,
+            "message": f"Status atualizado de {STATUS_MAP.get(status_anterior)} para {STATUS_MAP.get(request.status)}",
+            "pedido_id": pedido_id,
+            "status_anterior": status_anterior,
+            "status_novo": request.status
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.post("/api/pedido/{pedido_id}/reprocessar")
+async def reprocessar_pedido(pedido_id: str, background_tasks: BackgroundTasks):
+    """
+    Força reprocessamento de um pedido para capturar detalhes faltantes
+    (telefone, itens, código de entrega, etc)
+    
+    Exemplo: POST /api/pedido/472230265/reprocessar
+    """
+    try:
+        # Verificar se pedido existe
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT delivery_id FROM delivery WHERE delivery_code = %s", (pedido_id,))
+        pedido = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if not pedido:
+            return {"success": False, "error": "Pedido não encontrado"}
+        
+        # Chamar o integrador para reprocessar
+        def executar_reprocessamento():
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['php', '/app/integrador/zeduplo/ze_pedido_id.php'],
+                    input=json.dumps({'order_id': pedido_id}),
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
+                print(f"[REPROCESSAR] Pedido {pedido_id}: {result.stdout}")
+                
+                # Disparar webhook de detalhes atualizados
+                webhook_pedido_detalhes(pedido_id, ['reprocessado'])
+            except Exception as e:
+                print(f"[REPROCESSAR] Erro: {e}")
+        
+        background_tasks.add_task(executar_reprocessamento)
+        
+        return {
+            "success": True,
+            "message": f"Reprocessamento do pedido #{pedido_id} iniciado"
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@app.get("/api/status-map")
+async def get_status_map():
+    """Retorna mapeamento de códigos de status"""
+    return {
+        "success": True,
+        "status_map": STATUS_MAP,
+        "descricao": {
+            0: "Pedido recebido, aguardando aceite",
+            1: "Pedido entregue ao cliente",
+            2: "Pedido aceito, em preparação",
+            3: "Pedido saiu para entrega",
+            4: "Pedido cancelado",
+            5: "Pedido rejeitado pela loja",
+            6: "Pedido expirou sem aceite"
+        }
+    }
+
+
 # ============= PRODUTOS =============
 
 @app.get("/api/produtos")
