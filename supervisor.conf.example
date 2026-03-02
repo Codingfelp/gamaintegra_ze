@@ -1,0 +1,62 @@
+; =============================================================================
+; CONFIGURAÇÃO DO SUPERVISOR - INTEGRADOR ZÉ DELIVERY
+; =============================================================================
+; 
+; Este arquivo configura os processos que rodam em background:
+; - backend: API REST (FastAPI)
+; - frontend: Dashboard (React)
+; - ze-v1: Scraper de aceite automático
+; - ze-v1-itens: Scraper de detalhes e telefone
+;
+; INSTALAÇÃO:
+; 1. Copie este arquivo para /etc/supervisor/conf.d/integrador-ze.conf
+; 2. Execute: sudo supervisorctl reread && sudo supervisorctl update
+; 3. Inicie: sudo supervisorctl start all
+;
+; COMANDOS ÚTEIS:
+; - Ver status: sudo supervisorctl status
+; - Reiniciar tudo: sudo supervisorctl restart all
+; - Ver logs: tail -f /var/log/integrador-ze/*.log
+;
+; =============================================================================
+
+[program:backend]
+command=/app/backend/venv/bin/uvicorn server:app --host 0.0.0.0 --port 8001
+directory=/app/backend
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/integrador-ze/backend.err.log
+stdout_logfile=/var/log/integrador-ze/backend.out.log
+environment=PYTHONUNBUFFERED=1
+
+[program:frontend]
+command=yarn start
+directory=/app/frontend
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/integrador-ze/frontend.err.log
+stdout_logfile=/var/log/integrador-ze/frontend.out.log
+environment=PORT=3000,BROWSER=none
+
+[program:ze-v1]
+command=/usr/bin/node v1.js
+directory=/app/zedelivery-clean
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/integrador-ze/ze-v1.err.log
+stdout_logfile=/var/log/integrador-ze/ze-v1.out.log
+
+[program:ze-v1-itens]
+command=/usr/bin/node v1-itens.js
+directory=/app/zedelivery-clean
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/integrador-ze/ze-v1-itens.err.log
+stdout_logfile=/var/log/integrador-ze/ze-v1-itens.out.log
+
+; =============================================================================
+; GRUPO PARA GERENCIAR TODOS OS PROCESSOS
+; =============================================================================
+
+[group:integrador]
+programs=backend,frontend,ze-v1,ze-v1-itens
