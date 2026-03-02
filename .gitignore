@@ -66,3 +66,7 @@ seletores_novos/
 node_modules/chromium/lib/chromium/chrome-linux/chrome
 zedelivery-clean/node_modules/electron/dist/electron
 zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
+-e 
+# Environment files
+*.env
+*.env.*

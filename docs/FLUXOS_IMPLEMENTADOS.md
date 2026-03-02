@@ -160,9 +160,7 @@ def confirmar_retirada(order_id, code):
 result = confirmar_retirada('472230265', '1234')
 print(result)
 ```
-
 ---
-
 ## NOTAS IMPORTANTES
 
 1. **O código de 4 dígitos é OBRIGATÓRIO** - O webhook só funciona se você enviar o código junto com o order_id
@@ -174,9 +172,7 @@ print(result)
 4. **Logs** - Verifique `/app/logs/ze-v1-itens-out.log` para acompanhar o processamento
 
 5. **Screenshots de debug** - Screenshots são salvos em `/app/logs/pickup-step*.png` para debug
-
 ---
-
 ## ARQUITETURA DOS ARQUIVOS
 
 ```

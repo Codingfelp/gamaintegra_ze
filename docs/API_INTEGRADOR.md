@@ -35,9 +35,7 @@ Ou localmente:
 ```
 Base: http://localhost:8080/integrador/zeduplo/
 ```
-
 ---
-
 ## Endpoints Disponíveis
 
 ### 1. Listar Pedidos (GET)
@@ -49,7 +47,6 @@ Base: http://localhost:8080/integrador/zeduplo/
 ```http
 GET /api/pedidos?limit=50&status=0&search=termo
 ```
-
 ### 2. Enviar/Atualizar Pedido Básico
 
 Recebe dados de um pedido do scraper e cria/atualiza no banco.

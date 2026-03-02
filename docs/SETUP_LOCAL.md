@@ -153,7 +153,6 @@ O scraper precisa de cookies de uma sessão autenticada no Zé Delivery.
   }
 ]
 ```
-
 Ou use a extensão "EditThisCookie" para exportar em JSON.
 
 ### Testar Scraper:
@@ -175,7 +174,6 @@ O integrador PHP processa os dados capturados pelo scraper e salva no banco.
 php -v
 # Deve mostrar PHP 8.1+
 ```
-
 ### Testar conexão do PHP:
 
 ```bash
@@ -215,9 +213,7 @@ node v1.js
 cd zedelivery-clean
 node v1-itens.js
 ```
-
 ---
-
 ## Estrutura de Logs
 
 Os scrapers salvam logs em `/app/logs/`:
@@ -228,9 +224,7 @@ Os scrapers salvam logs em `/app/logs/`:
 - `ze-v1-itens-error.log` - Erros do scraper de itens
 
 Screenshots de debug são salvos em `/app/logs/*.png`
-
 ---
-
 ## Dicas de Desenvolvimento
 
 ### Modificando o Scraper
@@ -243,9 +237,8 @@ Os seletores CSS do site Zé Delivery mudam frequentemente. Arquivos principais:
 
 Para debugar, adicione screenshots:
 ```javascript
-await page.screenshot({ path: '/app/logs/debug.png' });
+await page.screenshot({ path: '/app/logs/debug.png'  });
 ```
-
 ### Modificando a API
 
 O arquivo principal é `backend/server.py`. Após modificar, o servidor reinicia automaticamente (--reload).
@@ -271,7 +264,6 @@ lsof -ti:8001 | xargs kill -9
 # Ver logs em tempo real
 tail -f /app/logs/ze-v1-itens-out.log
 ```
-
 ---
 
 ## Problemas Comuns
@@ -292,14 +284,12 @@ chmod +x zedelivery-clean/*.sh
 
 ### Frontend mostra tela branca
 Verifique o console do navegador (F12). Provavelmente o backend não está rodando.
-
 ---
-
 ## Próximos Passos
 
 Após configurar o ambiente:
 
-1. Leia a documentação da API em `/docs/API_SISTEMA_EXTERNO.md`
+1. Leia a documentação da API em `/docs/API_SISTEMA_GAMATAURI.md`
 2. Entenda os fluxos em `/docs/FLUXOS_IMPLEMENTADOS.md`
 3. Verifique o schema do banco em `/docs/zedelivery_full_dump.sql`
 
