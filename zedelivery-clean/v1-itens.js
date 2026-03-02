@@ -1,3 +1,35 @@
+/**
+ * =============================================================================
+ * SCRAPER DE DETALHES - CAPTURA ITENS, TELEFONE E INFORMAÇÕES ADICIONAIS
+ * =============================================================================
+ * 
+ * Este script complementa o v1.js e é responsável por:
+ * - Capturar detalhes dos pedidos (itens, valores, observações)
+ * - Extrair telefone do cliente através do fluxo de modal
+ * - Capturar código de entrega para pedidos de retirada
+ * - Atualizar informações no banco de dados
+ * 
+ * ARQUIVOS RELACIONADOS:
+ * - phone-capture-v3.js: Módulo de captura de telefone
+ * - php-bridge.js: Comunicação com integrador PHP
+ * - session-manager.js: Gerenciamento de sessão
+ * 
+ * FLUXO DE CAPTURA DE TELEFONE:
+ * 1. Acessa página de detalhes do pedido
+ * 2. Clica no botão "Ver telefone"
+ * 3. Modal "Qual é o motivo para o contato?" aparece
+ * 4. Seleciona "Problemas com a entrega"
+ * 5. Seleciona "O entregador não encontra o cliente"
+ * 6. Clica em "Confirmar"
+ * 7. Modal com telefone aparece, captura o número
+ * 
+ * LOGS:
+ * - Saída: /app/logs/ze-v1-itens-out.log
+ * - Erros: /app/logs/ze-v1-itens-error.log
+ * 
+ * =============================================================================
+ */
+
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const request = require('request');
@@ -6,9 +38,11 @@ const phpBridge = require('./php-bridge');
 const sessionManager = require('./session-manager');
 const integrationLogger = require('./integration-logger');
 const updateController = require('./update-controller');
-const phoneCapture = require('./phone-capture-v3'); // V3 - Módulo com seletores atualizados (2026-03-02)
+const phoneCapture = require('./phone-capture-v3');
 
-// ============== CONFIGURAÇÃO DE OPERAÇÃO 24/7 ==============
+// =============================================================================
+// CONFIGURAÇÃO DE OPERAÇÃO 24/7
+// =============================================================================
 // Estratégia: Reiniciar automaticamente a cada 4 horas para evitar memory leaks
 // Horário de operação: 09:00 - 00:00 (se fora desse horário, aguarda)
 const MAX_RUNTIME_MS = 4 * 60 * 60 * 1000; // 4 horas
