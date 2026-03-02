@@ -1,3 +1,35 @@
+/**
+ * =============================================================================
+ * SCRAPER PRINCIPAL - ACEITE AUTOMÁTICO DE PEDIDOS
+ * =============================================================================
+ * 
+ * Este script monitora o painel do Zé Delivery (seuze.ze.delivery) e:
+ * - Aceita automaticamente pedidos que chegam na coluna "Novos"
+ * - Envia dados para o integrador PHP processar e salvar no banco
+ * - Opera 24/7 com reinício automático a cada 4 horas (evita memory leak)
+ * 
+ * ARQUIVOS RELACIONADOS:
+ * - auto-accept.js: Módulo com lógica de aceite automático
+ * - php-bridge.js: Ponte para comunicação com integrador PHP
+ * - session-manager.js: Gerenciamento de sessão do navegador
+ * 
+ * COMO FUNCIONA:
+ * 1. Inicia navegador Puppeteer com perfil persistente (mantém login)
+ * 2. Acessa página do kanban: seuze.ze.delivery/poc-orders
+ * 3. Loop infinito que verifica pedidos novos a cada 30 segundos
+ * 4. Quando encontra pedido novo, clica no card e aceita
+ * 
+ * CONFIGURAÇÃO:
+ * - configuracao.json: Credenciais e URLs
+ * - cookies.json: Cookies de autenticação do Zé Delivery
+ * 
+ * LOGS:
+ * - Saída: /app/logs/ze-v1-out.log
+ * - Erros: /app/logs/ze-v1-error.log
+ * 
+ * =============================================================================
+ */
+
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const request = require('request');
@@ -6,9 +38,11 @@ const phpBridge = require('./php-bridge');
 const sessionManager = require('./session-manager');
 const integrationLogger = require('./integration-logger');
 const updateController = require('./update-controller');
-const autoAccept = require('./auto-accept'); // Módulo de aceite automático (2026-03-02)
+const autoAccept = require('./auto-accept');
 
-// ============== CONFIGURAÇÃO DE OPERAÇÃO 24/7 ==============
+// =============================================================================
+// CONFIGURAÇÃO DE OPERAÇÃO 24/7
+// =============================================================================
 // Estratégia: Reiniciar automaticamente a cada 4 horas para evitar memory leaks
 // Horário de operação: 09:00 - 00:00 (se fora desse horário, aguarda)
 const MAX_RUNTIME_MS = 4 * 60 * 60 * 1000; // 4 horas
