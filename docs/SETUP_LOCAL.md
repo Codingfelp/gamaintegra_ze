@@ -40,9 +40,7 @@ Database: railway
 ```bash
 mysql -h mainline.proxy.rlwy.net -P 52996 -u root -peHeoVCebYyaJVBEBtCLfYNHgRCrxWVXU railway
 ```
-
-Se conectar, você verá o prompt `mysql>`. Digite `exit` para sair.
-
+Se conectar, você verá o prompt `mysql>`. Digite `exit` para sair
 ---
 
 ## Passo 3: Configurar Backend (Python/FastAPI)
