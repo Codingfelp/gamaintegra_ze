@@ -1,9 +1,7 @@
 # Documentacao Completa da API - Integrador Ze Delivery
 
 Esta documentacao unifica todas as APIs disponiveis no sistema e explica como utiliza-las.
-
 ---
-
 ## Indice
 
 1. [Visao Geral](#visao-geral)
@@ -44,8 +42,8 @@ O sistema possui **duas APIs** que trabalham juntas:
                               |
                               v
 +------------------+          +------------------+          +------------------+
-|  SEU SISTEMA     | <------> |  API REST        | <------> |  Dashboard       |
-|  (Supabase, ERP) |          |  FastAPI         |          |  React           |
+|  GAMATAURI     | <------> |  API REST        | <------> |  Dashboard       |
+|  (Supabase) |          |  FastAPI         |          |  React           |
 +------------------+          +------------------+          +------------------+
 ```
 

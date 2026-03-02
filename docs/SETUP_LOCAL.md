@@ -373,18 +373,6 @@ MYSQL_PASSWORD=sua-senha
 MYSQL_DATABASE=railway
 ```
 
-**Importante:** Se estava usando `LOVABLE_SUPABASE_URL` ou `LOVABLE_ZE_SYNC_KEY`, renomeie para `SUPABASE_URL` e `ZE_SYNC_KEY`.
-
-### Estrutura no Railway
-
-O projeto no Railway deve ter os seguintes servicos:
-
-| Servico | Funcao |
-|---------|--------|
-| web / backend | API FastAPI |
-| scraper ou worker | Scripts Node.js (v1.js, v1-itens.js) |
-| MySQL | Banco de dados (ja configurado) |
-
 ### Logs de Producao
 
 Para ver logs no Railway:

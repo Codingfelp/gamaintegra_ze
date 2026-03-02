@@ -150,9 +150,7 @@ if ($existing->num_rows > 0) {
     $db->query("INSERT INTO delivery (delivery_code, delivery_name_cliente, delivery_status) VALUES (...)");
 }
 ```
-
 ---
-
 ## Fluxo de Aceite Automatico
 
 Aceita automaticamente pedidos que chegam na coluna "Novos".
@@ -479,9 +477,7 @@ SELECT * FROM delivery
 WHERE delivery_data_hora_captura > NOW() - INTERVAL 5 MINUTE
 ORDER BY delivery_id DESC;
 ```
-
 ---
-
 ## Manutencao do Sistema
 
 ### Quando os Seletores Quebram
