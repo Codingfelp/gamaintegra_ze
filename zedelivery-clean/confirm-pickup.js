@@ -1,22 +1,33 @@
 /**
- * Confirm Pickup Module - Confirmar Retirada de pedidos
+ * =============================================================================
+ * MÓDULO DE CONFIRMAÇÃO DE RETIRADA
+ * =============================================================================
  * 
- * FLUXO:
- * 1. Pedido de Retirada aceito na coluna "EM SEPARAÇÃO" do kanban
- * 2. Webhook externo envia código de 4 dígitos para o integrador
- * 3. Integrador chama este módulo para:
- *    - Clicar no card do pedido de retirada
- *    - Abrir modal do pedido
- *    - Clicar no botão "Confirmar"
- *    - Modal de confirmação abre com 4 inputs para código
- *    - Inserir cada dígito do código nos inputs
- *    - Clicar em "Confirmar"
- *    - Verificar se pedido foi confirmado (status: "Entregue")
+ * Este módulo é responsável por confirmar pedidos de retirada usando o
+ * código de 4 dígitos fornecido pelo cliente.
  * 
- * SELETORES:
+ * FLUXO DE CONFIRMAÇÃO:
+ * 1. Sistema externo envia webhook com order_id e código de 4 dígitos
+ * 2. Este módulo acessa o kanban e encontra o pedido na coluna "Em Separação"
+ * 3. Clica no card do pedido para abrir o modal
+ * 4. Modal mostra botões: "Cancelar", "Imprimir", "Confirmar"
+ * 5. Clica em "Confirmar"
+ * 6. Novo modal abre com 4 inputs para o código
+ * 7. Insere cada dígito do código nos inputs
+ * 8. Clica em "Confirmar" novamente
+ * 9. Verifica se o pedido foi confirmado (status muda para "Entregue")
+ * 
+ * SELETORES CSS UTILIZADOS:
  * - Coluna Em Separação: #kanban-column-body-in-separation-orders
- * - Botões do modal: "Cancelar", "Imprimir", "Confirmar"
- * - Inputs do código: 4 inputs para cada dígito
+ * - Cards de pedido: [id^="link-to-order-"]
+ * - Botões do modal: hexa-v2-button com texto "Confirmar"
+ * - Inputs de código: input[type="text"] ou input[maxlength="1"]
+ * 
+ * COMO USAR:
+ * - Via API: POST /api/webhook/confirmar-retirada {"order_id": "123", "code": "1234"}
+ * - Via CLI: node confirmar-retirada-cli.js 123456789 1234
+ * 
+ * =============================================================================
  */
 
 const fs = require('fs');
