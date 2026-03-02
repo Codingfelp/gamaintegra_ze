@@ -22,13 +22,13 @@ const fs = require('fs');
  */
 async function capturarTelefonePocOrders(page, orderId) {
     const orderIdClean = orderId.replace(/\s+/g, '');
-    console.log(`📞 [TELEFONE-POC] Iniciando captura para pedido #${orderIdClean}`);
+    console.log(` [TELEFONE-POC] Iniciando captura para pedido #${orderIdClean}`);
     
     try {
         // Garantir que estamos na página poc-orders
         const currentUrl = page.url();
         if (!currentUrl.includes('/poc-orders')) {
-            console.log('📞 Navegando para poc-orders...');
+            console.log(' Navegando para poc-orders...');
             await page.goto('https://seu.ze.delivery/poc-orders', {
                 waitUntil: 'networkidle2',
                 timeout: 30000
@@ -37,7 +37,7 @@ async function capturarTelefonePocOrders(page, orderId) {
         }
         
         // PASSO 1: Encontrar o card do pedido e clicar no botão de telefone
-        console.log('📞 [PASSO 1] Buscando botão de telefone no card do pedido...');
+        console.log(' [PASSO 1] Buscando botão de telefone no card do pedido...');
         
         const phoneButtonClicked = await page.evaluate((orderId) => {
             // Buscar o link do pedido pelo ID
@@ -108,18 +108,18 @@ async function capturarTelefonePocOrders(page, orderId) {
         }, orderIdClean);
         
         if (!phoneButtonClicked.success) {
-            console.log(`📞 ❌ ${phoneButtonClicked.reason}`);
+            console.log(`  ${phoneButtonClicked.reason}`);
             if (phoneButtonClicked.availableOrders) {
-                console.log(`📞 Pedidos disponíveis na página: ${phoneButtonClicked.availableOrders.join(', ')}`);
+                console.log(` Pedidos disponíveis na página: ${phoneButtonClicked.availableOrders.join(', ')}`);
             }
             return '';
         }
         
-        console.log(`📞 ✓ Botão de telefone clicado (${phoneButtonClicked.method})`);
+        console.log(`  Botão de telefone clicado (${phoneButtonClicked.method})`);
         await sleep(2);
         
         // PASSO 2: Verificar se modal de motivo abriu e clicar em "Problemas com a entrega"
-        console.log('📞 [PASSO 2] Buscando modal de motivo...');
+        console.log(' [PASSO 2] Buscando modal de motivo...');
         
         // Aguardar modal aparecer
         await sleep(2);
@@ -134,7 +134,7 @@ async function capturarTelefonePocOrders(page, orderId) {
         let maxAttempts = 3;
         
         for (let attempt = 1; attempt <= maxAttempts && !accordionExpanded; attempt++) {
-            console.log(`📞 [PASSO 2] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
+            console.log(` [PASSO 2] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
             
             const motivoClicked = await page.evaluate((attemptNum) => {
                 // ESTRATÉGIA 1: Buscar pelo ID específico do Zé Delivery
@@ -221,15 +221,15 @@ async function capturarTelefonePocOrders(page, orderId) {
             }, attempt);
             
             if (!motivoClicked.success) {
-                console.log(`📞 ❌ Opção "Problemas com a entrega" não encontrada na tentativa ${attempt}`);
+                console.log(`  Opção "Problemas com a entrega" não encontrada na tentativa ${attempt}`);
                 if (motivoClicked.available) {
-                    console.log('📞 Textos disponíveis:', motivoClicked.available.slice(0, 10));
+                    console.log(' Textos disponíveis:', motivoClicked.available.slice(0, 10));
                 }
                 await sleep(1);
                 continue;
             }
             
-            console.log(`📞 ✓ "Problemas com a entrega" clicado (${motivoClicked.method})`);
+            console.log(`  "Problemas com a entrega" clicado (${motivoClicked.method})`);
             
             // Aguardar accordion expandir - tempo progressivo
             await sleep(2 + attempt);
@@ -251,10 +251,10 @@ async function capturarTelefonePocOrders(page, orderId) {
             });
             
             if (expansionCheck.hasEntregadorOption) {
-                console.log(`📞 ✓ Accordion expandiu na tentativa ${attempt}! (foundById: ${expansionCheck.foundById})`);
+                console.log(`  Accordion expandiu na tentativa ${attempt}! (foundById: ${expansionCheck.foundById})`);
                 accordionExpanded = true;
             } else {
-                console.log(`📞 ⚠️ Accordion não expandiu na tentativa ${attempt}, tentando novamente...`);
+                console.log(`  Accordion não expandiu na tentativa ${attempt}, tentando novamente...`);
             }
         }
         
@@ -264,13 +264,13 @@ async function capturarTelefonePocOrders(page, orderId) {
         } catch (e) {}
         
         if (!accordionExpanded) {
-            console.log('📞 ❌ Não foi possível expandir o accordion após todas as tentativas');
+            console.log('  Não foi possível expandir o accordion após todas as tentativas');
             
             // Salvar HTML para debug
             try {
                 const html = await page.content();
                 fs.writeFileSync('/app/logs/phone-debug-modal.html', html);
-                console.log('📞 HTML do modal salvo em /app/logs/phone-debug-modal.html');
+                console.log(' HTML do modal salvo em /app/logs/phone-debug-modal.html');
             } catch (e) {}
             
             await fecharModal(page);
@@ -278,7 +278,7 @@ async function capturarTelefonePocOrders(page, orderId) {
         }
         
         // PASSO 3: Clicar em "O entregador não encontra o cliente"
-        console.log('📞 [PASSO 3] Buscando opção "O entregador não encontra o cliente"...');
+        console.log(' [PASSO 3] Buscando opção "O entregador não encontra o cliente"...');
         
         const opcaoClicked = await page.evaluate(() => {
             // ESTRATÉGIA 1: Buscar pelo ID específico
@@ -352,24 +352,24 @@ async function capturarTelefonePocOrders(page, orderId) {
         });
         
         if (!opcaoClicked.success) {
-            console.log('📞 ❌ Opção "O entregador não encontra o cliente" não encontrada');
+            console.log('  Opção "O entregador não encontra o cliente" não encontrada');
             if (opcaoClicked.availableTexts) {
-                console.log('📞 Textos disponíveis:', opcaoClicked.availableTexts.slice(0, 15));
+                console.log(' Textos disponíveis:', opcaoClicked.availableTexts.slice(0, 15));
             }
             // Tirar screenshot para debug
             try {
                 await page.screenshot({ path: '/app/logs/phone-debug-step3.png', fullPage: true });
-                console.log('📞 Screenshot salvo em /app/logs/phone-debug-step3.png');
+                console.log(' Screenshot salvo em /app/logs/phone-debug-step3.png');
             } catch (e) {}
             await fecharModal(page);
             return '';
         }
         
-        console.log(`📞 ✓ Opção selecionada (${opcaoClicked.element}: ${opcaoClicked.text})`);
+        console.log(`  Opção selecionada (${opcaoClicked.element}: ${opcaoClicked.text})`);
         await sleep(1);
         
         // PASSO 4: Clicar no botão "Confirmar"
-        console.log('📞 [PASSO 4] Buscando botão "Confirmar"...');
+        console.log(' [PASSO 4] Buscando botão "Confirmar"...');
         
         const confirmarClicked = await page.evaluate(() => {
             // Buscar botão com texto "Confirmar"
@@ -403,16 +403,16 @@ async function capturarTelefonePocOrders(page, orderId) {
         });
         
         if (!confirmarClicked.success) {
-            console.log('📞 ❌ Botão "Confirmar" não encontrado ou desabilitado');
+            console.log('  Botão "Confirmar" não encontrado ou desabilitado');
             await fecharModal(page);
             return '';
         }
         
-        console.log(`📞 ✓ Botão "Confirmar" clicado (${confirmarClicked.method})`);
+        console.log(`  Botão "Confirmar" clicado (${confirmarClicked.method})`);
         await sleep(3);
         
         // PASSO 5: Capturar telefone do modal "Dados para contato"
-        console.log('📞 [PASSO 5] Capturando telefone do modal "Dados para contato"...');
+        console.log(' [PASSO 5] Capturando telefone do modal "Dados para contato"...');
         
         const telefone = await page.evaluate(() => {
             // Buscar texto "Ligue para" e pegar o número abaixo
@@ -462,15 +462,15 @@ async function capturarTelefonePocOrders(page, orderId) {
         await fecharModal(page);
         
         if (telefone && telefone.length >= 10) {
-            console.log(`📞 ✅ TELEFONE CAPTURADO: ${telefone}`);
+            console.log(`  TELEFONE CAPTURADO: ${telefone}`);
             return telefone;
         }
         
-        console.log('📞 ❌ Telefone não encontrado no modal');
+        console.log('  Telefone não encontrado no modal');
         return '';
         
     } catch (error) {
-        console.error('📞 ❌ Erro na captura de telefone:', error.message);
+        console.error('  Erro na captura de telefone:', error.message);
         await fecharModal(page);
         return '';
     }
@@ -518,7 +518,7 @@ function sleep(seconds) {
 async function tentarCapturarTelefone(page, orderId, currentPhone = '') {
     // Se já tem telefone válido, não precisa capturar
     if (currentPhone && currentPhone.length >= 10) {
-        console.log(`📞 Pedido #${orderId} já tem telefone: ${currentPhone}`);
+        console.log(` Pedido #${orderId} já tem telefone: ${currentPhone}`);
         return currentPhone;
     }
     
@@ -526,11 +526,11 @@ async function tentarCapturarTelefone(page, orderId, currentPhone = '') {
     const novoTelefone = await capturarTelefonePocOrders(page, orderId);
     
     if (novoTelefone && novoTelefone.length >= 10) {
-        console.log(`📞 ✅ Telefone capturado para #${orderId}: ${novoTelefone}`);
+        console.log(`  Telefone capturado para #${orderId}: ${novoTelefone}`);
         return novoTelefone;
     }
     
-    console.log(`📞 ⚠️ Não foi possível capturar telefone para #${orderId}`);
+    console.log(`  Não foi possível capturar telefone para #${orderId}`);
     return currentPhone || '';
 }
 

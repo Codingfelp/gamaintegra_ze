@@ -149,7 +149,7 @@ async function pegarDupla() {
     const maxTentativas = 20; // Aumentado de 10 para 20
     
     console.log('📧 Iniciando busca por código 2FA...');
-    console.log('⏳ Aguardando 15 segundos para email chegar...');
+    console.log(' Aguardando 15 segundos para email chegar...');
     await sleep(15); // Aguardar email chegar antes de começar a buscar
     
     for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
@@ -163,7 +163,7 @@ async function pegarDupla() {
             }
             
             if (codigo === null || codigo === 0 || codigo === '0') {
-                console.log('⏳ Nenhum email de 2FA encontrado ainda...');
+                console.log(' Nenhum email de 2FA encontrado ainda...');
             } else {
                 console.log(` Resposta inesperada do Gmail: ${JSON.stringify(codigo)}`);
             }
@@ -172,7 +172,7 @@ async function pegarDupla() {
         }
         
         // Aguardar entre tentativas
-        console.log(`⏳ Aguardando 8 segundos antes da próxima tentativa...`);
+        console.log(` Aguardando 8 segundos antes da próxima tentativa...`);
         await sleep(8);
     }
     
@@ -356,7 +356,7 @@ async function fazerLogin(page) {
         await page.click("#send-code-verification");
 
         try {
-            console.log('⏳ [fazerLogin] Aguardando navegação após 2FA...');
+            console.log(' [fazerLogin] Aguardando navegação após 2FA...');
             await page.waitForNavigation({ timeout: 30000, waitUntil: 'networkidle2' });
         } catch (e) {
             console.error(" [fazerLogin] Falha ao navegar após envio do código.");
@@ -365,7 +365,7 @@ async function fazerLogin(page) {
 
         await sleep(5);
     } else {
-        console.log("⏳ [fazerLogin] Verificando se login foi bem sucedido...");
+        console.log(" [fazerLogin] Verificando se login foi bem sucedido...");
         
         // Aguardar possível redirecionamento
         await sleep(5);
@@ -425,7 +425,7 @@ async function fazerLogin(page) {
             // Salvar no arquivo local
             const cookiesPath = require('path').join(__dirname, 'cookies.json');
             require('fs').writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
-            console.log(`💾 [fazerLogin] ${cookies.length} cookies salvos em cookies.json`);
+            console.log(` [fazerLogin] ${cookies.length} cookies salvos em cookies.json`);
             
             // Também salvar no banco via session-manager
             await sessionManager.saveCookiesToDB('profile-ze-v1', cookies);
@@ -453,7 +453,7 @@ async function pedidoScript(page) {
     
     // Se redirecionou para login, sessão expirou
     if (page.url().includes('login')) {
-        console.log('🔑 [pedidoScript] Sessão expirou, reiniciando processo...');
+        console.log(' [pedidoScript] Sessão expirou, reiniciando processo...');
         process.exit(1); // Supervisor vai reiniciar
     }
 
@@ -798,7 +798,7 @@ async function statusScript(page) {
     
     // Se redirecionou para login, sessão expirou
     if (page.url().includes('login')) {
-        console.log('🔑 [statusScript] Sessão expirou, reiniciando processo...');
+        console.log(' [statusScript] Sessão expirou, reiniciando processo...');
         process.exit(1); // Supervisor vai reiniciar
     }
 
@@ -1087,7 +1087,7 @@ async function aceitaScript(browser, cookies) {
             
             // Se redirecionou para login, sessão expirou
             if (page.url().includes('login')) {
-                console.log('🔑 [ACEITA] Sessão expirou, reiniciando...');
+                console.log(' [ACEITA] Sessão expirou, reiniciando...');
                 aceiteStats.status = 'session_expired';
                 aceiteStats.errors.push({ time: new Date().toISOString(), error: 'Session expired' });
                 saveAceiteStats(aceiteStats);
@@ -1485,7 +1485,7 @@ async function aceitaScript(browser, cookies) {
                                     break;
                                 }
                                 
-                                console.log(`⏳ [ACEITA] Tentativa ${tentativa}/5 - botão não encontrado`);
+                                console.log(` [ACEITA] Tentativa ${tentativa}/5 - botão não encontrado`);
                                 await sleep(1);
                             }
                             
@@ -1508,7 +1508,7 @@ async function aceitaScript(browser, cookies) {
                     // =======================================================
                     // PASSO 3: Verificar se foi aceito (aguardar 4 segundos)
                     // =======================================================
-                    console.log('⏳ [ACEITA] Aguardando 4 segundos para verificar status...');
+                    console.log(' [ACEITA] Aguardando 4 segundos para verificar status...');
                     await sleep(4);
                     
                     await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
@@ -2137,13 +2137,13 @@ async function criarJanelaStatus(cookies) {
         console.log(' [v1] URL atual:', page1.url());
         
         if (page1.url().includes("login")) {
-            console.log("🔑 [v1] Sessão expirada, fazendo login novamente...");
+            console.log(" [v1] Sessão expirada, fazendo login novamente...");
             try {
                 await fazerLogin(page1);
                 console.log(" [v1] Login concluído com sucesso!");
                 
                 // Salvar nova sessão no banco
-                console.log('💾 [v1] Salvando nova sessão no banco...');
+                console.log(' [v1] Salvando nova sessão no banco...');
                 await sessionManager.saveSession(page1, PROFILE_NAME);
             } catch (loginError) {
                 console.error(" [v1] Erro no login:", loginError.message);
@@ -2179,7 +2179,7 @@ async function criarJanelaStatus(cookies) {
     console.log(` [v1] Iniciando salvamento periódico de sessão a cada ${SESSION_SAVE_INTERVAL/1000}s`);
     setInterval(async () => {
         try {
-            console.log('💾 [v1] Salvando sessão periodicamente...');
+            console.log(' [v1] Salvando sessão periodicamente...');
             await sessionManager.saveSession(page1, PROFILE_NAME);
         } catch (error) {
             console.error(' [v1] Erro ao salvar sessão:', error.message);

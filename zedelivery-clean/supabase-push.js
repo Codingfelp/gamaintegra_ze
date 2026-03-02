@@ -166,7 +166,7 @@ async function pushToSupabase(orders) {
         is_push: true // Indica que é push imediato, não sync periódico
     };
     
-    console.log(`📤 [PUSH] Enviando ${pedidosFormatados.length} pedido(s) para Supabase...`);
+    console.log(` [PUSH] Enviando ${pedidosFormatados.length} pedido(s) para Supabase...`);
     
     try {
         const response = await fetch(
@@ -185,7 +185,7 @@ async function pushToSupabase(orders) {
         
         if (response.ok) {
             const result = await response.json();
-            console.log(`✅ [PUSH] Sucesso! ${pedidosFormatados.length} pedido(s) sincronizado(s)`);
+            console.log(` [PUSH] Sucesso! ${pedidosFormatados.length} pedido(s) sincronizado(s)`);
             
             stats.totalPushed += pedidosFormatados.length;
             stats.lastPush = timestamp;
@@ -207,7 +207,7 @@ async function pushToSupabase(orders) {
             return { success: true, count: pedidosFormatados.length, result };
         } else {
             const error = await response.text();
-            console.error(`❌ [PUSH] Erro ${response.status}: ${error}`);
+            console.error(` [PUSH] Erro ${response.status}: ${error}`);
             
             stats.totalErrors++;
             stats.lastError = { timestamp, status: response.status, error };
@@ -215,7 +215,7 @@ async function pushToSupabase(orders) {
             return { success: false, error, status: response.status };
         }
     } catch (err) {
-        console.error(`❌ [PUSH] Erro de conexão: ${err.message}`);
+        console.error(` [PUSH] Erro de conexão: ${err.message}`);
         
         stats.totalErrors++;
         stats.lastError = { timestamp, error: err.message };
@@ -231,7 +231,7 @@ function queueOrderForPush(order) {
     // Adicionar à fila
     pendingOrders.push(order);
     
-    console.log(`📋 [PUSH] Pedido ${order.delivery_code || order.orderNumber} adicionado à fila (${pendingOrders.length} pendentes)`);
+    console.log(` [PUSH] Pedido ${order.delivery_code || order.orderNumber} adicionado à fila (${pendingOrders.length} pendentes)`);
     
     // Resetar timeout se já existir
     if (flushTimeout) {

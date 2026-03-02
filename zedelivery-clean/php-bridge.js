@@ -18,7 +18,7 @@ let supabasePush = null;
 try {
     supabasePush = require('./supabase-push');
 } catch (e) {
-    console.log('⚠️ supabase-push não disponível, push desabilitado');
+    console.log(' supabase-push não disponível, push desabilitado');
 }
 
 const PHP_DIR = '/app/integrador/zeduplo';
@@ -77,7 +77,7 @@ function execPhp(script, getData = {}, postData = {}, timeout = 30000) {
         if (script === 'ze_pedido_mail.php') {
             const env = await checkPhpEnv();
             if (!env.curl) {
-                console.error(`⚠️ PHP cURL não disponível: ${env.error}`);
+                console.error(` PHP cURL não disponível: ${env.error}`);
                 return reject(new Error(`PHP environment error: ${env.error}`));
             }
         }
@@ -157,7 +157,7 @@ async function pegarCodigo2FA(timeout = 30000) {
         // Verificar ambiente ANTES de tentar (Gmail API usa cURL)
         const env = await checkPhpEnv();
         if (!env.curl) {
-            console.error('❌ cURL não disponível, pulando 2FA');
+            console.error(' cURL não disponível, pulando 2FA');
             return null;
         }
         
@@ -170,12 +170,12 @@ async function pegarCodigo2FA(timeout = 30000) {
         
         // Verificar se houve erro
         if (parsed.erro) {
-            console.error('❌ Erro na Gmail API:', parsed.msg);
+            console.error(' Erro na Gmail API:', parsed.msg);
             return null;
         }
         
         if (parsed.codigo && parsed.codigo !== 0 && parsed.codigo !== '0') {
-            console.log('✅ Código 2FA encontrado via Gmail API');
+            console.log(' Código 2FA encontrado via Gmail API');
             return String(parsed.codigo);
         }
         return null;
@@ -257,7 +257,7 @@ async function pegarProximoPedido() {
         
         // Retornar objeto com id e prioridade para melhor controle
         if (parsed.id_pedido && parsed.id_pedido !== 0 && parsed.id_pedido !== '0') {
-            console.log(`📋 Pedido encontrado: ${parsed.id_pedido} (${parsed.prioridade || 'novo'})`);
+            console.log(` Pedido encontrado: ${parsed.id_pedido} (${parsed.prioridade || 'novo'})`);
             return { 
                 id: parsed.id_pedido, 
                 prioridade: parsed.prioridade || 'novo' 
@@ -342,7 +342,7 @@ async function atualizarStatusDireto(deliveryCode, statusCode, token, entregador
     // PUSH IMEDIATO: NÃO enviar push aqui - apenas atualização de status
     // O sync-cron.js vai enviar os dados completos
     // Isso evita sobrescrever dados completos com dados parciais
-    console.log(`📝 [STATUS] Pedido ${deliveryCode} atualizado para status ${statusCode}`);
+    console.log(` [STATUS] Pedido ${deliveryCode} atualizado para status ${statusCode}`);
     
     return result;
 }
@@ -355,14 +355,14 @@ async function atualizarStatusDireto(deliveryCode, statusCode, token, entregador
  */
 async function pushToSupabase(orderData) {
     if (!supabasePush) {
-        console.log('⚠️ supabase-push não disponível');
+        console.log(' supabase-push não disponível');
         return { success: false, error: 'Push não disponível' };
     }
     
     try {
         return await supabasePush.pushOrderImmediate(orderData);
     } catch (e) {
-        console.error('❌ Erro no push:', e.message);
+        console.error(' Erro no push:', e.message);
         return { success: false, error: e.message };
     }
 }

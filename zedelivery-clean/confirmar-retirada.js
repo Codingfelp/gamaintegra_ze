@@ -160,7 +160,7 @@ async function confirmarRetirada(orderId) {
             }
         }
         
-        console.log('[RETIRADA] ✓ Card clicado, aguardando modal...');
+        console.log('[RETIRADA]  Card clicado, aguardando modal...');
         await sleep(2);
         
         // ============================================
@@ -226,7 +226,7 @@ async function confirmarRetirada(orderId) {
             return { success: false, message: 'Botão "Confirmar Retirada" não encontrado no modal' };
         }
         
-        console.log('[RETIRADA] ✓ Clicou em "Confirmar Retirada"');
+        console.log('[RETIRADA]  Clicou em "Confirmar Retirada"');
         await sleep(2);
         
         // ============================================
@@ -274,17 +274,17 @@ async function confirmarRetirada(orderId) {
             // Se não encontrou "Sim", pode ser que não precise dessa confirmação
             console.log('[RETIRADA] Botão "Sim" não encontrado - pode já ter sido confirmado');
         } else {
-            console.log('[RETIRADA] ✓ Clicou em "Sim"');
+            console.log('[RETIRADA]  Clicou em "Sim"');
         }
         
         await sleep(2);
         
         await browser.close();
-        console.log(`[RETIRADA] ✅ Pedido #${orderId} processado com sucesso!`);
+        console.log(`[RETIRADA]  Pedido #${orderId} processado com sucesso!`);
         return { success: true, message: `Retirada do pedido #${orderId} confirmada` };
         
     } catch (error) {
-        console.error('[RETIRADA] ❌ Erro:', error.message);
+        console.error('[RETIRADA]  Erro:', error.message);
         if (browser) await browser.close();
         return { success: false, message: error.message };
     }

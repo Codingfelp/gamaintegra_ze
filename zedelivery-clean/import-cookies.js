@@ -52,13 +52,13 @@ async function importCookies(cookiesJson) {
             if (!c.name || !c.value) return false;
             // Verificar se não está expirado
             if (c.expires && c.expires > 0 && c.expires < Date.now() / 1000) {
-                console.log(`  ⚠️ Cookie expirado: ${c.name}`);
+                console.log(`   Cookie expirado: ${c.name}`);
                 return false;
             }
             return true;
         });
         
-        console.log(`✅ ${validCookies.length} cookies válidos`);
+        console.log(` ${validCookies.length} cookies válidos`);
         
         // Verificar cookies essenciais
         const hasEssential = ESSENTIAL_COOKIES.some(essential => 
@@ -66,7 +66,7 @@ async function importCookies(cookiesJson) {
         );
         
         if (!hasEssential) {
-            console.warn('⚠️ AVISO: Nenhum cookie essencial encontrado!');
+            console.warn(' AVISO: Nenhum cookie essencial encontrado!');
             console.warn('   Cookies esperados:', ESSENTIAL_COOKIES.join(', '));
         }
         
@@ -84,23 +84,23 @@ async function importCookies(cookiesJson) {
         
         // Salvar em arquivo local
         fs.writeFileSync(COOKIES_FILE, JSON.stringify(puppeteerCookies, null, 2));
-        console.log(`💾 Cookies salvos em ${COOKIES_FILE}`);
+        console.log(` Cookies salvos em ${COOKIES_FILE}`);
         
         // Tentar salvar no banco
         try {
             await sessionManager.initSessionTable();
             await sessionManager.saveCookiesToDB('profile-ze-v1', puppeteerCookies);
             await sessionManager.saveCookiesToDB('profile-ze-v1-itens', puppeteerCookies);
-            console.log('💾 Cookies salvos no banco de dados');
+            console.log(' Cookies salvos no banco de dados');
         } catch (dbError) {
-            console.warn('⚠️ Não foi possível salvar no banco:', dbError.message);
+            console.warn(' Não foi possível salvar no banco:', dbError.message);
         }
         
-        console.log('\n✅ SUCESSO! Reinicie os scrapers para usar os novos cookies:');
+        console.log('\n SUCESSO! Reinicie os scrapers para usar os novos cookies:');
         console.log('   sudo supervisorctl restart ze-v1 ze-v1-itens');
         
     } catch (error) {
-        console.error('❌ Erro:', error.message);
+        console.error(' Erro:', error.message);
         process.exit(1);
     }
 }

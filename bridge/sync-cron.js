@@ -183,9 +183,9 @@ if (dbConfig.database === 'zeconnect-base' || dbConfig.database === 'test_databa
   dbConfig.database = 'railway';
 }
 
-console.log(`🔧 MySQL Config: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
+console.log(` MySQL Config: ${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
 if (isWrongConfig) {
-  console.log('⚠️ Usando Railway MySQL PÚBLICO');
+  console.log(' Usando Railway MySQL PÚBLICO');
 }
 
 const pool = mysql.createPool({
@@ -260,7 +260,7 @@ async function syncToLovable() {
   
   cache.lastSyncTime = Date.now();
   
-  console.log(`\n[${timestamp}] 🔄 Verificando mudanças...`);
+  console.log(`\n[${timestamp}]  Verificando mudanças...`);
   
   try {
     // Buscar pedidos ÚNICOS priorizando os que têm itens
@@ -411,18 +411,18 @@ async function syncToLovable() {
       if (isRecent || hasOrderChanged(orderId, pedidoFormatado)) {
         pedidosAlterados.push(pedidoFormatado);
         if (!isRecent) {
-          console.log(`   📝 Pedido ${orderId} ALTERADO (status: ${pedido.delivery_status})`);
+          console.log(`    Pedido ${orderId} ALTERADO (status: ${pedido.delivery_status})`);
         }
       }
     }
     
     // Se nenhum pedido mudou, não enviar nada
     if (pedidosAlterados.length === 0) {
-      console.log(`   ✓ Nenhuma alteração detectada`);
+      console.log(`    Nenhuma alteração detectada`);
       return;
     }
     
-    console.log(`📦 ${pedidosAlterados.length}/${pedidos.length} pedidos com alterações`);
+    console.log(` ${pedidosAlterados.length}/${pedidos.length} pedidos com alterações`);
 
     // Verificar configuração Lovable
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -430,7 +430,7 @@ async function syncToLovable() {
     const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!SUPABASE_URL) {
-      console.log('⚠️  Lovable Cloud não configurado');
+      console.log('  Lovable Cloud não configurado');
       fs.writeFileSync('/app/logs/sync-debug.json', JSON.stringify(pedidosAlterados, null, 2));
       return;
     }
@@ -451,7 +451,7 @@ async function syncToLovable() {
 
     // Salvar debug
     fs.writeFileSync('/app/logs/sync-payload.json', JSON.stringify(payload, null, 2));
-    console.log(`📤 Enviando ${pedidosAlterados.length} pedidos para ${SUPABASE_URL}...`);
+    console.log(` Enviando ${pedidosAlterados.length} pedidos para ${SUPABASE_URL}...`);
     
     // Tentar Edge Function primeiro
     let syncSuccess = false;
@@ -473,7 +473,7 @@ async function syncToLovable() {
 
         if (response.ok) {
           const result = await response.json();
-          console.log(`✅ Edge Function: Sincronização concluída:`, JSON.stringify(result));
+          console.log(` Edge Function: Sincronização concluída:`, JSON.stringify(result));
           syncSuccess = true;
           
           // Log de integração com debounce
@@ -485,19 +485,19 @@ async function syncToLovable() {
           );
         } else {
           const error = await response.text();
-          console.error(`❌ Edge Function falhou (${response.status}): ${error}`);
+          console.error(` Edge Function falhou (${response.status}): ${error}`);
         }
       } catch (edgeFnErr) {
-        console.error(`❌ Edge Function erro: ${edgeFnErr.message}`);
+        console.error(` Edge Function erro: ${edgeFnErr.message}`);
       }
     }
     
     if (!syncSuccess) {
-      console.error(`❌ Sincronização falhou`);
+      console.error(` Sincronização falhou`);
     }
 
   } catch (err) {
-    console.error(`❌ Erro: ${err.message}`);
+    console.error(` Erro: ${err.message}`);
   }
 }
 
@@ -516,7 +516,7 @@ function getStatusText(status) {
 // ============================================
 // INICIALIZAÇÃO
 // ============================================
-console.log('🚀 Sync Cron OTIMIZADO iniciado');
+console.log(' Sync Cron OTIMIZADO iniciado');
 console.log(`   Intervalo: ${SYNC_INTERVAL/1000}s | Debounce: ${DEBOUNCE_TIME/1000}s | Cache: ${CACHE_TTL/1000}s`);
 
 async function runSync() {

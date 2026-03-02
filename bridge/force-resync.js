@@ -18,7 +18,7 @@ const pool = mysql.createPool({
 
 async function forceResync() {
   const timestamp = new Date().toISOString();
-  console.log(`\n[${timestamp}] 🔄 FORÇANDO REENVIO DE TODOS OS PEDIDOS...`);
+  console.log(`\n[${timestamp}]  FORÇANDO REENVIO DE TODOS OS PEDIDOS...`);
   
   try {
     // Buscar pedidos ÚNICOS (por delivery_code) priorizando os que têm itens
@@ -66,7 +66,7 @@ async function forceResync() {
       ORDER BY d.delivery_date_time DESC
     `);
 
-    console.log(`📦 ${pedidos.length} pedidos encontrados no total`);
+    console.log(` ${pedidos.length} pedidos encontrados no total`);
 
     // Buscar itens de cada pedido
     const pedidosFormatados = [];
@@ -169,7 +169,7 @@ async function forceResync() {
     console.log(`   Sem itens: ${pedidosSemItens.length}`);
     
     if (pedidosSemItens.length > 0) {
-      console.log(`\n⚠️  Pedidos SEM itens no banco:`);
+      console.log(`\n  Pedidos SEM itens no banco:`);
       pedidosSemItens.forEach(p => {
         console.log(`   - ${p.code} (${p.tipo}) tem_itens=${p.tem_itens}`);
       });
@@ -181,7 +181,7 @@ async function forceResync() {
       const tipo = p.delivery_tipo_pedido || 'Não definido';
       tipoCount[tipo] = (tipoCount[tipo] || 0) + 1;
     });
-    console.log(`\n📦 Por tipo de pedido:`);
+    console.log(`\n Por tipo de pedido:`);
     Object.entries(tipoCount).forEach(([tipo, count]) => {
       console.log(`   ${tipo}: ${count}`);
     });
@@ -191,7 +191,7 @@ async function forceResync() {
     const SYNC_KEY = process.env.ZE_SYNC_KEY;
 
     if (!SUPABASE_URL || !SYNC_KEY) {
-      console.log('\n⚠️  Lovable Cloud não configurado');
+      console.log('\n  Lovable Cloud não configurado');
       fs.writeFileSync('/app/logs/force-resync-payload.json', JSON.stringify(pedidosFormatados, null, 2));
       console.log('   Payload salvo em /app/logs/force-resync-payload.json');
       process.exit(0);
@@ -205,7 +205,7 @@ async function forceResync() {
 
     for (let i = 0; i < pedidosFormatados.length; i += BATCH_SIZE) {
       const batch = pedidosFormatados.slice(i, i + BATCH_SIZE);
-      console.log(`\n📤 Enviando lote ${Math.floor(i/BATCH_SIZE) + 1} (${batch.length} pedidos)...`);
+      console.log(`\n Enviando lote ${Math.floor(i/BATCH_SIZE) + 1} (${batch.length} pedidos)...`);
       
       const payload = {
         pedidos: batch,
@@ -229,16 +229,16 @@ async function forceResync() {
 
         if (response.ok) {
           const result = await response.json();
-          console.log(`   ✅ Resultado: synced=${result.synced || 0} updated=${result.updated || 0}`);
+          console.log(`    Resultado: synced=${result.synced || 0} updated=${result.updated || 0}`);
           totalSynced += result.synced || 0;
           totalUpdated += result.updated || 0;
         } else {
           const error = await response.text();
-          console.error(`   ❌ Erro: ${response.status} - ${error}`);
+          console.error(`    Erro: ${response.status} - ${error}`);
           totalErrors += batch.length;
         }
       } catch (err) {
-        console.error(`   ❌ Erro de rede: ${err.message}`);
+        console.error(`    Erro de rede: ${err.message}`);
         totalErrors += batch.length;
       }
 
@@ -248,13 +248,13 @@ async function forceResync() {
       }
     }
 
-    console.log(`\n✅ REENVIO COMPLETO!`);
+    console.log(`\n REENVIO COMPLETO!`);
     console.log(`   Novos: ${totalSynced}`);
     console.log(`   Atualizados: ${totalUpdated}`);
     console.log(`   Erros: ${totalErrors}`);
 
   } catch (err) {
-    console.error(`❌ Erro: ${err.message}`);
+    console.error(` Erro: ${err.message}`);
     console.error(err.stack);
   }
 

@@ -146,7 +146,7 @@ async function pegarDupla() {
     const maxTentativas = 20; // Aumentado de 10 para 20
     
     console.log('📧 Iniciando busca por código 2FA...');
-    console.log('⏳ Aguardando 15 segundos para email chegar...');
+    console.log(' Aguardando 15 segundos para email chegar...');
     await sleep(15); // Aguardar email chegar antes de começar a buscar
     
     for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
@@ -160,7 +160,7 @@ async function pegarDupla() {
             }
             
             if (codigo === null || codigo === 0 || codigo === '0') {
-                console.log('⏳ Nenhum email de 2FA encontrado ainda...');
+                console.log(' Nenhum email de 2FA encontrado ainda...');
             } else {
                 console.log(` Resposta inesperada do Gmail: ${JSON.stringify(codigo)}`);
             }
@@ -168,7 +168,7 @@ async function pegarDupla() {
             console.error(" Erro ao buscar código 2FA:", error.message);
         }
         
-        console.log(`⏳ Aguardando 8 segundos antes da próxima tentativa...`);
+        console.log(` Aguardando 8 segundos antes da próxima tentativa...`);
         await sleep(8);
     }
     
@@ -651,7 +651,7 @@ async function fazerLogin(page) {
         await page.click("#send-code-verification");
 
         try {
-            console.log('⏳ [fazerLogin] Aguardando navegação após 2FA...');
+            console.log(' [fazerLogin] Aguardando navegação após 2FA...');
             await page.waitForNavigation({ timeout: 30000, waitUntil: 'networkidle2' });
         } catch (e) {
             console.error(" [fazerLogin] Falha ao navegar após envio do código.");
@@ -660,7 +660,7 @@ async function fazerLogin(page) {
 
         await sleep(5);
     } else {
-        console.log("⏳ [fazerLogin] Verificando se login foi bem sucedido...");
+        console.log(" [fazerLogin] Verificando se login foi bem sucedido...");
         
         await sleep(5);
         
@@ -704,7 +704,7 @@ async function fazerLogin(page) {
             // Salvar no arquivo local
             const cookiesPath = require('path').join(__dirname, 'cookies.json');
             require('fs').writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
-            console.log(`💾 [fazerLogin] ${cookies.length} cookies salvos em cookies.json`);
+            console.log(` [fazerLogin] ${cookies.length} cookies salvos em cookies.json`);
             
             // Também salvar no banco via session-manager
             await sessionManager.saveCookiesToDB('profile-ze-v1-itens', cookies);
@@ -832,7 +832,7 @@ async function itensScript(page) {
         let id_pedido_info = await pegar_id_pedido();
 
         if (id_pedido_info == 0 || id_pedido_info === null) {
-            console.log("⏳ [CAPTURA] Aguardando novos pedidos para capturar detalhes...");
+            console.log(" [CAPTURA] Aguardando novos pedidos para capturar detalhes...");
             await sleep(5);
         } else {
             // Iniciar log de integração para captura de pedido
@@ -2383,7 +2383,7 @@ async function aceitaScript(browser, cookies) {
                         const isDisabled = await page.evaluate(el => el.disabled, button);
 
                         if (!isDisabled) {
-                            console.log('[ACEITA] ⏳ Botão disponível, clicando...');
+                            console.log('[ACEITA]  Botão disponível, clicando...');
                             const startTime = Date.now();
                             await button.click();
                             console.log('[ACEITA]  Botão clicado!');
@@ -2423,7 +2423,7 @@ async function aceitaScript(browser, cookies) {
                                         break;
                                     }
                                     
-                                    console.log(`[ACEITA] ⏳ Verificando status... tentativa ${tentativa + 1}/${maxTentativas}`);
+                                    console.log(`[ACEITA]  Verificando status... tentativa ${tentativa + 1}/${maxTentativas}`);
                                 }
                                 
                                 if (!aceitoComSucesso) {
@@ -2686,13 +2686,13 @@ async function criarJanelaStatus(cookies) {
         console.log(' [v1-itens] URL atual:', page1.url());
 
         if (page1.url().includes("login")) {
-            console.log("🔑 [v1-itens] Sessão expirada, fazendo login novamente...");
+            console.log(" [v1-itens] Sessão expirada, fazendo login novamente...");
             try {
                 await fazerLogin(page1);
                 console.log(" [v1-itens] Login concluído!");
                 
                 // Salvar nova sessão no banco
-                console.log('💾 [v1-itens] Salvando nova sessão no banco...');
+                console.log(' [v1-itens] Salvando nova sessão no banco...');
                 await sessionManager.saveSession(page1, PROFILE_NAME);
             } catch (loginError) {
                 console.error(" [v1-itens] Erro no login:", loginError.message);
@@ -2721,7 +2721,7 @@ async function criarJanelaStatus(cookies) {
     console.log(` [v1-itens] Iniciando salvamento periódico de sessão a cada ${SESSION_SAVE_INTERVAL/1000}s`);
     setInterval(async () => {
         try {
-            console.log('💾 [v1-itens] Salvando sessão periodicamente...');
+            console.log(' [v1-itens] Salvando sessão periodicamente...');
             await sessionManager.saveSession(page1, PROFILE_NAME);
         } catch (error) {
             console.error(' [v1-itens] Erro ao salvar sessão:', error.message);

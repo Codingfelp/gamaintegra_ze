@@ -37,7 +37,7 @@ if (code.length !== 4 || !/^\d{4}$/.test(code)) {
 }
 
 async function main() {
-    console.log(`\n📦 [CONFIRMAR-RETIRADA] Iniciando confirmação`);
+    console.log(`\n [CONFIRMAR-RETIRADA] Iniciando confirmação`);
     console.log(`   Pedido: #${orderId}`);
     console.log(`   Código: ${code}`);
     console.log(`   Data: ${new Date().toISOString()}\n`);
@@ -54,7 +54,7 @@ async function main() {
         }
         
         // Lançar browser
-        console.log('🌐 Iniciando navegador...');
+        console.log(' Iniciando navegador...');
         browser = await puppeteer.launch({
             headless: 'new',
             executablePath: '/usr/bin/chromium',
@@ -73,7 +73,7 @@ async function main() {
         await page.setViewport({ width: 1920, height: 1080 });
         
         // Navegar para o Zé Delivery
-        console.log('🔗 Navegando para o Zé Delivery...');
+        console.log(' Navegando para o Zé Delivery...');
         await page.goto('https://seuze.ze.delivery/poc-orders', {
             waitUntil: 'networkidle2',
             timeout: 60000
@@ -84,20 +84,20 @@ async function main() {
         // Verificar se está logado
         const currentUrl = await page.url();
         if (currentUrl.includes('login') || currentUrl.includes('auth')) {
-            console.error('❌ ERRO: Não está logado no Zé Delivery. Execute o scraper principal primeiro.');
+            console.error(' ERRO: Não está logado no Zé Delivery. Execute o scraper principal primeiro.');
             await browser.close();
             process.exit(1);
         }
         
-        console.log('✅ Navegador pronto na página do kanban');
+        console.log(' Navegador pronto na página do kanban');
         
         // Executar confirmação de retirada
         const success = await confirmPickup(page, orderId, code);
         
         if (success) {
-            console.log(`\n✅ SUCESSO: Pedido #${orderId} confirmado com código ${code}`);
+            console.log(`\n SUCESSO: Pedido #${orderId} confirmado com código ${code}`);
         } else {
-            console.log(`\n❌ FALHA: Não foi possível confirmar o pedido #${orderId}`);
+            console.log(`\n FALHA: Não foi possível confirmar o pedido #${orderId}`);
         }
         
         // Fechar browser
@@ -106,7 +106,7 @@ async function main() {
         process.exit(success ? 0 : 1);
         
     } catch (error) {
-        console.error(`\n❌ ERRO: ${error.message}`);
+        console.error(`\n ERRO: ${error.message}`);
         
         if (browser) {
             try {

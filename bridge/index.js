@@ -68,14 +68,14 @@ app.post('/sync', async (req, res) => {
       AND d.delivery_trash = 0
     `);
     
-    console.log(`📦 Sincronizando ${pedidos.length} pedidos...`);
+    console.log(` Sincronizando ${pedidos.length} pedidos...`);
     
     // Verificar se há configuração do Lovable
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SYNC_KEY = process.env.ZE_SYNC_KEY;
     
     if (!SUPABASE_URL || !SYNC_KEY) {
-      console.log('⚠️ Lovable Cloud não configurado, retornando apenas dados locais');
+      console.log(' Lovable Cloud não configurado, retornando apenas dados locais');
       return res.json({ 
         success: true, 
         synced: false,
@@ -99,7 +99,7 @@ app.post('/sync', async (req, res) => {
     );
     
     const result = await response.json();
-    console.log('✅ Resultado sync:', result);
+    console.log(' Resultado sync:', result);
     
     res.json({ 
       success: true, 
@@ -108,7 +108,7 @@ app.post('/sync', async (req, res) => {
       cloud_result: result 
     });
   } catch (err) {
-    console.error('❌ Erro no sync:', err);
+    console.error(' Erro no sync:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -124,19 +124,19 @@ app.post('/webhook', async (req, res) => {
         'UPDATE delivery SET delivery_status = ? WHERE delivery_code = ?',
         [status, order_id]
       );
-      console.log(`✅ Status atualizado: ${order_id} -> ${status}`);
+      console.log(` Status atualizado: ${order_id} -> ${status}`);
     }
     
     res.json({ success: true });
   } catch (err) {
-    console.error('❌ Erro webhook:', err);
+    console.error(' Erro webhook:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 const PORT = process.env.PORT || 3333;
 app.listen(PORT, () => {
-  console.log(`🚀 Ze Bridge rodando na porta ${PORT}`);
+  console.log(` Ze Bridge rodando na porta ${PORT}`);
   console.log(`   Health: http://localhost:${PORT}/health`);
   console.log(`   Pedidos: http://localhost:${PORT}/pedidos`);
   console.log(`   Sync: POST http://localhost:${PORT}/sync`);

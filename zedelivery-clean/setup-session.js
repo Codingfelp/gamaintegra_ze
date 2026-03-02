@@ -89,7 +89,7 @@ async function setupSession() {
     console.log(`URL atual: ${currentUrl}`);
     
     if (currentUrl.includes('login')) {
-        console.log('⚠️ Ainda na página de login. Tentando novamente...');
+        console.log(' Ainda na página de login. Tentando novamente...');
         await prompt('Pressione ENTER quando estiver logado...');
     }
     
@@ -98,28 +98,28 @@ async function setupSession() {
     const cookies = await page.cookies();
     
     if (cookies.length === 0) {
-        console.log('❌ Nenhum cookie encontrado!');
+        console.log(' Nenhum cookie encontrado!');
         await browser.close();
         return;
     }
     
-    console.log(`✅ ${cookies.length} cookies extraídos`);
+    console.log(` ${cookies.length} cookies extraídos`);
     
     // Salvar cookies
     fs.writeFileSync(COOKIES_FILE, JSON.stringify(cookies, null, 2));
-    console.log(`💾 Cookies salvos em ${COOKIES_FILE}`);
+    console.log(` Cookies salvos em ${COOKIES_FILE}`);
     
     // Salvar backups
     fs.writeFileSync(path.join(COOKIES_BACKUP_DIR, 'profile-ze-v1.json'), JSON.stringify(cookies, null, 2));
     fs.writeFileSync(path.join(COOKIES_BACKUP_DIR, 'profile-ze-v1-itens.json'), JSON.stringify(cookies, null, 2));
-    console.log('💾 Backups salvos');
+    console.log(' Backups salvos');
     
     // Verificar token
     const tokenCookie = cookies.find(c => c.name === 'seu_ze_access_token');
     if (tokenCookie) {
-        console.log('✅ Token de acesso encontrado');
+        console.log(' Token de acesso encontrado');
     } else {
-        console.log('⚠️ Token de acesso NÃO encontrado - sessão pode não funcionar');
+        console.log(' Token de acesso NÃO encontrado - sessão pode não funcionar');
     }
     
     await browser.close();

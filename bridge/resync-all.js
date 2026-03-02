@@ -6,8 +6,8 @@ const ZE_SYNC_KEY = 'ze-sync-2026-mmjjzahms6m1lxfwomn0q25kquc7eun8';
 const BATCH_SIZE = 50;
 
 async function main() {
-  console.log('🚀 Iniciando reprocessamento completo para Supabase...');
-  console.log('⏰ Início:', new Date().toISOString());
+  console.log(' Iniciando reprocessamento completo para Supabase...');
+  console.log(' Início:', new Date().toISOString());
   
   const conn = await mysql.createConnection({
     host: 'mainline.proxy.rlwy.net',
@@ -89,14 +89,14 @@ async function main() {
       if (result.success) {
         totalSynced += result.synced || 0;
         totalUpdated += result.updated || 0;
-        console.log(`✅ Lote ${batchNum}/${totalBatches}: ${result.synced || 0} novos, ${result.updated || 0} atualizados`);
+        console.log(` Lote ${batchNum}/${totalBatches}: ${result.synced || 0} novos, ${result.updated || 0} atualizados`);
         if (result.errors) totalErrors += result.errors.length;
       } else {
-        console.log(`❌ Lote ${batchNum}: ${result.error}`);
+        console.log(` Lote ${batchNum}: ${result.error}`);
         totalErrors += batch.length;
       }
     } catch (err) {
-      console.log(`❌ Lote ${batchNum}: ${err.message}`);
+      console.log(` Lote ${batchNum}: ${err.message}`);
       totalErrors += batch.length;
     }
     
@@ -109,7 +109,7 @@ async function main() {
   console.log(`   Novos: ${totalSynced}`);
   console.log(`   Atualizados: ${totalUpdated}`);
   console.log(`   Erros: ${totalErrors}`);
-  console.log(`⏰ Fim: ${new Date().toISOString()}`);
+  console.log(` Fim: ${new Date().toISOString()}`);
   console.log(`========================================`);
 
   await conn.end();

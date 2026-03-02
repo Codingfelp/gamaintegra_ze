@@ -62,7 +62,7 @@ include 'ze_session.php';
             try { fs.unlinkSync(tmpFile); } catch (e) {}
             
             if (error && !stdout) {
-                console.error('❌ [SESSION-PHP] Erro:', stderr || error.message);
+                console.error(' [SESSION-PHP] Erro:', stderr || error.message);
                 reject(error);
                 return;
             }
@@ -71,7 +71,7 @@ include 'ze_session.php';
                 const result = JSON.parse(stdout.trim());
                 resolve(result);
             } catch (parseError) {
-                console.error('❌ [SESSION-PHP] Erro ao parsear resposta:', stdout);
+                console.error(' [SESSION-PHP] Erro ao parsear resposta:', stdout);
                 resolve({ success: false, message: 'Parse error', raw: stdout });
             }
         });
@@ -85,14 +85,14 @@ async function initSessionTable() {
     try {
         const result = await execSessionPHP('init');
         if (result.success) {
-            console.log('✅ [SESSION] Tabela de sessão verificada/criada');
+            console.log(' [SESSION] Tabela de sessão verificada/criada');
             return true;
         } else {
-            console.error('❌ [SESSION] Erro ao criar tabela:', result.message);
+            console.error(' [SESSION] Erro ao criar tabela:', result.message);
             return false;
         }
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao criar tabela:', error.message);
+        console.error(' [SESSION] Erro ao criar tabela:', error.message);
         return false;
     }
 }
@@ -104,7 +104,7 @@ async function initSessionTable() {
  */
 async function saveCookiesToDB(profileName, cookies) {
     if (!cookies || cookies.length === 0) {
-        console.log('⚠️ [SESSION] Nenhum cookie para salvar');
+        console.log(' [SESSION] Nenhum cookie para salvar');
         return false;
     }
     
@@ -113,14 +113,14 @@ async function saveCookiesToDB(profileName, cookies) {
         const result = await execSessionPHP('save', profileName, cookiesJson);
         
         if (result.success) {
-            console.log(`✅ [SESSION] ${cookies.length} cookies salvos para ${profileName}`);
+            console.log(` [SESSION] ${cookies.length} cookies salvos para ${profileName}`);
             return true;
         } else {
-            console.error('❌ [SESSION] Erro ao salvar cookies:', result.message);
+            console.error(' [SESSION] Erro ao salvar cookies:', result.message);
             return false;
         }
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao salvar cookies:', error.message);
+        console.error(' [SESSION] Erro ao salvar cookies:', error.message);
         return false;
     }
 }
@@ -137,18 +137,18 @@ async function loadCookiesFromDB(profileName) {
         if (result.success && result.data && result.data.cookies_json) {
             try {
                 const cookies = JSON.parse(result.data.cookies_json);
-                console.log(`✅ [SESSION] ${cookies.length} cookies carregados para ${profileName}`);
+                console.log(` [SESSION] ${cookies.length} cookies carregados para ${profileName}`);
                 return cookies;
             } catch (parseError) {
-                console.error('❌ [SESSION] Erro ao parsear cookies:', parseError.message);
+                console.error(' [SESSION] Erro ao parsear cookies:', parseError.message);
                 return null;
             }
         } else {
-            console.log(`⚠️ [SESSION] Nenhum cookie encontrado para ${profileName}`);
+            console.log(` [SESSION] Nenhum cookie encontrado para ${profileName}`);
             return null;
         }
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao carregar cookies:', error.message);
+        console.error(' [SESSION] Erro ao carregar cookies:', error.message);
         return null;
     }
 }
@@ -161,14 +161,14 @@ async function invalidateSession(profileName) {
     try {
         const result = await execSessionPHP('invalidate', profileName);
         if (result.success) {
-            console.log(`⚠️ [SESSION] Sessão invalidada para ${profileName}`);
+            console.log(` [SESSION] Sessão invalidada para ${profileName}`);
             return true;
         } else {
-            console.error('❌ [SESSION] Erro ao invalidar sessão:', result.message);
+            console.error(' [SESSION] Erro ao invalidar sessão:', result.message);
             return false;
         }
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao invalidar sessão:', error.message);
+        console.error(' [SESSION] Erro ao invalidar sessão:', error.message);
         return false;
     }
 }
@@ -184,7 +184,7 @@ async function checkSessionHealth(page) {
         
         // Se já está em uma página de login, sessão expirou
         if (currentUrl.includes('login')) {
-            console.log('⚠️ [SESSION] Já está na página de login - sessão expirada');
+            console.log(' [SESSION] Já está na página de login - sessão expirada');
             return false;
         }
         
@@ -197,14 +197,14 @@ async function checkSessionHealth(page) {
         const newUrl = page.url();
         
         if (newUrl.includes('login')) {
-            console.log('⚠️ [SESSION] Redirecionado para login - sessão expirada');
+            console.log(' [SESSION] Redirecionado para login - sessão expirada');
             return false;
         }
         
-        console.log('✅ [SESSION] Sessão ativa');
+        console.log(' [SESSION] Sessão ativa');
         return true;
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao verificar sessão:', error.message);
+        console.error(' [SESSION] Erro ao verificar sessão:', error.message);
         return false;
     }
 }
@@ -223,7 +223,7 @@ async function applyCookies(page, cookies) {
         // IMPORTANTE: Navegar primeiro para o domínio antes de aplicar cookies
         const currentUrl = page.url();
         if (!currentUrl.includes('ze.delivery')) {
-            console.log('🌐 [SESSION] Navegando para domínio antes de aplicar cookies...');
+            console.log(' [SESSION] Navegando para domínio antes de aplicar cookies...');
             await page.goto('https://seu.ze.delivery/', {
                 waitUntil: 'domcontentloaded',
                 timeout: 30000
@@ -244,7 +244,7 @@ async function applyCookies(page, cookies) {
         });
         
         if (validCookies.length === 0) {
-            console.log('⚠️ [SESSION] Todos os cookies estão expirados');
+            console.log(' [SESSION] Todos os cookies estão expirados');
             return false;
         }
         
@@ -261,10 +261,10 @@ async function applyCookies(page, cookies) {
         }));
         
         await page.setCookie(...puppeteerCookies);
-        console.log(`✅ [SESSION] ${puppeteerCookies.length} cookies aplicados`);
+        console.log(` [SESSION] ${puppeteerCookies.length} cookies aplicados`);
         return true;
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao aplicar cookies:', error.message);
+        console.error(' [SESSION] Erro ao aplicar cookies:', error.message);
         return false;
     }
 }
@@ -277,10 +277,10 @@ async function applyCookies(page, cookies) {
 async function exportCookies(page) {
     try {
         const cookies = await page.cookies();
-        console.log(`📤 [SESSION] ${cookies.length} cookies exportados`);
+        console.log(` [SESSION] ${cookies.length} cookies exportados`);
         return cookies;
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao exportar cookies:', error.message);
+        console.error(' [SESSION] Erro ao exportar cookies:', error.message);
         return [];
     }
 }
@@ -299,10 +299,10 @@ function saveCookiesToFile(profileName, cookies) {
         
         const filePath = path.join(cookiesDir, `${profileName}.json`);
         fs.writeFileSync(filePath, JSON.stringify(cookies, null, 2));
-        console.log(`💾 [SESSION] Cookies salvos em arquivo: ${filePath}`);
+        console.log(` [SESSION] Cookies salvos em arquivo: ${filePath}`);
         return true;
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao salvar cookies em arquivo:', error.message);
+        console.error(' [SESSION] Erro ao salvar cookies em arquivo:', error.message);
         return false;
     }
 }
@@ -324,7 +324,7 @@ function loadCookiesFromFile(profileName) {
         console.log(`📂 [SESSION] ${cookies.length} cookies carregados de arquivo`);
         return cookies;
     } catch (error) {
-        console.error('❌ [SESSION] Erro ao carregar cookies de arquivo:', error.message);
+        console.error(' [SESSION] Erro ao carregar cookies de arquivo:', error.message);
         return null;
     }
 }
@@ -336,7 +336,7 @@ function loadCookiesFromFile(profileName) {
  * @returns {boolean} - true se sessão foi restaurada com sucesso
  */
 async function restoreSession(page, profileName) {
-    console.log(`🔄 [SESSION] Tentando restaurar sessão para ${profileName}...`);
+    console.log(` [SESSION] Tentando restaurar sessão para ${profileName}...`);
     
     // 1. Tentar carregar do banco
     let cookies = await loadCookiesFromDB(profileName);
@@ -348,7 +348,7 @@ async function restoreSession(page, profileName) {
     }
     
     if (!cookies || cookies.length === 0) {
-        console.log('⚠️ [SESSION] Nenhum cookie salvo encontrado');
+        console.log(' [SESSION] Nenhum cookie salvo encontrado');
         return false;
     }
     
@@ -362,12 +362,12 @@ async function restoreSession(page, profileName) {
     const isValid = await checkSessionHealth(page);
     
     if (!isValid) {
-        console.log('⚠️ [SESSION] Cookies aplicados mas sessão não é válida');
+        console.log(' [SESSION] Cookies aplicados mas sessão não é válida');
         await invalidateSession(profileName);
         return false;
     }
     
-    console.log('✅ [SESSION] Sessão restaurada com sucesso!');
+    console.log(' [SESSION] Sessão restaurada com sucesso!');
     return true;
 }
 
@@ -380,7 +380,7 @@ async function saveSession(page, profileName) {
     const cookies = await exportCookies(page);
     
     if (cookies.length === 0) {
-        console.log('⚠️ [SESSION] Nenhum cookie para salvar');
+        console.log(' [SESSION] Nenhum cookie para salvar');
         return false;
     }
     
@@ -413,7 +413,7 @@ function startHealthCheck(page, profileName, onSessionExpired, intervalMs = 3000
             const isHealthy = await checkSessionHealth(page);
             
             if (!isHealthy) {
-                console.log('❌ [SESSION] Sessão expirou! Notificando...');
+                console.log(' [SESSION] Sessão expirou! Notificando...');
                 await invalidateSession(profileName);
                 
                 if (onSessionExpired) {
@@ -424,11 +424,11 @@ function startHealthCheck(page, profileName, onSessionExpired, intervalMs = 3000
                 try {
                     await execSessionPHP('update_check', profileName);
                 } catch (e) {
-                    console.log('⚠️ [SESSION] Erro ao atualizar last_check:', e.message);
+                    console.log(' [SESSION] Erro ao atualizar last_check:', e.message);
                 }
             }
         } catch (error) {
-            console.error('❌ [SESSION] Erro no health check:', error.message);
+            console.error(' [SESSION] Erro no health check:', error.message);
         }
     }, intervalMs);
     

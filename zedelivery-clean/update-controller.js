@@ -148,7 +148,7 @@ async function sendUpdateIfChanged(orderId, newStatus, entregador, updateFn) {
     // 3. Executar update
     try {
         await updateFn();
-        console.log(`[UPDATE-CTRL] ✓ Update enviado para ${orderId}`);
+        console.log(`[UPDATE-CTRL]  Update enviado para ${orderId}`);
         return true;
     } catch (error) {
         console.error(`[UPDATE-CTRL] Erro no update ${orderId}:`, error.message);
@@ -179,7 +179,7 @@ async function sendWebhookIfChanged(orderId, newStatus, webhookFn) {
     // 3. Executar webhook
     try {
         await webhookFn();
-        console.log(`[UPDATE-CTRL] ✓ Webhook enviado para ${orderId}`);
+        console.log(`[UPDATE-CTRL]  Webhook enviado para ${orderId}`);
         return true;
     } catch (error) {
         console.error(`[UPDATE-CTRL] Erro no webhook ${orderId}:`, error.message);
