@@ -725,38 +725,52 @@ async def control_service(service: str, action: str):
 
 class ConfirmarRetiradaRequest(BaseModel):
     order_id: str
+    code: str  # Código de 4 dígitos obrigatório
     webhook_secret: Optional[str] = None
 
 @app.post("/api/webhook/confirmar-retirada")
 async def webhook_confirmar_retirada(request: ConfirmarRetiradaRequest, background_tasks: BackgroundTasks):
     """
-    Webhook para confirmar retirada de pedido
+    Webhook para confirmar retirada de pedido com código de 4 dígitos
+    
+    FLUXO:
+    1. Sistema externo envia webhook com order_id e código de 4 dígitos
+    2. Integrador clica no card do pedido no Zé Delivery
+    3. Abre modal e clica em "Confirmar"
+    4. Insere o código de 4 dígitos nos inputs
+    5. Clica em "Confirmar" novamente
+    6. Verifica se pedido foi confirmado
     
     Exemplo de chamada:
     POST /api/webhook/confirmar-retirada
     {
         "order_id": "472230265",
+        "code": "1234",
         "webhook_secret": "sua-secret-opcional"
     }
     """
     try:
         order_id = request.order_id.strip()
+        code = request.code.strip()
         
         if not order_id or not order_id.isdigit():
             return {"success": False, "error": "order_id inválido"}
+        
+        if not code or len(code) != 4 or not code.isdigit():
+            return {"success": False, "error": "code deve ter exatamente 4 dígitos numéricos"}
         
         # Executar confirmação em background para não bloquear
         def executar_confirmacao():
             try:
                 import subprocess
                 result = subprocess.run(
-                    ['node', '/app/zedelivery-clean/confirmar-retirada.js', order_id],
+                    ['node', '/app/zedelivery-clean/confirmar-retirada-cli.js', order_id, code],
                     capture_output=True,
                     text=True,
-                    timeout=60,
+                    timeout=120,
                     cwd='/app/zedelivery-clean'
                 )
-                print(f"[WEBHOOK] Retirada {order_id}: {result.stdout}")
+                print(f"[WEBHOOK] Retirada {order_id} com código {code}: {result.stdout}")
                 if result.stderr:
                     print(f"[WEBHOOK] Erro: {result.stderr}")
             except Exception as e:
@@ -766,8 +780,9 @@ async def webhook_confirmar_retirada(request: ConfirmarRetiradaRequest, backgrou
         
         return {
             "success": True, 
-            "message": f"Confirmação de retirada do pedido #{order_id} iniciada",
-            "order_id": order_id
+            "message": f"Confirmação de retirada do pedido #{order_id} com código {code} iniciada",
+            "order_id": order_id,
+            "code_received": True
         }
         
     except Exception as e:
