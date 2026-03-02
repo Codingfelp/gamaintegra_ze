@@ -19,3 +19,6 @@
 2026/03/02-04:27:09.402 3cb8 Level-0 table #569: started
 2026/03/02-04:27:09.415 3cb8 Level-0 table #569: 20070 bytes OK
 2026/03/02-04:27:09.418 3cb8 Delete type=0 #566
+2026/03/02-04:43:09.402 3cb8 Level-0 table #571: started
+2026/03/02-04:43:09.405 3cb8 Level-0 table #571: 20394 bytes OK
+2026/03/02-04:43:09.408 3cb8 Delete type=0 #568
