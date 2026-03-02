@@ -1,3 +1,37 @@
+"""
+=============================================================================
+API REST - INTEGRADOR ZÉ DELIVERY
+=============================================================================
+
+Este é o servidor principal da API REST que expõe endpoints para:
+- Consulta de pedidos
+- Atualização de status
+- Webhooks para sistemas externos
+- Confirmação de retirada
+- Dashboard de gerenciamento
+
+TECNOLOGIAS:
+- FastAPI (Python)
+- MySQL (Railway)
+- Pydantic para validação
+
+ENDPOINTS PRINCIPAIS:
+- GET  /api/pedidos              - Lista pedidos com filtros
+- GET  /api/pedido/{id}          - Dados completos de um pedido
+- GET  /api/sync                 - Sincronização para sistemas externos
+- POST /api/pedido/{id}/status   - Atualizar status
+- POST /api/webhook/confirmar-retirada - Confirmar retirada com código
+
+DOCUMENTAÇÃO:
+- /docs/API_SISTEMA_EXTERNO.md - Documentação completa da API
+
+CONFIGURAÇÃO:
+- Criar arquivo .env com credenciais do MySQL
+- Ver README.md para instruções completas
+
+=============================================================================
+"""
+
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -17,7 +51,7 @@ import time
 import threading
 from dotenv import load_dotenv
 
-# Importar módulo de webhooks
+# Importar módulo de webhooks para notificar sistemas externos
 from webhook_module import (
     get_webhook_config, save_webhook_config, get_pedido_completo,
     enviar_webhook, webhook_pedido_novo, webhook_pedido_status,
