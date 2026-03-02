@@ -1,219 +1,68 @@
+# =============================================================================
+# GITIGNORE - Integrador Zé Delivery
+# =============================================================================
+
+# Dependências
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# Arquivos de ambiente (contém senhas)
+.env
+.env.local
+.env.production
+
 # Logs
 logs/
 *.log
-*.log.*
 
-# Dependencies
-node_modules/
-**/node_modules/
+# Perfis do Chrome (contém cookies de sessão)
+zedelivery-clean/profile-ze-*/
+zedelivery-clean/chrome-profile/
+zedelivery-clean/cookies-backup/
 
-# Environment files
-.env
-backend/.env
+# Arquivos temporários
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
 
-# Chromium/Electron binaries (não os profiles!)
-**/chromium/lib/
-**/electron/dist/
-
-# Session backups
-backups/
-
-# IDE
-.idea/
-.vscode/
+# Build do frontend
+frontend/build/
+frontend/node_modules/
 
 # Cache
 .cache/
-__pycache__/
-*.pyc
-**/Code Cache/
+*.cache
 
-# System
-.DS_Store
-*.pem
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Archive (arquivos grandes)
-*.zip
-*.tar.gz
-*.tar
-*.tgz
-*.deb
-*.dylib
+# Arquivos de configuração do webhook (contém secrets)
+backend/webhook_config.json
 
-# Test reports
+# Screenshots de debug
+*.png
+
+# Arquivos de teste
 test_reports/
+*.test.js
+*.spec.js
 
-# Memory/PRD
-memory/
+# MySQL local (se usar)
+mysql_data/
+mysql_logs/
 
-# Emergent
-.emergent/
+# Documentação gerada
+docs/*.html
 
-# Chromium binaries grandes (mas NÃO os profiles de sessão)
+# Arquivos grandes de HTML (usados para debug de seletores)
+html_seletores/
+seletores_novos/
 node_modules/chromium/lib/chromium/chrome-linux/chrome
 zedelivery-clean/node_modules/electron/dist/electron
 zedelivery-clean/node_modules/chromium/lib/chromium/chrome-linux/chrome
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
