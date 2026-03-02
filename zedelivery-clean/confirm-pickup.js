@@ -76,11 +76,11 @@ async function getPickupOrdersInSeparation(page) {
         });
         
         if (orders.error) {
-            console.log(`  ${orders.error}`);
+            console.log(` ${orders.error}`);
             return [];
         }
         
-        console.log(`  Encontrados ${orders.total} pedidos de retirada`);
+        console.log(` Encontrados ${orders.total} pedidos de retirada`);
         return orders.orders;
         
     } catch (error) {
@@ -97,7 +97,7 @@ async function getPickupOrdersInSeparation(page) {
  * @returns {Promise<boolean>} - true se confirmado com sucesso
  */
 async function confirmPickup(page, orderId, code) {
-    console.log(` [PICKUP] Confirmando retirada do pedido #${orderId} com código ${code}`);
+    console.log(`[PICKUP] Confirmando retirada do pedido #${orderId} com código ${code}`);
     
     // Validar código
     if (!code || code.length !== 4 || !/^\d{4}$/.test(code)) {
@@ -166,7 +166,7 @@ async function confirmPickup(page, orderId, code) {
             return false;
         }
         
-        console.log(`  Botão "Confirmar" clicado via ${firstConfirmClicked.method}`);
+        console.log(` Botão "Confirmar" clicado via ${firstConfirmClicked.method}`);
         await sleep(2000);
         
         // Screenshot após primeiro confirmar
@@ -235,11 +235,11 @@ async function confirmPickup(page, orderId, code) {
         }, codeDigits);
         
         if (!codeInserted.success) {
-            console.log(`  Erro ao inserir código: ${codeInserted.error}`);
+            console.log(` Erro ao inserir código: ${codeInserted.error}`);
             return false;
         }
         
-        console.log(`  Código inserido (${codeInserted.inputsFound} inputs)`);
+        console.log(` Código inserido (${codeInserted.inputsFound} inputs)`);
         await sleep(1000);
         
         // Screenshot após inserir código
@@ -308,11 +308,11 @@ async function confirmPickup(page, orderId, code) {
         }, orderId);
         
         if (!verified.stillInSeparation || verified.hasSuccessMessage) {
-            console.log(`  PEDIDO #${orderId} CONFIRMADO COM SUCESSO!`);
+            console.log(` PEDIDO #${orderId} CONFIRMADO COM SUCESSO!`);
             return true;
         }
         
-        console.log(`  Status do pedido #${orderId} não confirmado`);
+        console.log(` Status do pedido #${orderId} não confirmado`);
         return false;
         
     } catch (error) {

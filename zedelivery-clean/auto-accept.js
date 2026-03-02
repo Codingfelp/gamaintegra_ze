@@ -92,11 +92,11 @@ async function getPendingOrders(page) {
         });
         
         if (orders.error) {
-            console.log(`  ${orders.error}`);
+            console.log(` ${orders.error}`);
             return [];
         }
         
-        console.log(`  Encontrados ${orders.totalCards} pedidos pendentes`);
+        console.log(` Encontrados ${orders.totalCards} pedidos pendentes`);
         return orders.orders;
         
     } catch (error) {
@@ -112,7 +112,7 @@ async function getPendingOrders(page) {
  * @returns {Promise<boolean>} - true se aceito com sucesso
  */
 async function acceptOrder(page, orderId) {
-    console.log(` [AUTO-ACCEPT] Iniciando aceite do pedido #${orderId}...`);
+    console.log(`[AUTO-ACCEPT] Iniciando aceite do pedido #${orderId}...`);
     
     try {
         // PASSO 1: Clicar no card do pedido para abrir modal
@@ -142,7 +142,7 @@ async function acceptOrder(page, orderId) {
             return false;
         }
         
-        console.log(`  Card clicado via ${cardClicked.selector}`);
+        console.log(` Card clicado via ${cardClicked.selector}`);
         await sleep(2000); // Aguardar modal abrir
         
         // Screenshot para debug
@@ -247,7 +247,7 @@ async function acceptOrder(page, orderId) {
             return false;
         }
         
-        console.log(`  Botão "Aceitar" clicado via ${acceptClicked.method}`);
+        console.log(` Botão "Aceitar" clicado via ${acceptClicked.method}`);
         await sleep(3000); // Aguardar processamento
         
         // Screenshot após aceite
@@ -277,16 +277,16 @@ async function acceptOrder(page, orderId) {
         }, orderId);
         
         if (verifyResult.inSeparationColumn || !verifyResult.stillInNewColumn) {
-            console.log(`  PEDIDO #${orderId} ACEITO COM SUCESSO!`);
+            console.log(` PEDIDO #${orderId} ACEITO COM SUCESSO!`);
             return true;
         }
         
         if (verifyResult.hasSuccessMessage) {
-            console.log(`  PEDIDO #${orderId} provavelmente aceito (mensagem de sucesso)`);
+            console.log(` PEDIDO #${orderId} provavelmente aceito (mensagem de sucesso)`);
             return true;
         }
         
-        console.log(`  Status do pedido #${orderId} não confirmado`);
+        console.log(` Status do pedido #${orderId} não confirmado`);
         return false;
         
     } catch (error) {
@@ -326,7 +326,7 @@ async function runAutoAccept(page) {
             return results;
         }
         
-        console.log(` Processando ${pendingOrders.length} pedidos pendentes...`);
+        console.log(`Processando ${pendingOrders.length} pedidos pendentes...`);
         
         // Aceitar cada pedido
         for (const order of pendingOrders) {
@@ -352,8 +352,8 @@ async function runAutoAccept(page) {
         }
         
         console.log('\n [AUTO-ACCEPT] Resumo:');
-        console.log(`    Aceitos: ${results.accepted.length}`);
-        console.log(`    Falhas: ${results.failed.length}`);
+        console.log(`   Aceitos: ${results.accepted.length}`);
+        console.log(`   Falhas: ${results.failed.length}`);
         
         return results;
         

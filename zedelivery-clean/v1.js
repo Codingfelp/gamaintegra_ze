@@ -59,7 +59,7 @@ function isHorarioOperacao() {
 function shouldRestart() {
     const runtime = Date.now() - START_TIME;
     if (runtime >= MAX_RUNTIME_MS) {
-        console.log(` [SISTEMA] Tempo de execução (${(runtime/1000/60/60).toFixed(2)}h) excedeu limite. Reiniciando...`);
+        console.log(`[SISTEMA] Tempo de execução (${(runtime/1000/60/60).toFixed(2)}h) excedeu limite. Reiniciando...`);
         return true;
     }
     return false;
@@ -74,7 +74,7 @@ function logMemoryUsage() {
 setInterval(() => {
     logMemoryUsage();
     if (shouldRestart()) {
-        console.log(' [SISTEMA] Iniciando reinício preventivo para evitar problemas de memória...');
+        console.log('[SISTEMA] Iniciando reinício preventivo para evitar problemas de memória...');
         process.exit(0); // Supervisor irá reiniciar automaticamente
     }
 }, 30 * 60 * 1000);
@@ -158,21 +158,21 @@ async function pegarDupla() {
             const codigo = await phpBridge.pegarCodigo2FA(30000);
             
             if (codigo && codigo.length === 6) {
-                console.log(` Código 2FA encontrado: ${codigo}`);
+                console.log(`Código 2FA encontrado: ${codigo}`);
                 return codigo;
             }
             
             if (codigo === null || codigo === 0 || codigo === '0') {
                 console.log(' Nenhum email de 2FA encontrado ainda...');
             } else {
-                console.log(` Resposta inesperada do Gmail: ${JSON.stringify(codigo)}`);
+                console.log(`Resposta inesperada do Gmail: ${JSON.stringify(codigo)}`);
             }
         } catch (error) {
             console.error(" Erro ao buscar código 2FA:", error.message);
         }
         
         // Aguardar entre tentativas
-        console.log(` Aguardando 8 segundos antes da próxima tentativa...`);
+        console.log(`Aguardando 8 segundos antes da próxima tentativa...`);
         await sleep(8);
     }
     
@@ -302,7 +302,7 @@ async function fazerLogin(page) {
     // Verificar se há erro na página
     const pageContent = await page.content();
     if (pageContent.includes('limite') || pageContent.includes('bloqueado') || pageContent.includes('tentativas')) {
-        console.log(' [fazerLogin] Possível bloqueio detectado na página');
+        console.log('[fazerLogin] Possível bloqueio detectado na página');
     }
     
     // Verificar mensagens de erro visíveis
@@ -314,7 +314,7 @@ async function fazerLogin(page) {
         return errors;
     });
     if (errorMessages.length > 0) {
-        console.log(' [fazerLogin] Mensagens na página:', errorMessages.slice(0, 3).join(' | '));
+        console.log('[fazerLogin] Mensagens na página:', errorMessages.slice(0, 3).join(' | '));
     }
 
     const btnSendEmail = await page.$("#send-email-button");
@@ -344,7 +344,7 @@ async function fazerLogin(page) {
             throw new Error("Código 2FA inválido");
         }
 
-        console.log(` [fazerLogin] Código 2FA recebido: ${verificationCode}`);
+        console.log(`[fazerLogin] Código 2FA recebido: ${verificationCode}`);
         
         for (let index = 0; index < verificationCode.length; index++) {
             const inputSelector = `#verification-code-input-${index}`;
@@ -356,7 +356,7 @@ async function fazerLogin(page) {
         await page.click("#send-code-verification");
 
         try {
-            console.log(' [fazerLogin] Aguardando navegação após 2FA...');
+            console.log('[fazerLogin] Aguardando navegação após 2FA...');
             await page.waitForNavigation({ timeout: 30000, waitUntil: 'networkidle2' });
         } catch (e) {
             console.error(" [fazerLogin] Falha ao navegar após envio do código.");
@@ -372,11 +372,11 @@ async function fazerLogin(page) {
         
         // Verificar se saiu da página de login
         const currentUrl = page.url();
-        console.log(` [fazerLogin] URL atual: ${currentUrl}`);
+        console.log(`[fazerLogin] URL atual: ${currentUrl}`);
         
         if (currentUrl.includes('login')) {
             // Ainda na página de login - pode precisar de 2FA ou credenciais erradas
-            console.log(' [fazerLogin] Ainda na página de login, verificando novamente...');
+            console.log('[fazerLogin] Ainda na página de login, verificando novamente...');
             
             // Tentar aguardar mais
             await sleep(10);
@@ -410,13 +410,13 @@ async function fazerLogin(page) {
     
     // Verificação final
     const finalUrl = page.url();
-    console.log(` [fazerLogin] URL final: ${finalUrl}`);
+    console.log(`[fazerLogin] URL final: ${finalUrl}`);
     
     if (finalUrl.includes('login')) {
         throw new Error("Login não completou - ainda na página de login");
     }
     
-    console.log(' [fazerLogin] Login verificado com sucesso!');
+    console.log('[fazerLogin] Login verificado com sucesso!');
     
     // IMPORTANTE: Salvar cookies após login bem sucedido
     try {
@@ -425,7 +425,7 @@ async function fazerLogin(page) {
             // Salvar no arquivo local
             const cookiesPath = require('path').join(__dirname, 'cookies.json');
             require('fs').writeFileSync(cookiesPath, JSON.stringify(cookies, null, 2));
-            console.log(` [fazerLogin] ${cookies.length} cookies salvos em cookies.json`);
+            console.log(`[fazerLogin] ${cookies.length} cookies salvos em cookies.json`);
             
             // Também salvar no banco via session-manager
             await sessionManager.saveCookiesToDB('profile-ze-v1', cookies);
@@ -437,7 +437,7 @@ async function fazerLogin(page) {
 
 // Funções principais de cada script. Você pode expandir conforme queira mais detalhes de cada um.
 async function pedidoScript(page) {
-    console.log(' [pedidoScript] Iniciando monitoramento de pedidos...');
+    console.log('[pedidoScript] Iniciando monitoramento de pedidos...');
     
     try {
         await page.goto("https://seu.ze.delivery/history", {
@@ -449,11 +449,11 @@ async function pedidoScript(page) {
         return;
     }
     
-    console.log(' [pedidoScript] URL:', page.url());
+    console.log('[pedidoScript] URL:', page.url());
     
     // Se redirecionou para login, sessão expirou
     if (page.url().includes('login')) {
-        console.log(' [pedidoScript] Sessão expirou, reiniciando processo...');
+        console.log('[pedidoScript] Sessão expirou, reiniciando processo...');
         process.exit(1); // Supervisor vai reiniciar
     }
 
@@ -466,10 +466,10 @@ async function pedidoScript(page) {
             const ready = await waitForSafe(page, "#order-history-table-body", 15000);
             if (!ready) {
                 consecutiveErrors++;
-                console.log(` [pedidoScript] Timeout esperando tabela (${consecutiveErrors}/${maxConsecutiveErrors})`);
+                console.log(`[pedidoScript] Timeout esperando tabela (${consecutiveErrors}/${maxConsecutiveErrors})`);
                 
                 if (consecutiveErrors >= maxConsecutiveErrors) {
-                    console.log(' [pedidoScript] Muitos erros consecutivos, reiniciando...');
+                    console.log('[pedidoScript] Muitos erros consecutivos, reiniciando...');
                     process.exit(1);
                 }
                 
@@ -672,7 +672,7 @@ async function itensScript(page) {
                     customerPhone = customerPhone.replace(/\D/g, "").trim();
                 }
                 
-                console.log(` [itensScript] Telefone do cliente: ${customerPhone || '(não encontrado)'}`);
+                console.log(`[itensScript] Telefone do cliente: ${customerPhone || '(não encontrado)'}`);
 
                 let enderecoRota = await getTextFromShadowOrNormal(page, "#route");
                 enderecoRota = enderecoRota.replace(/-+/g, "").trim();
@@ -794,11 +794,11 @@ async function statusScript(page) {
         return;
     }
     
-    console.log(' [statusScript] URL:', page.url());
+    console.log('[statusScript] URL:', page.url());
     
     // Se redirecionou para login, sessão expirou
     if (page.url().includes('login')) {
-        console.log(' [statusScript] Sessão expirou, reiniciando processo...');
+        console.log('[statusScript] Sessão expirou, reiniciando processo...');
         process.exit(1); // Supervisor vai reiniciar
     }
 
@@ -811,10 +811,10 @@ async function statusScript(page) {
             const ready = await waitForSafe(page, "#order-history-table-body", 15000);
             if (!ready) {
                 consecutiveErrors++;
-                console.log(` [statusScript] Timeout esperando tabela (${consecutiveErrors}/${maxConsecutiveErrors})`);
+                console.log(`[statusScript] Timeout esperando tabela (${consecutiveErrors}/${maxConsecutiveErrors})`);
                 
                 if (consecutiveErrors >= maxConsecutiveErrors) {
-                    console.log(' [statusScript] Muitos erros consecutivos, reiniciando...');
+                    console.log('[statusScript] Muitos erros consecutivos, reiniciando...');
                     process.exit(1);
                 }
                 
@@ -1058,7 +1058,7 @@ function loadAceiteStats() {
 
 async function aceitaScript(browser, cookies) {
     console.log('🤖 [ACEITA] Iniciando script de aceite automático de pedidos...');
-    console.log(' [ACEITA] FLUXO: /poc-orders -> Kanban "Novos" -> Clicar CARD -> Modal -> Botão "Aceitar"');
+    console.log('[ACEITA] FLUXO: /poc-orders -> Kanban "Novos" -> Clicar CARD -> Modal -> Botão "Aceitar"');
     
     // Iniciar log de integração
     let currentProcessId = await integrationLogger.log.orderAccept.start(
@@ -1083,11 +1083,11 @@ async function aceitaScript(browser, cookies) {
                 timeout: 60000
             });
             
-            console.log(' [ACEITA] Navegou para página de pedidos:', page.url());
+            console.log('[ACEITA] Navegou para página de pedidos:', page.url());
             
             // Se redirecionou para login, sessão expirou
             if (page.url().includes('login')) {
-                console.log(' [ACEITA] Sessão expirou, reiniciando...');
+                console.log('[ACEITA] Sessão expirou, reiniciando...');
                 aceiteStats.status = 'session_expired';
                 aceiteStats.errors.push({ time: new Date().toISOString(), error: 'Session expired' });
                 saveAceiteStats(aceiteStats);
@@ -1291,8 +1291,8 @@ async function aceitaScript(browser, cookies) {
                     }
 
                     const orderId = pedidoNovo.orderId;
-                    console.log(` [ACEITA] PEDIDO NOVO DETECTADO! ID: ${orderId}`);
-                    console.log(`   Card: ${pedidoNovo.cardTag} class="${pedidoNovo.cardClass}"`);
+                    console.log(`[ACEITA] PEDIDO NOVO DETECTADO! ID: ${orderId}`);
+                    console.log(`  Card: ${pedidoNovo.cardTag} class="${pedidoNovo.cardClass}"`);
                     const startTime = performance.now();
                     
                     // Screenshot para debug
@@ -1389,7 +1389,7 @@ async function aceitaScript(browser, cookies) {
                         }, pedidoNovo.cardIndex || 0, pedidoNovo.cardClass || '');
                         
                         if (aceitou) {
-                            console.log(' [ACEITA] Card clicado, aguardando modal...');
+                            console.log('[ACEITA] Card clicado, aguardando modal...');
                             await sleep(2);
                             
                             // Screenshot do modal
@@ -1397,7 +1397,7 @@ async function aceitaScript(browser, cookies) {
                                 await page.screenshot({ path: `/app/logs/aceite-modal-${Date.now()}.png` });
                             } catch(e) {}
                             
-                            console.log(' [ACEITA] Buscando botão "Aceitar" no modal...');
+                            console.log('[ACEITA] Buscando botão "Aceitar" no modal...');
                             
                             for (let tentativa = 1; tentativa <= 5; tentativa++) {
                                 const clicouAceitar = await page.evaluate(() => {
@@ -1480,12 +1480,12 @@ async function aceitaScript(browser, cookies) {
                                 });
                                 
                                 if (clicouAceitar.clicked) {
-                                    console.log(` [ACEITA] Botão "Aceitar" clicado! (método: ${clicouAceitar.method})`);
+                                    console.log(`[ACEITA] Botão "Aceitar" clicado! (método: ${clicouAceitar.method})`);
                                     aceitou = true;
                                     break;
                                 }
                                 
-                                console.log(` [ACEITA] Tentativa ${tentativa}/5 - botão não encontrado`);
+                                console.log(`[ACEITA] Tentativa ${tentativa}/5 - botão não encontrado`);
                                 await sleep(1);
                             }
                             
@@ -1497,7 +1497,7 @@ async function aceitaScript(browser, cookies) {
                     }
 
                     if (!aceitou) {
-                        console.log(' [ACEITA] Não conseguiu aceitar o pedido');
+                        console.log('[ACEITA] Não conseguiu aceitar o pedido');
                         aceiteStats.totalFailed++;
                         saveAceiteStats(aceiteStats);
                         await page.keyboard.press('Escape');
@@ -1508,7 +1508,7 @@ async function aceitaScript(browser, cookies) {
                     // =======================================================
                     // PASSO 3: Verificar se foi aceito (aguardar 4 segundos)
                     // =======================================================
-                    console.log(' [ACEITA] Aguardando 4 segundos para verificar status...');
+                    console.log('[ACEITA] Aguardando 4 segundos para verificar status...');
                     await sleep(4);
                     
                     await page.reload({ waitUntil: "domcontentloaded", timeout: 10000 });
@@ -1535,7 +1535,7 @@ async function aceitaScript(browser, cookies) {
                     const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
                     
                     if (verificacao.success) {
-                        console.log(` [ACEITA] PEDIDO #${orderId} ACEITO COM SUCESSO em ${elapsed}s!`);
+                        console.log(`[ACEITA] PEDIDO #${orderId} ACEITO COM SUCESSO em ${elapsed}s!`);
                         
                         integrationLogger.logEvent(
                             integrationLogger.PROCESS_TYPES.ORDER_ACCEPT,
@@ -1560,7 +1560,7 @@ async function aceitaScript(browser, cookies) {
                             aceiteStats.recentAccepts.pop();
                         }
                     } else {
-                        console.log(` [ACEITA] Pedido processado em ${elapsed}s, mas ainda há ${verificacao.cardsRestantes} cards`);
+                        console.log(`[ACEITA] Pedido processado em ${elapsed}s, mas ainda há ${verificacao.cardsRestantes} cards`);
                         aceiteStats.status = 'partial';
                     }
                     
@@ -1616,7 +1616,7 @@ async function waitForSafe(page, selector, timeout = 30000) {
 //  NOVA FUNÇÃO: Capturar telefone do cliente via modal "Ver telefone"
 // Fluxo: Ver telefone -> Problemas com a entrega -> O entregador não encontra o cliente -> Confirmar
 async function capturarTelefoneCliente(page) {
-    console.log(' [TELEFONE] Iniciando captura de telefone do cliente...');
+    console.log('[TELEFONE] Iniciando captura de telefone do cliente...');
     
     try {
         // Primeiro, verificar se o telefone já está visível (não tem botão "Ver telefone")
@@ -1634,7 +1634,7 @@ async function capturarTelefoneCliente(page) {
         });
         
         if (phoneAlreadyVisible) {
-            console.log(` [TELEFONE] Telefone já visível: ${phoneAlreadyVisible}`);
+            console.log(`[TELEFONE] Telefone já visível: ${phoneAlreadyVisible}`);
             return phoneAlreadyVisible;
         }
         
@@ -1661,11 +1661,11 @@ async function capturarTelefoneCliente(page) {
         });
         
         if (!verTelefoneButton) {
-            console.log(' [TELEFONE] Botão "Ver telefone" não encontrado, pulando...');
+            console.log('[TELEFONE] Botão "Ver telefone" não encontrado, pulando...');
             return '';
         }
         
-        console.log(' [TELEFONE] Botão "Ver telefone" encontrado, clicando...');
+        console.log('[TELEFONE] Botão "Ver telefone" encontrado, clicando...');
         
         // Clicar no botão "Ver telefone"
         await page.evaluate(() => {
@@ -1693,14 +1693,14 @@ async function capturarTelefoneCliente(page) {
         await sleep(2);
         
         // Aguardar modal abrir - "Qual é o motivo para o contato com o cliente?"
-        console.log(' [TELEFONE] Aguardando modal de motivo...');
+        console.log('[TELEFONE] Aguardando modal de motivo...');
         
         // Clicar em "Problemas com a entrega" - COM RETRY E IDs específicos
         let accordionExpanded = false;
         const maxAttempts = 3;
         
         for (let attempt = 1; attempt <= maxAttempts && !accordionExpanded; attempt++) {
-            console.log(` [TELEFONE] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
+            console.log(`[TELEFONE] Tentativa ${attempt}/${maxAttempts} de expandir accordion...`);
             
             const clickedProblemas = await page.evaluate(() => {
                 // Estratégia 1: Buscar pelo ID específico do Zé Delivery
@@ -1733,12 +1733,12 @@ async function capturarTelefoneCliente(page) {
             });
             
             if (!clickedProblemas.success) {
-                console.log(' [TELEFONE] Opção "Problemas com a entrega" não encontrada');
+                console.log('[TELEFONE] Opção "Problemas com a entrega" não encontrada');
                 await sleep(1);
                 continue;
             }
             
-            console.log(` [TELEFONE] Clicou em "Problemas com a entrega" (${clickedProblemas.method})`);
+            console.log(`[TELEFONE] Clicou em "Problemas com a entrega" (${clickedProblemas.method})`);
             await sleep(2 + attempt);
             
             // Verificar se accordion expandiu
@@ -1752,15 +1752,15 @@ async function capturarTelefoneCliente(page) {
             });
             
             if (checkExpansion.expanded) {
-                console.log(` [TELEFONE] Accordion expandiu na tentativa ${attempt}!`);
+                console.log(`[TELEFONE] Accordion expandiu na tentativa ${attempt}!`);
                 accordionExpanded = true;
             } else {
-                console.log(` [TELEFONE] Accordion não expandiu na tentativa ${attempt}`);
+                console.log(`[TELEFONE] Accordion não expandiu na tentativa ${attempt}`);
             }
         }
         
         if (!accordionExpanded) {
-            console.log(' [TELEFONE]  Não foi possível expandir accordion após todas as tentativas');
+            console.log('[TELEFONE]  Não foi possível expandir accordion após todas as tentativas');
             await page.keyboard.press('Escape');
             return '';
         }
@@ -1797,12 +1797,12 @@ async function capturarTelefoneCliente(page) {
         });
         
         if (!clickedEntregador.success) {
-            console.log(' [TELEFONE] Opção "O entregador não encontra o cliente" não encontrada');
+            console.log('[TELEFONE] Opção "O entregador não encontra o cliente" não encontrada');
             await page.keyboard.press('Escape');
             return '';
         }
         
-        console.log(` [TELEFONE] Clicou em "O entregador não encontra o cliente" (${clickedEntregador.method})`);
+        console.log(`[TELEFONE] Clicou em "O entregador não encontra o cliente" (${clickedEntregador.method})`);
         await sleep(1.5);
         
         // Clicar no botão "Confirmar"
@@ -1827,12 +1827,12 @@ async function capturarTelefoneCliente(page) {
         });
         
         if (!clickedConfirmar) {
-            console.log(' [TELEFONE] Botão "Confirmar" não encontrado');
+            console.log('[TELEFONE] Botão "Confirmar" não encontrado');
             await page.keyboard.press('Escape');
             return '';
         }
         
-        console.log(' [TELEFONE] Clicou em "Confirmar"');
+        console.log('[TELEFONE] Clicou em "Confirmar"');
         await sleep(3);
         
         // Agora capturar o telefone que deve estar visível
@@ -1871,9 +1871,9 @@ async function capturarTelefoneCliente(page) {
         });
         
         if (telefone) {
-            console.log(` [TELEFONE] Telefone capturado com sucesso: ${telefone}`);
+            console.log(`[TELEFONE] Telefone capturado com sucesso: ${telefone}`);
         } else {
-            console.log(' [TELEFONE] Não foi possível capturar o telefone após modal');
+            console.log('[TELEFONE] Não foi possível capturar o telefone após modal');
         }
         
         return telefone || '';
@@ -2077,13 +2077,13 @@ async function criarJanelaStatus(cookies) {
     // Em produção (Railway), usar Chromium do sistema
     const executablePath = isProduction ? '/usr/bin/chromium' : undefined;
     
-    console.log(` [v1] Iniciando browser... (produção: ${isProduction})`);
+    console.log(`[v1] Iniciando browser... (produção: ${isProduction})`);
     if (executablePath) {
-        console.log(` [v1] Usando Chromium: ${executablePath}`);
+        console.log(`[v1] Usando Chromium: ${executablePath}`);
     }
     
     // Inicializar tabela de sessão no banco
-    console.log(' [v1] Inicializando sistema de sessão...');
+    console.log('[v1] Inicializando sistema de sessão...');
     await sessionManager.initSessionTable();
     
     const browser = await puppeteer.launch({
@@ -2113,7 +2113,7 @@ async function criarJanelaStatus(cookies) {
     // Em produção, rodar indefinidamente. Em dev, timeout de 10 minutos.
     if (!isProduction) {
         setTimeout(async () => {
-            console.log(' [DEV] Fechando aplicação após 10 minutos...');
+            console.log('[DEV] Fechando aplicação após 10 minutos...');
             await browser.close();
             process.exit(0);
         }, 600000);
@@ -2128,13 +2128,13 @@ async function criarJanelaStatus(cookies) {
     // 2. Se falhar, tentar usar perfil local do Chromium
     // 3. Se ainda falhar, fazer login com 2FA
     
-    console.log(' [v1] Tentando restaurar sessão do banco...');
+    console.log('[v1] Tentando restaurar sessão do banco...');
     let sessionRestored = await sessionManager.restoreSession(page1, PROFILE_NAME);
     
     if (!sessionRestored) {
-        console.log(' [v1] Sessão não restaurada do banco, verificando perfil local...');
+        console.log('[v1] Sessão não restaurada do banco, verificando perfil local...');
         await page1.goto("https://seu.ze.delivery/home", { waitUntil: 'networkidle2', timeout: 60000 });
-        console.log(' [v1] URL atual:', page1.url());
+        console.log('[v1] URL atual:', page1.url());
         
         if (page1.url().includes("login")) {
             console.log(" [v1] Sessão expirada, fazendo login novamente...");
@@ -2143,7 +2143,7 @@ async function criarJanelaStatus(cookies) {
                 console.log(" [v1] Login concluído com sucesso!");
                 
                 // Salvar nova sessão no banco
-                console.log(' [v1] Salvando nova sessão no banco...');
+                console.log('[v1] Salvando nova sessão no banco...');
                 await sessionManager.saveSession(page1, PROFILE_NAME);
             } catch (loginError) {
                 console.error(" [v1] Erro no login:", loginError.message);
@@ -2152,7 +2152,7 @@ async function criarJanelaStatus(cookies) {
                 process.exit(1); // Supervisor vai reiniciar
             }
         } else {
-            console.log(' [v1] Sessão ativa via perfil local');
+            console.log('[v1] Sessão ativa via perfil local');
             // Salvar sessão válida no banco para próximas vezes
             await sessionManager.saveSession(page1, PROFILE_NAME);
         }
@@ -2176,10 +2176,10 @@ async function criarJanelaStatus(cookies) {
     await page5.setCookie(...cookies);
     
     // INICIAR SALVAMENTO PERIÓDICO DE SESSÃO
-    console.log(` [v1] Iniciando salvamento periódico de sessão a cada ${SESSION_SAVE_INTERVAL/1000}s`);
+    console.log(`[v1] Iniciando salvamento periódico de sessão a cada ${SESSION_SAVE_INTERVAL/1000}s`);
     setInterval(async () => {
         try {
-            console.log(' [v1] Salvando sessão periodicamente...');
+            console.log('[v1] Salvando sessão periodicamente...');
             await sessionManager.saveSession(page1, PROFILE_NAME);
         } catch (error) {
             console.error(' [v1] Erro ao salvar sessão:', error.message);
@@ -2196,7 +2196,7 @@ async function criarJanelaStatus(cookies) {
     // INICIAR HEALTH CHECK PERIÓDICO
     sessionManager.startHealthCheck(page1, PROFILE_NAME, onSessionExpired, SESSION_CHECK_INTERVAL);
 
-    console.log(' [v1] Iniciando scripts de monitoramento...');
+    console.log('[v1] Iniciando scripts de monitoramento...');
     
     // AGORA, CADA ABA EXECUTA UM DOS SEUS SCRIPTS
     setTimeout(() => pedidoScript(page1), 3000);
